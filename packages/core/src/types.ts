@@ -3,6 +3,38 @@
  * 全能AI小说创作引擎
  */
 
+export type Language = 
+  | 'zh-CN' | 'zh-TW' | 'zh-HK'
+  | 'en-US' | 'en-GB' | 'en-AU' | 'en-CA'
+  | 'ja-JP' | 'ko-KR'
+  | 'es-ES' | 'es-MX' | 'es-AR'
+  | 'fr-FR' | 'fr-CA' | 'fr-BE'
+  | 'de-DE' | 'de-AT' | 'de-CH'
+  | 'pt-BR' | 'pt-PT'
+  | 'ru-RU' | 'uk-UA'
+  | 'it-IT'
+  | 'nl-NL' | 'nl-BE'
+  | 'pl-PL'
+  | 'tr-TR'
+  | 'ar-SA' | 'ar-EG' | 'ar-MA'
+  | 'hi-IN' | 'bn-IN'
+  | 'th-TH' | 'vi-VN' | 'id-ID' | 'ms-MY'
+  | 'he-IL'
+  | 'sv-SE' | 'no-NO' | 'da-DK' | 'fi-FI'
+  | 'cs-CZ' | 'hu-HU' | 'ro-RO' | 'el-GR'
+  | 'custom';
+
+export type ConnectionMode = 'online' | 'offline' | 'hybrid';
+
+export interface I18nConfig {
+  primaryLanguage: Language;
+  secondaryLanguage?: Language;
+  fallbackLanguage: Language;
+  autoDetect: boolean;
+  grammarCheck: boolean;
+  spellCheck: boolean;
+}
+
 export type LiteraryGenre = 
   | 'novel'
   | 'short_story'
@@ -920,4 +952,94 @@ export interface CompetitorAnalysis {
   strengths: string[];
   weaknesses: string[];
   readerReviews: string[];
+}
+
+export interface LocalAPIConfig {
+  port: number;
+  host?: string;
+  ssl?: {
+    enabled: boolean;
+    keyPath?: string;
+    certPath?: string;
+  };
+  apiKeys: APIKeyConfig[];
+  rateLimit?: {
+    enabled: boolean;
+    maxRequests: number;
+    windowMs: number;
+  };
+  cache?: {
+    enabled: boolean;
+    maxSize: number;
+    ttl: number;
+  };
+}
+
+export interface APIKeyConfig {
+  provider: string;
+  apiKey: string;
+  baseUrl?: string;
+  models: string[];
+  priority?: number;
+}
+
+export interface NetworkStatus {
+  isOnline: boolean;
+  lastCheck: Date;
+  latency?: number;
+  mode: ConnectionMode;
+  fallbackAvailable: boolean;
+}
+
+export interface GrammarCheck {
+  text: string;
+  errors: GrammarError[];
+  suggestions: GrammarSuggestion[];
+}
+
+export interface GrammarError {
+  startIndex: number;
+  endIndex: number;
+  errorText: string;
+  errorType: 'spelling' | 'grammar' | 'punctuation' | 'style';
+  message: string;
+}
+
+export interface GrammarSuggestion {
+  original: string;
+  suggestion: string;
+  reason?: string;
+}
+
+export interface TranslationResult {
+  text: string;
+  sourceLang: Language;
+  targetLang: Language;
+  confidence: number;
+}
+
+export interface WritingStyle {
+  locale: Language;
+  formality: 'formal' | 'informal' | 'neutral';
+  tone: 'serious' | 'casual' | 'professional' | 'academic' | 'literary';
+  voice: 'first' | 'second' | 'third';
+  dialect?: string;
+}
+
+export interface GlobalGenreConfig {
+  genre: Genre;
+  names: Partial<Record<Language, string>>;
+  description: Partial<Record<Language, string>>;
+  subgenres: Partial<Record<Language, string[]>>;
+  examples: string[];
+  regions: string[];
+  characteristics: Partial<Record<Language, string[]>>;
+}
+
+export interface LiteraryFormConfig {
+  form: LiteraryGenre;
+  names: Partial<Record<Language, string>>;
+  description: Partial<Record<Language, string>>;
+  structure: Partial<Record<Language, string>>;
+  length: { min: number; max: number; typical: number };
 }
