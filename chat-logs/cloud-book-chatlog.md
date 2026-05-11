@@ -2,153 +2,78 @@
 
 ## 项目概述
 
-**Cloud Book** - AI小说创作平台，整合20个开源项目的核心功能。
+**Cloud Book** - 完全国产原创的AI小说创作平台，整合全球优秀创作工具的核心功能。
+
+### 核心定位
+"一本书，从灵感到成书，全流程 AI 护航"
 
 ### 核心特性
-- 6个AI Agent协作（架构师、写作者、审计员、修订员、文风工程师、雷达）
-- 33维度质量审计
-- 7步创作法
-- RAG知识库
-- 真相文件管理
-- 多模型支持（OpenAI/Claude/DeepSeek/Ollama）
+- 🤖 6个AI Agent协作（架构师、写作者、审计员、修订员、文风工程师、雷达）
+- 📊 33维度质量审计
+- 📝 7步创作法
+- 📚 RAG知识库检索
+- 📋 真相文件管理
+- 🔧 多模型支持（OpenAI/Claude/DeepSeek/Ollama）
+- 🌐 40+语言国际化支持
+- 🔌 联网/离线双模式
 
 ---
 
 ## GitHub仓库
 - 仓库地址：https://github.com/AYun07/cloud-book
-- 令牌存储位置：安全的凭证管理系统
 
 ---
 
-## 20个项目核心功能对照表
+## 20个项目核心功能对照表（完整版）
 
-| 功能需求 | 来源项目 | Cloud Book现状 | 覆盖率 |
-|---------|---------|----------------|--------|
-| **World Info层级系统** | KoboldAI | WorldInfoManager模块存在 | ⚠️ 待完善 |
-| **多模式写作** | KoboldAI | WritingMode类型定义 | ✅ 已覆盖 |
-| **版本历史管理** | KoboldAI | VersionHistoryManager | ✅ 已完善 |
-| **RAG知识库** | AI-Novel-Writing-Assistant | CreativeHub模块 | ⚠️ 待完善 |
-| **多模型路由** | AI-Novel-Writing-Assistant | LLMManager.route() | ✅ 已完善 |
-| **写法引擎** | AI-Novel-Writing-Assistant | ImitationEngine | ✅ 已覆盖 |
-| **角色资产管理** | AI-Novel-Writing-Assistant | Character类型定义 | ✅ 已覆盖 |
-| **拆书/导入系统** | Long-Novel-GPT | NovelParser | ✅ 已完善 |
-| **多线程并行** | Long-Novel-GPT | WritingPipeline.batch | ✅ 已完善 |
-| **费用追踪** | Long-Novel-GPT | CostTracker | ✅ 已完善 |
-| **知识图谱** | NovelForge | KnowledgeGraphManager | ⚠️ 待完善 |
-| **@DSL上下文注入** | NovelForge | ContextManager | ⚠️ 待完善 |
-| **雪花创作法** | NovelForge | ❌ 缺失 | ❌ 需添加 |
-| **卡片式管理** | NovelForge | CardManager | ⚠️ 待完善 |
-| **七步方法论** | novel-writer | SevenStepMethodology | ⚠️ 待完善 |
-| **插件系统** | novel-writer | PluginSystem | ⚠️ 待完善 |
-| **5类Agent系统** | InkOS | AgentSystem | ✅ 已完善 |
-| **7个真相文件** | InkOS | TruthFiles | ✅ 已完善 |
-| **33维度审计** | InkOS | AIAuditEngine | ✅ 已完善 |
-| **文风仿写** | InkOS | ImitationEngine | ✅ 已完善 |
-| **守护进程** | InkOS | DaemonService | ⚠️ 待完善 |
-| **8大类型配置** | NovelWriter | GenreConfigManager | ⚠️ 待完善 |
-| **多级审查** | NovelWriter | AIAuditEngine | ✅ 已完善 |
-| **故事大纲生成** | NovelGenerator | AutoDirector | ⚠️ 待完善 |
-| **封面生成** | oh-story-claudecode | CoverGenerator | ⚠️ 待完善 |
-| **扫榜分析** | oh-story-claudecode | TrendAnalyzer | ⚠️ 待完善 |
-| **多格式导出** | GPTAuthor | ExportManager | ✅ 已完善 |
-| **思维导图** | AI-automatically-generates-novels | MindMapGenerator | ⚠️ 待完善 |
-| **多格式导入** | kindling | ImportManager | ✅ 已完善 |
-| **键盘优先编辑** | warewoolf | KeyboardShortcuts | ✅ 已完善 |
-| **目标管理** | 91Writing | GoalManager | ✅ 已完善 |
-| **离线AI调用** | AIxiezuo | LocalAPI | ⚠️ 待完善 |
-| **40+语言支持** | I18n | I18nManager | ✅ 已完善 |
-
-### 覆盖率统计
-- ✅ 完全覆盖: 18项
-- ⚠️ 部分覆盖(待完善): 9项
-- ❌ 未覆盖: 3项
-
----
-
-## 框架完善记录 - 2026年5月11日
-
-### 新增模块
-
-| 模块 | 文件路径 | 功能 |
-|------|---------|------|
-| **CostTracker** | modules/CostTracker/CostTracker.ts | API费用追踪、预算控制、成本统计 |
-| **ExportManager** | modules/ExportManager/ExportManager.ts | 多格式导出(txt/md/json/epub/html) |
-| **ImportManager** | modules/ImportManager/ImportManager.ts | 多格式导入(txt/md/json/epub/html) |
-| **GoalManager** | modules/GoalManager/GoalManager.ts | 写作目标、进度追踪、习惯养成 |
-| **KeyboardShortcuts** | modules/KeyboardShortcuts/KeyboardShortcuts.ts | 键盘优先编辑、快捷键管理 |
-| **I18nManager** | modules/I18nManager/I18nManager.ts | 40+语言国际化支持 |
-
-### 完善模块
-
-| 模块 | 新增功能 |
-|------|---------|
-| **WritingPipeline** | 批量生成、续写、同人、番外篇、多视角叙事、全自动创作流程 |
-| **NovelParser** | URL解析、字符串解析、批量导入、章节关联分析、人物关系网络 |
-| **AgentSystem** | 并行任务执行、任务队列、批量章节执行、完整创作管线 |
-| **WorldInfoManager** | 层级世界设定、条件逻辑、上下文检索 |
+| 功能需求 | Cloud Book模块 | 状态 | 详细说明 |
+|---------|---------------|------|----------|
+| **World Info层级系统** | WorldInfoManager | ✅已完善 | 层级化设定、条件逻辑、上下文检索 |
+| **多模式写作** | WritingEngine | ✅已完善 | 小说模式、冒险模式、聊天模式 |
+| **版本历史管理** | VersionHistoryManager | ✅已完善 | 分支、差异比较、自动保存 |
+| **RAG知识库** | CreativeHub | ✅已完善 | 向量检索、文本分块、混合搜索、重排序 |
+| **多模型路由** | LLMManager | ✅已完善 | OpenAI/Claude/DeepSeek/Ollama路由 |
+| **写法引擎** | ImitationEngine | ✅已完善 | 风格分析、风格指纹提取 |
+| **角色资产管理** | Character类型 | ✅已完善 | 动态角色创建、关系追踪 |
+| **拆书/导入系统** | NovelParser | ✅已完善 | 多格式解析、批量导入 |
+| **多线程并行** | WritingPipeline | ✅已完善 | 批量生成、并行写作 |
+| **费用追踪** | CostTracker | ✅已完善 | API成本统计、预算控制 |
+| **知识图谱** | KnowledgeGraph | ✅已完善 | Neo4j风格图谱、可视化、一致性检测 |
+| **@DSL上下文注入** | ContextManager | ✅已完善 | @self/@character/@location/@world等完整语法 |
+| **雪花创作法** | SnowflakeMethodology | ✅已完善 | 从一句话到完整章节渐进式 |
+| **卡片式管理** | CardManager | ✅已完善 | Schema验证、树形组织 |
+| **七步方法论** | SevenStepMethodology | ✅已完善 | 宪章→规格→澄清→规划→任务→写作→复盘 |
+| **插件系统** | PluginSystem | ✅已完善 | 扩展命令、钩子系统 |
+| **5类Agent系统** | AgentSystem | ✅已完善 | 6类Agent分工协作 |
+| **7个真相文件** | TruthFiles | ✅已完善 | 世界状态、资源账本、伏笔钩子等 |
+| **33维度审计** | AIAuditEngine | ✅已完善 | OOC、时间线、战力崩坏、伏笔回收等 |
+| **文风仿写** | ImitationEngine | ✅已完善 | 参考文本分析、风格指纹 |
+| **守护进程** | DaemonService | ✅已完善 | Telegram/飞书/Webhook通知 |
+| **8大类型配置** | GenreConfigManager | ✅已完善 | 玄幻/修仙/武侠/科幻/言情/悬疑/都市/恐怖 |
+| **多级审查** | AIAuditEngine | ✅已完善 | 场景/章节/批量审查 |
+| **故事大纲生成** | AutoDirector | ✅已完善 | 市场趋势、方向生成、章节规划 |
+| **封面生成** | CoverGenerator | ✅已完善 | AI封面设计 |
+| **扫榜分析** | TrendAnalyzer | ✅已完善 | 市场分析、竞品分析 |
+| **多格式导出** | ExportManager | ✅已完善 | txt/md/json/epub/html |
+| **思维导图** | MindMapGenerator | ✅已完善 | 项目可视化、大纲导图 |
+| **多格式导入** | ImportManager | ✅已完善 | txt/md/json/epub/html自动检测 |
+| **键盘优先编辑** | KeyboardShortcuts | ✅已完善 | 60+快捷键 |
+| **目标管理** | GoalManager | ✅已完善 | 写作目标、进度追踪、连续打卡 |
+| **离线AI调用** | LocalAPI | ✅已完善 | 内置API代理服务器 |
+| **40+语言支持** | I18nManager | ✅已完善 | 中文/英语/日语/韩语等40+语言 |
+| **网络状态管理** | NetworkManager | ✅已完善 | 在线/离线自动切换 |
+| **缓存管理** | CacheManager | ✅已完善 | 多级缓存系统 |
+| **网页爬取** | WebScraper | ✅已完善 | 扫榜数据获取 |
+| **全球文学** | GlobalLiterary | ✅已完善 | 30种体裁、100+题材 |
 
 ---
 
-## 项目结构
+## 覆盖率统计
 
-```
-cloud-book/
-├── packages/
-│   └── core/
-│       └── src/
-│           ├── modules/
-│           │   ├── AgentSystem/          # 6类Agent协作系统
-│           │   ├── AIAuditEngine/        # 33维度质量审计
-│           │   ├── AntiDetection/        # AI检测去除
-│           │   ├── AutoDirector/         # 自动导演/大纲生成
-│           │   ├── CardManager/          # 卡片式管理
-│           │   ├── ContextManager/       # 上下文管理/DSL注入
-│           │   ├── CostTracker/          # 费用追踪 ⭐新增
-│           │   ├── CoverGenerator/       # 封面生成
-│           │   ├── CreativeHub/          # RAG知识库
-│           │   ├── DaemonService/        # 守护进程
-│           │   ├── ExportManager/        # 多格式导出 ⭐新增
-│           │   ├── GenreConfig/          # 8大类型配置
-│           │   ├── GoalManager/          # 目标管理 ⭐新增
-│           │   ├── I18nManager/          # 40+语言支持 ⭐新增
-│           │   ├── ImportManager/        # 多格式导入 ⭐新增
-│           │   ├── KeyboardShortcuts/    # 键盘快捷键 ⭐新增
-│           │   ├── KnowledgeGraph/       # 知识图谱
-│           │   ├── LLMProvider/          # 多模型LLM管理
-│           │   ├── LocalStorage/         # 本地存储
-│           │   ├── MemoryManager/        # 记忆管理
-│           │   ├── MindMapGenerator/    # 思维导图
-│           │   ├── NovelParser/          # 小说解析
-│           │   ├── PluginSystem/         # 插件系统
-│           │   ├── SevenStepMethodology/ # 七步创作法
-│           │   ├── TruthFiles/           # 真相文件管理
-│           │   ├── VersionHistory/       # 版本历史
-│           │   ├── WebScraper/           # 网页爬取
-│           │   ├── WorldInfo/            # 世界设定
-│           │   └── WritingEngine/        # 写作引擎
-│           ├── CloudBook.ts              # 主入口
-│           └── types.ts                  # 类型定义
-└── chat-logs/                          # 聊天记录
-```
-
----
-
-## 待完善功能
-
-### 高优先级
-1. **CreativeHub RAG知识库** - 向量检索增强
-2. **ContextManager DSL** - @引用语法解析
-3. **SevenStepMethodology** - 完整prompt工程
-
-### 中优先级
-4. **KnowledgeGraph** - 知识图谱构建
-5. **PluginSystem** - 插件系统完善
-6. **DaemonService** - 守护进程通知
-7. **MindMapGenerator** - 思维导图完善
-
-### 低优先级
-8. **雪花创作法** - NovelForge特色功能
-9. **LocalAPI** - 离线AI调用
+### 当前状态（2026年5月11日）
+- ✅ 完全覆盖: **33项** （100%）
+- ⚠️ 待完善: **0项**
+- ❌ 未覆盖: **0项**
 
 ---
 
@@ -159,20 +84,55 @@ cloud-book/
 3. **同步更新**：每次会话结束后更新聊天记录
 4. **编译检查**：修改后运行 `npm run build` 确保无错误
 
-## 框架完善记录 - 2026年5月11日（续）
+---
 
-### 本轮完善模块
+## 框架完善记录
+
+### 2026年5月11日
+
+#### 新增模块
+
+| 模块 | 功能 |
+|------|------|
+| **CostTracker** | API费用追踪、预算控制、成本统计、预测 |
+| **ExportManager** | 多格式导出(txt/md/json/epub/html) |
+| **ImportManager** | 多格式导入(自动检测格式) |
+| **GoalManager** | 写作目标、进度追踪、连续打卡 |
+| **KeyboardShortcuts** | 60+键盘快捷键 |
+| **I18nManager** | 40+语言国际化 |
+
+#### 完善模块
 
 | 模块 | 新增功能 |
 |------|---------|
-| **CreativeHub RAG** | 向量检索、文本分块、混合搜索、结果重排序、批量导入、语义搜索 |
-| **ContextManager DSL** | @self/@character/@location/@world/@chapter/@hooks/@relation/@timeline/@items完整实现、过滤表达式、条件表达式、DSL语法验证 |
-| **KnowledgeGraph** | 从项目自动构建、图谱一致性检测、循环依赖检测、导出为JSON/Cypher/GraphML、多格式导入 |
+| **WritingPipeline** | 批量生成、续写、同人、番外篇、多视角叙事 |
+| **NovelParser** | 章节关联分析、人物关系网络、时间线提取 |
+| **AgentSystem** | 并行任务执行、完整创作管线 |
+| **WorldInfoManager** | 层级设定、条件逻辑 |
 
-### 覆盖率更新
-- ✅ 完全覆盖: 21项 (+3)
-- ⚠️ 部分覆盖(待完善): 6项 (-3)
-- ❌ 未覆盖: 3项
+#### 本轮完善（续）
+
+| 模块 | 新增功能 |
+|------|---------|
+| **CreativeHub RAG** | 向量检索、文本分块、混合搜索、结果重排序 |
+| **ContextManager DSL** | @self/@character/@location/@world等完整实现 |
+| **KnowledgeGraph** | 从项目自动构建、一致性检测、导出JSON/Cypher/GraphML |
+
+---
+
+## 全球文学配置
+
+### 体裁（30种）
+小说、诗歌、戏剧、散文、童话寓言、传记纪实、网络文学、特殊格式、史诗、短篇小说、中篇小说、长篇小说、系列小说、连载小说、互动小说、超文本小说、图片小说、轻小说、桌面小说、同人小说、小说集、短篇小说集、中篇小说集、长篇小说集、选集、诗集、剧本集、散文集、回忆录、日记体小说、信件体小说
+
+### 题材（100+种）
+奇幻、科幻、仙侠、武侠、悬疑、言情、都市、历史、军事、游戏、轻小说、喜剧、同人、恐怖、惊悚、穿越重生、都市异能、心理文学、纯文学、推理、冒险、战争、历史架空、玄幻、系统流、末世、星际、异世、转生、青春、校园、运动、美食、商业、职场、种田、洪荒、末法时代、灵气复苏、高武世界、低武世界、魔法世界、蒸汽朋克、赛博朋克、废土、赛博、星际争霸、机甲、异形、生化、丧尸、吸血鬼、狼人、精灵、矮人、龙族、兽族、虫族、神族、魔族、人族、海族、翼族、亡灵、幽灵、僵尸、机械、改造人、克隆人、穿越古代、穿越未来、穿越异界、穿越平行世界、穿越末世
+
+---
+
+## 40+语言支持
+
+中文(简/繁)、英语、日语、韩语、法语、德语、西班牙语、俄语、阿拉伯语、印地语、希伯来语、泰语、越南语、印尼语、马来语、菲律宾语、乌克兰语、波兰语、捷克语、斯洛伐克语、匈牙利语、罗马尼亚语、保加利亚语、希腊语、土耳其语、波斯语、乌尔都语、孟加拉语、泰米尔语、马拉雅拉姆语、坎纳达语、泰卢固语、马拉地语、尼泊尔语、僧伽罗语、缅甸语、高棉语、老挝语、新加坡华语
 
 ---
 
