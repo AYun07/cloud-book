@@ -1,18 +1,19 @@
 /**
- * Cloud Book - 写作引擎核心
- * 整合所有功能的核心写作系统
+ * Cloud Book - 完整写作引擎核心
+ * 整合20个开源项目所有功能
  */
 
-import { 
-  NovelProject, 
-  Chapter, 
-  WritingTask,
+import {
+  NovelProject,
+  Chapter,
   TruthFiles,
   LLMConfig,
   ModelRoute,
   AuditConfig,
-  AntiDetectionConfig
+  AntiDetectionConfig,
+  Genre
 } from '../types';
+
 import { NovelParser, ParseResult } from './NovelParser/NovelParser';
 import { ImitationEngine, ImitationConfig, GenerationContext } from './ImitationEngine/ImitationEngine';
 import { AntiDetectionEngine, DetectionResult } from './AntiDetection/AntiDetectionEngine';
@@ -21,6 +22,22 @@ import { AIAuditEngine } from './AIAudit/AIAuditEngine';
 import { TruthFileManager } from './TruthFiles/TruthFileManager';
 import { WritingPipeline } from './WritingEngine/WritingPipeline';
 import { ContextManager } from './ContextManager/ContextManager';
+
+import { WorldInfoManager } from './WorldInfo/WorldInfoManager';
+import { MemoryManager } from './Memory/MemoryManager';
+import { AutoDirector, DirectorConfig } from './AutoDirector/AutoDirector';
+import { CreativeHub, RAGDocument } from './CreativeHub/CreativeHub';
+import { CardManager } from './Card/CardManager';
+import { KnowledgeGraphManager } from './KnowledgeGraph/KnowledgeGraphManager';
+import { AgentSystem, AgentTask, AgentResponse } from './AgentSystem/AgentSystem';
+import { DaemonService, ScheduledTask, Notification } from './DaemonService/DaemonService';
+import { SevenStepMethodology, StepResult } from './SevenStepMethodology/SevenStepMethodology';
+import { GenreConfigManager, GenreTemplate } from './GenreConfig/GenreConfigManager';
+import { PluginSystem } from './PluginSystem/PluginSystem';
+import { CoverGenerator, CoverDesign } from './CoverGenerator/CoverGenerator';
+import { MindMapGenerator, MindMapData } from './MindMapGenerator/MindMapGenerator';
+import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './TrendAnalyzer/TrendAnalyzer';
+
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -30,6 +47,10 @@ export interface CloudBookConfig {
   auditConfig: AuditConfig;
   antiDetectionConfig: AntiDetectionConfig;
   storagePath?: string;
+  daemonConfig?: {
+    enabled: boolean;
+    intervalMinutes?: number;
+  };
 }
 
 export interface WritingOptions {
@@ -50,28 +71,41 @@ export class CloudBook {
   private truthFileManager: TruthFileManager;
   private contextManager: ContextManager;
   private writingPipeline: WritingPipeline;
-  
+
+  private worldInfoManager: WorldInfoManager;
+  private memoryManager: MemoryManager;
+  private autoDirector: AutoDirector;
+  private creativeHub: CreativeHub;
+  private cardManager: CardManager;
+  private knowledgeGraphManager: KnowledgeGraphManager;
+  private agentSystem: AgentSystem;
+  private daemonService?: DaemonService;
+  private sevenStepMethodology: SevenStepMethodology;
+  private genreConfigManager: GenreConfigManager;
+  private pluginSystem: PluginSystem;
+  private coverGenerator: CoverGenerator;
+  private mindMapGenerator: MindMapGenerator;
+  private trendAnalyzer: TrendAnalyzer;
+
   private currentProject?: NovelProject;
   private projects: Map<string, NovelProject> = new Map();
 
   constructor(config: CloudBookConfig) {
     this.config = config;
-    
-    // 初始化 LLM 管理器
+
     this.llmManager = new LLMManager();
     for (const llmConfig of config.llmConfigs) {
       this.llmManager.addConfig(llmConfig);
     }
     this.llmManager.setRoutes(config.modelRoutes);
-    
-    // 初始化其他模块
+
     this.parser = new NovelParser({
       encoding: 'utf-8',
       extractCharacters: true,
       extractWorldSettings: true,
       analyzeStyle: true
     });
-    
+
     this.auditEngine = new AIAuditEngine(config.auditConfig);
     this.antiDetectionEngine = new AntiDetectionEngine(config.antiDetectionConfig);
     this.truthFileManager = new TruthFileManager();
@@ -81,15 +115,44 @@ export class CloudBook {
       this.auditEngine,
       this.antiDetectionEngine
     );
+
+    this.worldInfoManager = new WorldInfoManager(config.storagePath + '/worldinfo');
+    this.memoryManager = new MemoryManager(config.storagePath + '/memory');
+    this.autoDirector = new AutoDirector(this.llmManager);
+    this.creativeHub = new CreativeHub(this.llmManager, config.storagePath + '/creativehub');
+    this.cardManager = new CardManager(config.storagePath + '/cards');
+    this.knowledgeGraphManager = new KnowledgeGraphManager(config.storagePath + '/knowledgegraph');
+    this.agentSystem = new AgentSystem(this.llmManager, this.auditEngine);
+    this.sevenStepMethodology = new SevenStepMethodology(this.llmManager);
+    this.genreConfigManager = new GenreConfigManager();
+    this.pluginSystem = new PluginSystem(config.storagePath + '/plugins');
+    this.coverGenerator = new CoverGenerator(this.llmManager);
+    this.mindMapGenerator = new MindMapGenerator();
+    this.trendAnalyzer = new TrendAnalyzer(this.llmManager);
+
+    if (config.daemonConfig?.enabled) {
+      this.daemonService = new DaemonService(
+        {
+          enabled: true,
+          intervalMinutes: config.daemonConfig.intervalMinutes || 5,
+          notifications: {},
+          autoRetry: true,
+          maxRetries: 3
+        },
+        this.llmManager,
+        config.storagePath + '/daemon'
+      );
+    }
   }
 
-  /**
-   * 创建新项目
-   */
+  // ============================================
+  // 项目管理 - 基础功能
+  // ============================================
+
   async createProject(
     title: string,
-    genre: any,
-    writingMode: any = 'original'
+    genre: Genre,
+    writingMode: 'original' | 'imitation' | 'derivative' | 'fanfic' = 'original'
   ): Promise<NovelProject> {
     const project: NovelProject = {
       id: this.generateId(),
@@ -108,29 +171,30 @@ export class CloudBook {
         genre
       }
     };
-    
+
     this.projects.set(project.id, project);
     this.currentProject = project;
-    
-    // 初始化真相文件
+
+    await this.worldInfoManager.initialize(project.id);
+    await this.memoryManager.initialize(project.id);
+    await this.cardManager.initialize(project.id);
+    await this.knowledgeGraphManager.initialize(project.id);
     await this.truthFileManager.initialize(project.id);
-    
+    await this.creativeHub.createSession(project.id);
+    await this.sevenStepMethodology.initializeProject(project.id);
+
+    project.genreConfig = await this.genreConfigManager.createProjectConfig(genre);
+
     return project;
   }
 
-  /**
-   * 导入小说进行解析
-   */
   async importNovel(filePath: string): Promise<ParseResult> {
     return this.parser.parse(filePath);
   }
 
-  /**
-   * 基于解析结果创建仿写项目
-   */
   async createImitationProject(
     parseResult: ParseResult,
-    mode: any,
+    mode: 'imitation' | 'derivative' | 'fanfic',
     imitationLevel: number = 70
   ): Promise<NovelProject> {
     const config: ImitationConfig = {
@@ -138,13 +202,13 @@ export class CloudBook {
       mode,
       imitationLevel
     };
-    
+
     const engine = new ImitationEngine(config);
     engine.setLLMProvider(this.llmManager);
-    
+
     const project: NovelProject = {
       id: this.generateId(),
-      title: `${parseResult.title} - 仿写`,
+      title: `${parseResult.title} - ${mode === 'imitation' ? '仿写' : mode === 'derivative' ? '二创' : '同人'}`,
       genre: parseResult.genre || 'fantasy',
       literaryGenre: 'novel',
       writingMode: mode,
@@ -166,45 +230,295 @@ export class CloudBook {
         background: c.description
       }))
     };
-    
+
     this.projects.set(project.id, project);
     this.currentProject = project;
-    
-    // 初始化真相文件
+
+    await this.worldInfoManager.initialize(project.id);
+    await this.memoryManager.initialize(project.id);
+    await this.cardManager.initialize(project.id);
+    await this.knowledgeGraphManager.initialize(project.id);
     await this.truthFileManager.initialize(project.id);
-    
+    await this.sevenStepMethodology.initializeProject(project.id);
+
     return project;
   }
 
-  /**
-   * 设置世界观
-   */
-  setWorldSetting(projectId: string, worldSetting: any): void {
-    const project = this.projects.get(projectId);
-    if (project) {
-      project.worldSetting = worldSetting;
-      project.updatedAt = new Date();
+  // ============================================
+  // World Info 管理 (KoboldAI-Client)
+  // ============================================
+
+  async addWorldInfo(projectId: string, info: { name: string; keywords: string[]; content: string; depth?: number }) {
+    return this.worldInfoManager.addWorldInfo(projectId, info);
+  }
+
+  async getWorldInfo(projectId: string, keywords?: string[]) {
+    return this.worldInfoManager.getWorldInfo(projectId, { keywords });
+  }
+
+  async buildWorldInfoContext(projectId: string, context: string): Promise<string> {
+    return this.worldInfoManager.buildContextPrompt(projectId, context);
+  }
+
+  // ============================================
+  // Memory 管理 (KoboldAI-Client)
+  // ============================================
+
+  async addMemory(projectId: string, content: string, type: 'memory' | 'authorsNote' | 'systemPrompt') {
+    return this.memoryManager.addMemory(projectId, content, type);
+  }
+
+  async buildMemoryContext(projectId: string, context?: { recentChapters?: number }) {
+    return this.memoryManager.buildMemoryContext(projectId, context || {});
+  }
+
+  async getMemories(projectId: string) {
+    return this.memoryManager.getAllMemories(projectId);
+  }
+
+  // ============================================
+  // Auto Director (AI-Novel-Writing-Assistant)
+  // ============================================
+
+  async analyzeTrends() {
+    return this.autoDirector.analyzeTrends();
+  }
+
+  async generateDirections(project: Partial<NovelProject>, count: number = 3) {
+    return this.autoDirector.generateDirections(project, count);
+  }
+
+  async createProjectPlan(direction: any, config?: DirectorConfig) {
+    return this.autoDirector.createProjectPlan(direction, config);
+  }
+
+  async generateChapterPlan(direction: any, totalChapters: number = 100) {
+    return this.autoDirector.generateChapterPlan(direction, totalChapters);
+  }
+
+  // ============================================
+  // Creative Hub (AI-Novel-Writing-Assistant)
+  // ============================================
+
+  async createCreativeSession(projectId: string) {
+    return this.creativeHub.createSession(projectId);
+  }
+
+  async sendCreativeMessage(sessionId: string, content: string) {
+    return this.creativeHub.sendMessage(sessionId, content);
+  }
+
+  async addToRAG(projectId: string, document: { content: string; type: string; sourceId?: string }) {
+    return this.creativeHub.addRAGDocument(projectId, {
+      content: document.content,
+      metadata: { type: document.type as any, sourceId: document.sourceId }
+    });
+  }
+
+  async searchRAG(projectId: string, query: string) {
+    return this.creativeHub.searchRAG(projectId, query);
+  }
+
+  // ============================================
+  // Card Manager (NovelForge)
+  // ============================================
+
+  async createCard(projectId: string, type: string, title: string, content: Record<string, any>, parentId?: string) {
+    return this.cardManager.createCard(projectId, type, title, content, parentId);
+  }
+
+  async getCards(projectId: string, type?: string) {
+    if (type) {
+      return this.cardManager.getCardsByType(projectId, type);
+    }
+    return this.cardManager.getAllCards(projectId);
+  }
+
+  async searchCards(projectId: string, query: string) {
+    return this.cardManager.searchCards(projectId, query);
+  }
+
+  // ============================================
+  // Knowledge Graph (NovelForge/Neo4j)
+  // ============================================
+
+  async addCharacterToGraph(projectId: string, character: any) {
+    return this.knowledgeGraphManager.addCharacterNode(projectId, character);
+  }
+
+  async addLocationToGraph(projectId: string, location: any) {
+    return this.knowledgeGraphManager.addLocationNode(projectId, location);
+  }
+
+  async addFactionToGraph(projectId: string, faction: any) {
+    return this.knowledgeGraphManager.addFactionNode(projectId, faction);
+  }
+
+  async addRelation(projectId: string, source: string, target: string, type: string) {
+    return this.knowledgeGraphManager.addRelation(projectId, source, target, type);
+  }
+
+  async findPath(projectId: string, from: string, to: string) {
+    return this.knowledgeGraphManager.findPath(projectId, from, to);
+  }
+
+  async getCharacterNetwork(projectId: string, characterId: string, depth?: number) {
+    return this.knowledgeGraphManager.getCharacterNetwork(projectId, characterId, depth || 2);
+  }
+
+  async exportGraph(projectId: string) {
+    return this.knowledgeGraphManager.exportGraph(projectId);
+  }
+
+  // ============================================
+  // Agent System (InkOS)
+  // ============================================
+
+  getAgents() {
+    return this.agentSystem.getAllAgents();
+  }
+
+  async executeArchitectTask(project: NovelProject, task: 'world_building' | 'character_design' | 'plot_planning' | 'outline_generation', params?: Record<string, any>) {
+    return this.agentSystem.executeArchitectTask(project, task, params);
+  }
+
+  async executeWriterTask(project: NovelProject, chapterNumber: number, options?: { outline?: string; guidance?: string }) {
+    return this.agentSystem.executeWriterTask(project, chapterNumber, options);
+  }
+
+  async executeAuditorTask(content: string, truthFiles: TruthFiles, autoFix?: boolean) {
+    return this.agentSystem.executeAuditorTask(content, truthFiles, { autoFix });
+  }
+
+  async executePipeline(project: NovelProject, chapterNumber: number) {
+    return this.agentSystem.executePipeline(project, chapterNumber);
+  }
+
+  // ============================================
+  // Seven Step Methodology (novel-writer)
+  // ============================================
+
+  async executeMethodologyStep(projectId: string, step: 'constitution' | 'specify' | 'clarify' | 'plan' | 'tasks' | 'write' | 'analyze', params?: Record<string, any>): Promise<StepResult> {
+    return this.sevenStepMethodology.executeStep(projectId, step, params);
+  }
+
+  getMethodologyProgress(projectId: string) {
+    return this.sevenStepMethodology.getProgress(projectId);
+  }
+
+  getMethodologyNextAction(projectId: string) {
+    return this.sevenStepMethodology.getNextAction(projectId);
+  }
+
+  // ============================================
+  // Genre Config (NovelWriter)
+  // ============================================
+
+  getGenreTemplates(): GenreTemplate[] {
+    return this.genreConfigManager.getAllTemplates();
+  }
+
+  getGenreTemplate(genre: Genre): GenreTemplate | undefined {
+    return this.genreConfigManager.getTemplate(genre);
+  }
+
+  getGenreGuidance(genre: Genre): string {
+    return this.genreConfigManager.getWritingGuidance(genre);
+  }
+
+  // ============================================
+  // Plugin System
+  // ============================================
+
+  async registerPlugin(plugin: any) {
+    return this.pluginSystem.register(plugin);
+  }
+
+  async executePluginCommand(commandName: string, args: any, context?: any) {
+    return this.pluginSystem.executeCommand(commandName, args, context || {});
+  }
+
+  getPluginCommands() {
+    return this.pluginSystem.getAllCommands();
+  }
+
+  // ============================================
+  // Cover Generator
+  // ============================================
+
+  async generateCoverDesign(project: Partial<NovelProject>, config?: { style?: string; mainColor?: string }) {
+    return this.coverGenerator.generateDesign(project, config);
+  }
+
+  async generateCoverPrompt(project: Partial<NovelProject>, config?: { style?: string; mainColor?: string }) {
+    return this.coverGenerator.generateImagePrompt(project, config);
+  }
+
+  // ============================================
+  // Mind Map Generator
+  // ============================================
+
+  async generateProjectMindMap(project: NovelProject): Promise<MindMapData> {
+    return this.mindMapGenerator.generateProjectMindMap(project);
+  }
+
+  async generateCharacterRelationMap(characters: any[]): Promise<MindMapData> {
+    return this.mindMapGenerator.generateCharacterRelationshipMap(characters);
+  }
+
+  async generateChapterOutlineMap(chapters: any[]): Promise<MindMapData> {
+    return this.mindMapGenerator.generateChapterOutlineMap(chapters);
+  }
+
+  // ============================================
+  // Trend Analyzer
+  // ============================================
+
+  async analyzeMarketTrends(platform: string, genre: Genre) {
+    return this.trendAnalyzer.analyzeTrends(platform, genre);
+  }
+
+  async analyzeCompetitor(bookInfo: { title?: string; url?: string; genre?: Genre }) {
+    return this.trendAnalyzer.analyzeCompetitor(bookInfo);
+  }
+
+  async generateInspiration(genre: Genre, type?: 'plot' | 'character' | 'world' | 'all') {
+    return this.trendAnalyzer.generateInspiration(genre, type);
+  }
+
+  // ============================================
+  // Daemon Service
+  // ============================================
+
+  async startDaemon() {
+    if (this.daemonService) {
+      await this.daemonService.start();
     }
   }
 
-  /**
-   * 添加角色
-   */
-  addCharacter(projectId: string, character: any): void {
-    const project = this.projects.get(projectId);
-    if (project) {
-      if (!project.characters) project.characters = [];
-      project.characters.push({
-        id: this.generateId(),
-        ...character
-      });
-      project.updatedAt = new Date();
+  async stopDaemon() {
+    if (this.daemonService) {
+      await this.daemonService.stop();
     }
   }
 
-  /**
-   * 生成章节
-   */
+  async scheduleTask(task: { type: string; schedule: string; params: Record<string, any> }) {
+    if (this.daemonService) {
+      return this.daemonService.addTask(task as any);
+    }
+  }
+
+  getNotifications(unreadOnly?: boolean): Notification[] {
+    if (this.daemonService) {
+      return this.daemonService.getNotifications(unreadOnly);
+    }
+    return [];
+  }
+
+  // ============================================
+  // 写作核心功能
+  // ============================================
+
   async generateChapter(
     projectId: string,
     chapterNumber: number,
@@ -212,13 +526,11 @@ export class CloudBook {
   ): Promise<Chapter> {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
-    
-    // 获取上下文
+
     const context = await this.buildContext(project, chapterNumber);
-    
-    // 确定模式
-    if (project.writingMode === 'imitation' || 
-        project.writingMode === 'derivative' || 
+
+    if (project.writingMode === 'imitation' ||
+        project.writingMode === 'derivative' ||
         project.writingMode === 'fanfic') {
       const imitationEngine = new ImitationEngine({
         sourceParseResult: {
@@ -249,19 +561,16 @@ export class CloudBook {
         mode: project.writingMode
       });
       imitationEngine.setLLMProvider(this.llmManager);
-      
-      // 生成大纲
+
       const outline = await imitationEngine.generateOutline(
         chapterNumber,
         project.worldSetting!,
         project.characters || [],
         project.chapters?.[chapterNumber - 2]?.summary
       );
-      
-      // 生成正文
+
       const content = await imitationEngine.generateImitation(context);
-      
-      // 审计
+
       let auditResult;
       if (options?.autoAudit !== false) {
         auditResult = await this.auditEngine.audit(
@@ -269,13 +578,12 @@ export class CloudBook {
           await this.truthFileManager.getTruthFiles(projectId)
         );
       }
-      
-      // 去AI味
+
       let finalContent = content;
       if (options?.autoHumanize) {
         finalContent = await this.antiDetectionEngine.humanize(content, this.llmManager);
       }
-      
+
       const chapter: Chapter = {
         id: this.generateId(),
         number: chapterNumber,
@@ -288,23 +596,19 @@ export class CloudBook {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
-      project.chapters?.push(chapter);
+
+      project.chapters = project.chapters || [];
+      project.chapters.push(chapter);
       project.updatedAt = new Date();
-      
-      // 更新真相文件
+
       await this.truthFileManager.updateChapterSummary(projectId, chapter);
-      
+
       return chapter;
     }
-    
-    // 原创模式
+
     return this.writingPipeline.generateChapter(project, chapterNumber, options);
   }
 
-  /**
-   * 批量生成章节
-   */
   async batchGenerateChapters(
     projectId: string,
     startChapter: number,
@@ -313,42 +617,36 @@ export class CloudBook {
   ): Promise<Chapter[]> {
     const chapters: Chapter[] = [];
     const parallelCount = options?.parallelCount || 3;
-    
+
     for (let i = 0; i < count; i += parallelCount) {
       const batch = Math.min(parallelCount, count - i);
       const promises = [];
-      
+
       for (let j = 0; j < batch; j++) {
         promises.push(
           this.generateChapter(projectId, startChapter + i + j, options)
             .catch(err => ({ error: err.message } as any))
         );
       }
-      
+
       const results = await Promise.all(promises);
       chapters.push(...results.filter(r => !r.error));
     }
-    
+
     return chapters;
   }
 
-  /**
-   * 审计章节
-   */
-  async auditChapter(projectId: string, chapterId: string): Promise<any> {
+  async auditChapter(projectId: string, chapterId: string) {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
-    
+
     const chapter = project.chapters?.find(c => c.id === chapterId);
     if (!chapter) throw new Error('Chapter not found');
-    
+
     const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
     return this.auditEngine.audit(chapter.content!, truthFiles);
   }
 
-  /**
-   * 修订章节
-   */
   async reviseChapter(
     projectId: string,
     chapterId: string,
@@ -356,48 +654,41 @@ export class CloudBook {
   ): Promise<Chapter> {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
-    
+
     const chapter = project.chapters?.find(c => c.id === chapterId);
     if (!chapter) throw new Error('Chapter not found');
-    
-    // 使用管线进行修订
+
     const revisedContent = await this.writingPipeline.reviseChapter(
       chapter.content!,
       auditResult || chapter.auditResult,
       await this.truthFileManager.getTruthFiles(projectId)
     );
-    
+
     chapter.content = revisedContent;
     chapter.status = 'draft';
     chapter.auditResult = undefined;
     chapter.updatedAt = new Date();
-    
+
     return chapter;
   }
 
-  /**
-   * 检测AI痕迹
-   */
   detectAI(text: string): DetectionResult {
     return this.antiDetectionEngine.detectAI(text);
   }
 
-  /**
-   * 去AI味处理
-   */
   async humanize(text: string): Promise<string> {
     return this.antiDetectionEngine.humanize(text, this.llmManager);
   }
 
-  /**
-   * 构建上下文
-   */
-  private async buildContext(
-    project: NovelProject,
-    chapterNumber: number
-  ): Promise<GenerationContext> {
+  // ============================================
+  // 项目管理辅助功能
+  // ============================================
+
+  private async buildContext(project: NovelProject, chapterNumber: number): Promise<GenerationContext> {
     const truthFiles = await this.truthFileManager.getTruthFiles(project.id);
-    
+    const worldInfoContext = await this.buildWorldInfoContext(project.id, '');
+    const memoryContext = await this.buildMemoryContext(project.id, { recentChapters: 3 });
+
     return {
       currentChapter: chapterNumber,
       styleFingerprint: project.styleFingerprint || {
@@ -419,95 +710,159 @@ export class CloudBook {
         name: '',
         genre: 'fantasy'
       },
-      previousChapterSummary: project.chapters?.[chapterNumber - 2]?.summary
+      previousChapterSummary: project.chapters?.[chapterNumber - 2]?.summary,
+      worldInfoContext,
+      memoryContext
     };
   }
 
-  /**
-   * 保存项目
-   */
   async saveProject(projectId: string, storagePath?: string): Promise<void> {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
-    
+
     const path = storagePath || this.config.storagePath || './projects';
     const filePath = path.join(path, `${projectId}.json`);
-    
-    // 确保目录存在
+
     if (!fs.existsSync(path)) {
       fs.mkdirSync(path, { recursive: true });
     }
-    
+
     fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
   }
 
-  /**
-   * 加载项目
-   */
   async loadProject(projectId: string, storagePath?: string): Promise<NovelProject> {
     const path = storagePath || this.config.storagePath || './projects';
     const filePath = path.join(path, `${projectId}.json`);
-    
+
     if (!fs.existsSync(filePath)) {
       throw new Error('Project not found');
     }
-    
+
     const data = fs.readFileSync(filePath, 'utf-8');
     const project = JSON.parse(data) as NovelProject;
-    
+
     this.projects.set(project.id, project);
     this.currentProject = project;
-    
+
     return project;
   }
 
-  /**
-   * 获取项目
-   */
   getProject(projectId: string): NovelProject | undefined {
     return this.projects.get(projectId);
   }
 
-  /**
-   * 获取所有项目
-   */
   getAllProjects(): NovelProject[] {
     return Array.from(this.projects.values());
   }
 
-  /**
-   * 获取当前项目
-   */
   getCurrentProject(): NovelProject | undefined {
     return this.currentProject;
   }
 
-  /**
-   * 设置当前项目
-   */
   setCurrentProject(projectId: string): void {
     this.currentProject = this.projects.get(projectId);
   }
 
-  /**
-   * 生成唯一ID
-   */
+  addModel(config: LLMConfig): void {
+    this.llmManager.addConfig(config);
+    if (!this.config.llmConfigs.find(c => c.name === config.name)) {
+      this.config.llmConfigs.push(config);
+    }
+  }
+
+  updateRoutes(routes: ModelRoute[]): void {
+    this.llmManager.setRoutes(routes);
+    this.config.modelRoutes = routes;
+  }
+
+  async exportProject(
+    projectId: string,
+    format: 'txt' | 'md' | 'json',
+    storagePath?: string
+  ): Promise<string> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const path = storagePath || this.config.storagePath || './exports';
+
+    if (!fs.existsSync(path)) {
+      fs.mkdirSync(path, { recursive: true });
+    }
+
+    const fileName = `${project.title}.${format}`;
+    const filePath = path.join(path, fileName);
+
+    let content = '';
+
+    if (format === 'json') {
+      content = JSON.stringify(project, null, 2);
+    } else if (format === 'md') {
+      content = this.projectToMarkdown(project);
+    } else {
+      content = this.projectToText(project);
+    }
+
+    fs.writeFileSync(filePath, content, 'utf-8');
+
+    return filePath;
+  }
+
+  private projectToMarkdown(project: NovelProject): string {
+    let md = `# ${project.title}\n\n`;
+
+    if (project.subtitle) md += `## ${project.subtitle}\n\n`;
+
+    md += `**题材**: ${project.genre}\n`;
+    md += `**类型**: ${project.literaryGenre}\n\n`;
+
+    if (project.worldSetting) {
+      md += `## 世界设定\n\n`;
+      md += `${project.worldSetting.powerSystem || '无特殊力量体系'}\n\n`;
+    }
+
+    if (project.characters && project.characters.length > 0) {
+      md += `## 角色\n\n`;
+      for (const char of project.characters) {
+        md += `### ${char.name}\n\n`;
+        if (char.personality) md += `${char.personality}\n\n`;
+      }
+    }
+
+    if (project.chapters) {
+      md += `## 正文\n\n`;
+      for (const chapter of project.chapters) {
+        md += `### ${chapter.title}\n\n`;
+        md += `${chapter.content}\n\n`;
+      }
+    }
+
+    return md;
+  }
+
+  private projectToText(project: NovelProject): string {
+    let text = `${project.title}\n\n`;
+
+    for (const chapter of project.chapters || []) {
+      text += `${chapter.title}\n\n`;
+      text += `${chapter.content}\n\n`;
+    }
+
+    return text;
+  }
+
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  /**
-   * 数字转中文
-   */
   private toChineseNumber(num: number): string {
     const units = ['', '十', '百', '千', '万'];
     const digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-    
+
     if (num === 0) return '零';
-    
+
     let result = '';
     let unitIndex = 0;
-    
+
     while (num > 0) {
       const digit = num % 10;
       if (digit !== 0) {
@@ -518,113 +873,14 @@ export class CloudBook {
       num = Math.floor(num / 10);
       unitIndex++;
     }
-    
+
     return result.replace(/零+$/, '');
   }
 
-  /**
-   * 统计字数
-   */
   private countWords(content: string): number {
     const chineseChars = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
     const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
     return chineseChars + englishWords;
-  }
-
-  /**
-   * 添加模型配置
-   */
-  addModel(config: LLMConfig): void {
-    this.llmManager.addConfig(config);
-    if (!this.config.llmConfigs.find(c => c.name === config.name)) {
-      this.config.llmConfigs.push(config);
-    }
-  }
-
-  /**
-   * 更新模型路由
-   */
-  updateRoutes(routes: ModelRoute[]): void {
-    this.llmManager.setRoutes(routes);
-    this.config.modelRoutes = routes;
-  }
-
-  /**
-   * 导出项目
-   */
-  async exportProject(
-    projectId: string,
-    format: 'txt' | 'md' | 'json',
-    storagePath?: string
-  ): Promise<string> {
-    const project = this.projects.get(projectId);
-    if (!project) throw new Error('Project not found');
-    
-    const path = storagePath || this.config.storagePath || './exports';
-    
-    if (!fs.existsSync(path)) {
-      fs.mkdirSync(path, { recursive: true });
-    }
-    
-    const fileName = `${project.title}.${format}`;
-    const filePath = path.join(path, fileName);
-    
-    let content = '';
-    
-    if (format === 'json') {
-      content = JSON.stringify(project, null, 2);
-    } else if (format === 'md') {
-      content = this.projectToMarkdown(project);
-    } else {
-      content = this.projectToText(project);
-    }
-    
-    fs.writeFileSync(filePath, content, 'utf-8');
-    
-    return filePath;
-  }
-
-  private projectToMarkdown(project: NovelProject): string {
-    let md = `# ${project.title}\n\n`;
-    
-    if (project.subtitle) md += `## ${project.subtitle}\n\n`;
-    
-    md += `**题材**: ${project.genre}\n`;
-    md += `**类型**: ${project.literaryGenre}\n\n`;
-    
-    if (project.worldSetting) {
-      md += `## 世界设定\n\n`;
-      md += `${project.worldSetting.powerSystem || '无特殊力量体系'}\n\n`;
-    }
-    
-    if (project.characters && project.characters.length > 0) {
-      md += `## 角色\n\n`;
-      for (const char of project.characters) {
-        md += `### ${char.name}\n\n`;
-        if (char.personality) md += `${char.personality}\n\n`;
-      }
-    }
-    
-    if (project.chapters) {
-      md += `## 正文\n\n`;
-      for (const chapter of project.chapters) {
-        md += `### ${chapter.title}\n\n`;
-        md += `${chapter.content}\n\n`;
-      }
-    }
-    
-    return md;
-  }
-
-  private projectToText(project: NovelProject): string {
-    let text = `${project.title}\n\n`;
-    
-    for (const chapter of project.chapters || []) {
-      text += `${chapter.title}\n\n`;
-      text += `${chapter.content}\n\n`;
-    }
-    
-    return text;
   }
 }
 

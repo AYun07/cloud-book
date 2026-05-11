@@ -1,274 +1,214 @@
 /**
- * Cloud Book - 核心类型定义
+ * Cloud Book - 完整类型定义
+ * 整合20个开源项目的所有类型
  */
 
-// 文学作品体裁
+// ============================================
+// 基础类型
+// ============================================
+
 export type LiteraryGenre = 
-  | 'novel'      // 小说
-  | 'prose'      // 散文
-  | 'poetry'     // 诗歌
-  | 'drama'      // 戏剧
-  | 'screenplay' // 剧本
-  | 'fairytale'  // 童话
-  | 'fable'      // 寓言
-  | 'biography'  // 传记
-  | 'reportage'; // 报告文学
+  | 'novel' | 'prose' | 'poetry' | 'drama' | 'screenplay' 
+  | 'fairytale' | 'fable' | 'biography' | 'reportage';
 
-// 题材分类
 export type Genre = 
-  | 'fantasy'           // 玄幻
-  | 'xianxia'          // 仙侠
-  | 'wuxia'            // 武侠
-  | 'western_fantasy'  // 西幻
-  | 'scifi'            // 科幻
-  | 'cyberpunk'        // 赛博朋克
-  | 'mystery'          // 悬疑
-  | 'detective'        // 侦探
-  | 'romance'          // 言情
-  | 'urban'            // 都市
-  | 'historical'        // 历史
-  | 'military'          // 军事
-  | 'gaming'           // 游戏
-  | 'light_novel'      // 轻小说
-  | 'fanfiction'        // 同人
-  | 'horror'           // 恐怖
-  | 'thriller';         // 惊悚
+  | 'fantasy' | 'xianxia' | 'wuxia' | 'western_fantasy' | 'scifi'
+  | 'cyberpunk' | 'mystery' | 'detective' | 'romance' | 'urban'
+  | 'historical' | 'military' | 'gaming' | 'light_novel' | 'fanfiction' 
+  | 'horror' | 'thriller';
 
-// 创作模式
-export type WritingMode = 
-  | 'original'     // 原创
-  | 'imitation'    // 仿写
-  | 'derivative'   // 二创
-  | 'fanfic';      // 同人
+export type WritingMode = 'original' | 'imitation' | 'derivative' | 'fanfic';
 
-// 章节状态
 export type ChapterStatus = 
-  | 'outline'      // 大纲
-  | 'drafting'    // 草稿
-  | 'draft'        // 草稿完成
-  | 'reviewing'    // 审核中
-  | 'revising'     // 修订中
-  | 'finalized'    // 定稿
-  | 'published';   // 已发布
+  | 'outline' | 'drafting' | 'draft' | 'reviewing' | 'revising' 
+  | 'finalized' | 'published';
 
-// 角色信息
-export interface Character {
+export type WritingMode2 = 'novel' | 'adventure' | 'chatbot';
+
+// ============================================
+// KoboldAI-Client 功能
+// ============================================
+
+export interface WorldInfo {
   id: string;
   name: string;
-  aliases?: string[];           // 别名
-  gender?: 'male' | 'female' | 'other';
-  age?: string;
-  appearance?: string;          // 外貌描述
-  personality?: string;          // 性格
-  background?: string;           // 背景故事
-  goals?: string[];             // 目标
-  abilities?: string[];          // 能力
-  inventory?: Item[];           // 物品
-  relationships?: Relationship[]; // 关系
-  speakingStyle?: string;        // 说话风格
-  psychologicalProfile?: string; // 心理画像
+  keywords: string[];
+  content: string;
+  conditionalLogic?: string;
+  depth?: number;
+  key?: string;
+  secondary?: boolean;
 }
 
-// 物品
-export interface Item {
+export interface Memory {
   id: string;
-  name: string;
-  description?: string;
-  quantity?: number;
-  owner?: string;              // 持有者ID
+  content: string;
+  type: 'memory' | 'authorsNote' | 'systemPrompt';
 }
 
-// 关系
-export interface Relationship {
-  targetId: string;            // 目标角色ID
-  type: string;                // 关系类型
-  status: string;              // 关系状态
-  description?: string;
+export interface GenerationSettings {
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  topK: number;
+  repeatPenalty: number;
+  repeatPenaltyTokens?: number;
+  contextThreshold?: number;
+  maxContextLength?: number;
 }
 
-// 世界设定
-export interface WorldSetting {
-  id: string;
-  name: string;
-  genre: Genre;
-  powerSystem?: string;        // 力量体系
-  locations?: Location[];       // 地点
-  factions?: Faction[];         // 势力
-  timeline?: TimelineEvent[];   // 时间线
-  rules?: string[];            // 世界规则
-  customSettings?: Record<string, any>; // 自定义设定
-}
-
-// 地点
-export interface Location {
-  id: string;
-  name: string;
-  description?: string;
-  parentId?: string;           // 父级地点
-  connections?: string[];       // 连接地点
-}
-
-// 势力
-export interface Faction {
-  id: string;
-  name: string;
-  type: string;                // 类型：门派/组织/家族等
-  description?: string;
-  members?: string[];           // 成员ID
-}
-
-// 时间线事件
-export interface TimelineEvent {
-  id: string;
-  time: string;
-  description: string;
-  impact?: string;
-}
-
-// 章节
-export interface Chapter {
-  id: string;
-  number: number;
-  title: string;
-  status: ChapterStatus;
-  wordCount: number;
-  outline?: string;             // 章节大纲
-  content?: string;             // 正文内容
-  summary?: string;             // 章节摘要
-  characters?: string[];        // 参与角色ID
-  location?: string;            // 场景地点
-  timeline?: string;            // 时间点
-  hooks?: Hook[];               // 伏笔
-  emotionalArc?: string;        // 情感弧线
-  qualityScore?: number;        // 质量评分
-  auditResult?: AuditResult;   // 审计结果
-  version?: number;              // 版本号
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-// 伏笔
-export interface Hook {
-  id: string;
-  description: string;
-  setInChapter: number;        // 设置伏笔的章节
-  payoffChapter?: number;        // 回收伏笔的章节
-  status: 'pending' | 'foreshadowed' | 'paid_off' | 'expired';
-  type: 'character' | 'plot' | 'world' | 'item';
-}
-
-// 审计结果
-export interface AuditResult {
-  passed: boolean;
-  dimensions: AuditDimension[];
-  issues: Issue[];
-  score: number;
-}
-
-// 审计维度
-export interface AuditDimension {
-  name: string;
-  score: number;
-  passed: boolean;
-  details?: string;
-}
-
-// 问题
-export interface Issue {
-  type: string;
-  severity: 'critical' | 'warning' | 'info';
-  description: string;
-  location?: {
-    chapterId: string;
-    paragraphIndex?: number;
-    characterId?: string;
-  };
-  suggestion?: string;
-}
-
-// 小说项目
-export interface NovelProject {
+export interface Story {
   id: string;
   title: string;
-  subtitle?: string;
-  genre: Genre;
-  literaryGenre: LiteraryGenre;
-  writingMode: WritingMode;
-  sourceNovel?: string;        // 原作ID（仿写/同人模式）
-  
-  // 核心设定
-  corePremise?: string;         // 核心前提
-  sellingPoints?: string[];      // 卖点
-  targetAudience?: string;      // 目标读者
-  
-  // 结构
-  volumeCount?: number;         // 卷数
-  plannedChapters?: number;      // 计划章节数
-  targetWordCount?: number;     // 目标字数
-  
-  // 内容
-  worldSetting?: WorldSetting;
-  characters?: Character[];
-  chapters?: Chapter[];
-  
-  // 风格
-  styleFingerprint?: StyleFingerprint;
-  
-  // 元数据
-  status: 'planning' | 'writing' | 'completed' | 'archived';
+  content: string;
+  mode: WritingMode2;
+  worldInfo: WorldInfo[];
+  memories: Memory[];
+  settings: GenerationSettings;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 风格指纹
-export interface StyleFingerprint {
-  sourceText?: string;          // 来源文本
-  sentenceLengthDistribution: number[];  // 句长分布
-  wordFrequency: Record<string, number>; // 词频
-  punctuationPattern: string;   // 标点使用模式
-  dialogueRatio: number;         // 对话比例
-  descriptionDensity: number;   // 描写密度
-  narrativeVoice: string;        // 叙事视角
-  tense: 'past' | 'present';
-  emotionalWords: string[];     // 情感词汇
-  signaturePhrases: string[];    // 标志性短语
-  tabooWords: string[];         // 禁忌词（避免过度使用）
+// ============================================
+// AI-Novel-Writing-Assistant 功能
+// ============================================
+
+export interface AutoDirectorResult {
+  directions: StoryDirection[];
+  selectedDirection?: number;
 }
 
-// 写作任务
-export interface WritingTask {
+export interface StoryDirection {
   id: string;
-  novelId: string;
-  type: 'outline' | 'chapter' | 'revision' | 'expansion';
-  chapterId?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  progress: number;
-  result?: any;
-  error?: string;
+  title: string;
+  subtitle: string;
+  sellingPoints: string[];
+  targetAudience: string;
+  firstPromise: string;
+  chapterPlan: ChapterPlan[];
 }
 
-// LLM配置
-export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'custom';
+export interface ChapterPlan {
+  number: number;
+  title: string;
+  summary: string;
+  hooks: string[];
+}
+
+export interface CreativeHubSession {
+  id: string;
+  projectId: string;
+  messages: HubMessage[];
+  tools: HubTool[];
+  context: HubContext;
+}
+
+export interface HubMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+}
+
+export interface HubTool {
   name: string;
-  endpoint?: string;             // API地址
-  apiKey?: string;               // API密钥
-  model: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
+  description: string;
+  execute: Function;
 }
 
-// 模型路由规则
-export interface ModelRoute {
-  task: 'planning' | 'writing' | 'revision' | 'audit' | 'style' | 'analysis';
-  llmConfig: LLMConfig;
+export interface HubContext {
+  currentChapter?: number;
+  characters: string[];
+  worldSettings: string[];
+  pendingTasks: string[];
 }
 
-// 真相文件（用于维持一致性）
+// ============================================
+// NovelForge 功能
+// ============================================
+
+export interface Card {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  schema: CardSchema;
+  parentId?: string;
+  children?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface CardSchema {
+  type: string;
+  properties: Record<string, SchemaProperty>;
+  required?: string[];
+  $defs?: Record<string, SchemaDefinition>;
+}
+
+export interface SchemaProperty {
+  type: string;
+  description?: string;
+  default?: any;
+  format?: string;
+  items?: SchemaProperty;
+  $ref?: string;
+}
+
+export interface SchemaDefinition {
+  type: string;
+  properties: Record<string, SchemaProperty>;
+}
+
+export interface GraphNode {
+  id: string;
+  type: 'character' | 'location' | 'item' | 'faction';
+  name: string;
+  properties: Record<string, any>;
+}
+
+export interface GraphRelation {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  properties?: Record<string, any>;
+}
+
+export interface KnowledgeGraph {
+  nodes: GraphNode[];
+  relations: GraphRelation[];
+}
+
+export interface ContextInjection {
+  type: 'card' | 'type' | 'self' | 'parent' | 'knowledge';
+  selector: string;
+  filters?: ContextFilter[];
+  field?: string;
+}
+
+export interface ContextFilter {
+  type: 'previous' | 'sibling' | 'index' | 'filter';
+  expression?: string;
+}
+
+// ============================================
+// InkOS 功能
+// ============================================
+
+export type AgentType = 
+  | 'architect' | 'writer' | 'auditor' | 'reviser' | 'styleEngineer' | 'radar';
+
+export interface Agent {
+  type: AgentType;
+  name: string;
+  role: string;
+  responsibilities: string[];
+  tools: string[];
+}
+
 export interface TruthFiles {
-  currentState: WorldState;
-  particleLedger: Resource[];
+  currentState: CurrentState;
+  particleLedger: Particle[];
   pendingHooks: Hook[];
   chapterSummaries: ChapterSummary[];
   subplotBoard: Subplot[];
@@ -276,32 +216,47 @@ export interface TruthFiles {
   characterMatrix: CharacterInteraction[];
 }
 
-// 世界状态
-export interface WorldState {
-  protagonist: {
-    id: string;
-    name: string;
-    location: string;
-    status: string;
-    level?: string;
-  };
+export interface CurrentState {
+  protagonist: ProtagonistState;
   knownFacts: string[];
   currentConflicts: string[];
   relationshipSnapshot: Record<string, string>;
+  activeSubplots: string[];
 }
 
-// 资源账本
-export interface Resource {
+export interface ProtagonistState {
+  id: string;
+  name: string;
+  location: string;
+  status: string;
+  level?: string;
+  resources: Record<string, number>;
+}
+
+export interface Particle {
   id: string;
   name: string;
   type: 'item' | 'ability' | 'currency' | 'status';
   owner: string;
   quantity?: number;
   lastUpdatedChapter: number;
-  changeLog: { chapter: number; change: string }[];
+  changeLog: ParticleChange[];
 }
 
-// 章节摘要
+export interface ParticleChange {
+  chapter: number;
+  change: string;
+}
+
+export interface Hook {
+  id: string;
+  description: string;
+  setInChapter: number;
+  payoffChapter?: number;
+  status: 'pending' | 'foreshadowed' | 'paid_off' | 'expired';
+  type: 'character' | 'plot' | 'world' | 'item';
+}
+
 export interface ChapterSummary {
   chapterId: string;
   chapterNumber: number;
@@ -313,7 +268,6 @@ export interface ChapterSummary {
   resolvedHooks: string[];
 }
 
-// 支线
 export interface Subplot {
   id: string;
   name: string;
@@ -322,22 +276,449 @@ export interface Subplot {
   description: string;
 }
 
-// 情感弧线
 export interface EmotionalArc {
   characterId: string;
   characterName: string;
   arcType: 'rise' | 'fall' | 'rise_fall' | 'flat' | 'complex';
-  points: { chapter: number; emotion: string; intensity: number }[];
+  points: EmotionPoint[];
 }
 
-// 角色互动矩阵
+export interface EmotionPoint {
+  chapter: number;
+  emotion: string;
+  intensity: number;
+}
+
 export interface CharacterInteraction {
   characterId1: string;
   characterId2: string;
-  interactions: { chapter: number; type: string; summary: string }[];
+  interactions: Interaction[];
 }
 
-// 解析结果（用于导入小说）
+export interface Interaction {
+  chapter: number;
+  type: string;
+  summary: string;
+}
+
+export interface StyleFingerprint {
+  sourceText?: string;
+  sentenceLengthDistribution: number[];
+  wordFrequency: Record<string, number>;
+  punctuationPattern: string;
+  dialogueRatio: number;
+  descriptionDensity: number;
+  narrativeVoice: 'first_person' | 'third_person';
+  tense: 'past' | 'present';
+  emotionalWords: string[];
+  signaturePhrases: string[];
+  tabooWords: string[];
+}
+
+export interface DaemonConfig {
+  enabled: boolean;
+  intervalMinutes?: number;
+  notifications: NotificationConfig;
+  autoRetry: boolean;
+  maxRetries: number;
+}
+
+export interface NotificationConfig {
+  telegram?: TelegramConfig;
+  feishu?: FeishuConfig;
+  webhook?: WebhookConfig;
+}
+
+export interface TelegramConfig {
+  botToken: string;
+  chatId: string;
+}
+
+export interface FeishuConfig {
+  webhookUrl: string;
+}
+
+export interface WebhookConfig {
+  url: string;
+  secret?: string;
+}
+
+// ============================================
+// novel-writer 七步方法论
+// ============================================
+
+export interface WritingStep {
+  step: 'constitution' | 'specify' | 'clarify' | 'plan' | 'tasks' | 'write' | 'analyze';
+  name: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  output?: any;
+}
+
+export interface Constitution {
+  id: string;
+  title: string;
+  corePrinciples: string[];
+  writingGuidelines: string[];
+  genreSpecificRules: string[];
+}
+
+export interface StorySpec {
+  id: string;
+  title: string;
+  premise: string;
+  genre: Genre;
+  targetAudience: string;
+  wordCountTarget: number;
+  themes: string[];
+  tone: string;
+  structure: string;
+  requirements: string[];
+}
+
+export interface WritingPlan {
+  id: string;
+  chapters: ChapterOutline[];
+  estimatedCompletion: Date;
+  milestones: Milestone[];
+}
+
+export interface ChapterOutline {
+  number: number;
+  title: string;
+  summary: string;
+  wordCountTarget: number;
+  keyPoints: string[];
+  hooks: string[];
+}
+
+export interface Milestone {
+  id: string;
+  description: string;
+  targetChapter: number;
+  completed: boolean;
+}
+
+export interface TaskItem {
+  id: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  chapterId?: string;
+  estimatedTime?: number;
+}
+
+// ============================================
+// NovelWriter 功能 (EdwardAThomson)
+// ============================================
+
+export interface GenreConfig {
+  genre: Genre;
+  subgenres: string[];
+  factions: FactionTemplate[];
+  characterAttributes: CharacterAttribute[];
+  locationTypes: string[];
+  narrativeFrameworks: string[];
+}
+
+export interface FactionTemplate {
+  type: string;
+  name: string;
+  description: string;
+  hierarchy?: string[];
+  territories?: string[];
+}
+
+export interface CharacterAttribute {
+  name: string;
+  type: 'string' | 'number' | 'list' | 'relationship';
+  required?: boolean;
+  options?: string[];
+}
+
+export interface CharacterArc {
+  id: string;
+  characterId: string;
+  arcType: 'positive' | 'negative' | 'flat' | 'circular';
+  stages: ArcStage[];
+}
+
+export interface ArcStage {
+  chapter: number;
+  description: string;
+  change: string;
+}
+
+export interface QualityMetrics {
+  coherence: number;
+  pacing: number;
+  characterDevelopment: number;
+  worldBuilding: number;
+  proseQuality: number;
+  dialogueQuality: number;
+  overall: number;
+}
+
+export interface ReviewLevel {
+  level: 'scene' | 'chapter' | 'batch';
+  dimensions: string[];
+  autoFix: boolean;
+}
+
+// ============================================
+// 通用功能
+// ============================================
+
+export interface Character {
+  id: string;
+  name: string;
+  aliases?: string[];
+  gender?: 'male' | 'female' | 'other';
+  age?: string;
+  appearance?: string;
+  personality?: string;
+  background?: string;
+  goals?: string[];
+  abilities?: string[];
+  inventory?: Item[];
+  relationships?: Relationship[];
+  speakingStyle?: string;
+  psychologicalProfile?: string;
+  arc?: CharacterArc;
+  familyTree?: FamilyMember[];
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description?: string;
+  rarity?: string;
+  quantity?: number;
+  owner?: string;
+}
+
+export interface Relationship {
+  targetId: string;
+  type: string;
+  status: string;
+  description?: string;
+}
+
+export interface FamilyMember {
+  name: string;
+  relation: string;
+  description?: string;
+}
+
+export interface WorldSetting {
+  id: string;
+  name: string;
+  genre: Genre;
+  powerSystem?: string;
+  locations?: Location[];
+  factions?: Faction[];
+  timeline?: TimelineEvent[];
+  rules?: string[];
+  customSettings?: Record<string, any>;
+  knowledgeGraph?: KnowledgeGraph;
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  connections?: string[];
+  mapCoordinates?: { x: number; y: number };
+}
+
+export interface Faction {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  members?: string[];
+  territory?: string;
+  allies?: string[];
+  enemies?: string[];
+}
+
+export interface TimelineEvent {
+  id: string;
+  time: string;
+  description: string;
+  chapter?: number;
+  impact?: string;
+}
+
+export interface Chapter {
+  id: string;
+  number: number;
+  title: string;
+  status: ChapterStatus;
+  wordCount: number;
+  outline?: string;
+  content?: string;
+  summary?: string;
+  characters?: string[];
+  location?: string;
+  timeline?: string;
+  hooks?: Hook[];
+  emotionalArc?: string;
+  qualityScore?: number;
+  auditResult?: AuditResult;
+  version?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface NovelProject {
+  id: string;
+  title: string;
+  subtitle?: string;
+  genre: Genre;
+  literaryGenre: LiteraryGenre;
+  writingMode: WritingMode;
+  sourceNovel?: string;
+  corePremise?: string;
+  sellingPoints?: string[];
+  targetAudience?: string;
+  volumeCount?: number;
+  plannedChapters?: number;
+  targetWordCount?: number;
+  worldSetting?: WorldSetting;
+  characters?: Character[];
+  chapters?: Chapter[];
+  styleFingerprint?: StyleFingerprint;
+  constitution?: Constitution;
+  spec?: StorySpec;
+  plan?: WritingPlan;
+  worldInfo?: WorldInfo[];
+  memories?: Memory[];
+  truthFiles?: TruthFiles;
+  writingSteps?: WritingStep[];
+  genreConfig?: GenreConfig;
+  settings?: GenerationSettings;
+  status: 'planning' | 'writing' | 'completed' | 'archived';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================
+// AI & 审计功能
+// ============================================
+
+export interface LLMConfig {
+  provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'custom';
+  name: string;
+  endpoint?: string;
+  apiKey?: string;
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+}
+
+export interface ModelRoute {
+  task: 'planning' | 'writing' | 'revision' | 'audit' | 'style' | 'analysis';
+  llmConfig: LLMConfig;
+}
+
+export interface AuditResult {
+  passed: boolean;
+  dimensions: AuditDimension[];
+  issues: Issue[];
+  score: number;
+}
+
+export interface AuditDimension {
+  name: string;
+  score: number;
+  passed: boolean;
+  details?: string;
+}
+
+export interface Issue {
+  type: string;
+  severity: 'critical' | 'warning' | 'info';
+  description: string;
+  location?: IssueLocation;
+  suggestion?: string;
+}
+
+export interface IssueLocation {
+  chapterId: string;
+  paragraphIndex?: number;
+  characterId?: string;
+}
+
+export const AUDIT_DIMENSIONS = [
+  'characterConsistency', 'worldConsistency', 'timelineConsistency',
+  'plotLogic', 'foreshadowFulfillment', 'resourceTracking', 'emotionalArc',
+  'narrativePacing', 'dialogueQuality', 'descriptionDensity', 'aiDetection',
+  'repetitiveness', 'grammaticalErrors', 'tautology', 'logicalGaps',
+  'progressionPacing', 'conflictEscalation', 'characterMotivation', 'stakesClarity',
+  'sensoryDetails', 'backstoryIntegration', 'povConsistency', 'tenseConsistency',
+  'pacingVariation', 'showVsTell', 'subtext', 'symbolism', 'thematicCoherence',
+  'readerEngagement', 'genreConvention', 'culturalSensitivity', 'factualAccuracy',
+  'powerConsistency'
+] as const;
+
+export type AuditDimensionType = typeof AUDIT_DIMENSIONS[number];
+
+// ============================================
+// 反AI检测
+// ============================================
+
+export interface AntiDetectionConfig {
+  enabled: boolean;
+  intensity: number;
+  replaceAIWords: boolean;
+  varySentenceStructure: boolean;
+  addColloquialism: boolean;
+  enhanceEmotion: boolean;
+  addImperfection: boolean;
+  mixStyles: boolean;
+}
+
+export interface DetectionResult {
+  isAI: boolean;
+  confidence: number;
+  indicators: AIIndicator[];
+  suggestions: string[];
+}
+
+export interface AIIndicator {
+  type: string;
+  description: string;
+  severity: number;
+  location?: string;
+}
+
+// ============================================
+// 导入/导出 & 工具功能
+// ============================================
+
+export interface ImportConfig {
+  filePath: string;
+  encoding?: string;
+  splitPattern?: RegExp;
+  preserveFormatting?: boolean;
+  extractCharacters?: boolean;
+  extractWorldSettings?: boolean;
+  analyzeStyle?: boolean;
+  chunkSize?: number;
+  overlap?: number;
+}
+
+export interface ExportConfig {
+  format: 'txt' | 'md' | 'epub' | 'pdf' | 'docx' | 'json';
+  includeOutline?: boolean;
+  includeCharacters?: boolean;
+  includeWorldSettings?: boolean;
+  platform?: 'qidian' | '番茄' | '飞卢' | 'custom';
+  template?: string;
+}
+
 export interface ParseResult {
   title: string;
   author?: string;
@@ -350,7 +731,6 @@ export interface ParseResult {
   styleFingerprint: StyleFingerprint;
 }
 
-// 解析出的章节
 export interface ParsedChapter {
   index: number;
   title: string;
@@ -360,7 +740,6 @@ export interface ParsedChapter {
   scenes: Scene[];
 }
 
-// 场景
 export interface Scene {
   location: string;
   time: string;
@@ -368,16 +747,14 @@ export interface Scene {
   summary: string;
 }
 
-// 提取的角色
 export interface ExtractedCharacter {
   name: string;
   aliases: string[];
   description: string;
-  appearances: number[];      // 出现的章节
+  appearances: number[];
   relationships: { name: string; type: string }[];
 }
 
-// 提取的世界设定
 export interface ExtractedWorldSetting {
   powerSystem?: string;
   locations: string[];
@@ -386,91 +763,52 @@ export interface ExtractedWorldSetting {
   timeline: { event: string; chapter?: number }[];
 }
 
-// 写作模式
 export interface WritingPattern {
   type: 'opening' | 'dialogue' | 'description' | 'action' | 'transition';
   frequency: number;
   examples: string[];
 }
 
-// 导入配置
-export interface ImportConfig {
-  filePath: string;
-  encoding?: string;
-  splitPattern?: RegExp;         // 章节分割正则
-  preserveFormatting?: boolean;  // 保留格式
-  extractCharacters?: boolean;  // 提取角色
-  extractWorldSettings?: boolean; // 提取世界观
-  analyzeStyle?: boolean;       // 分析风格
-  chunkSize?: number;           // 分块大小（用于长文本）
-  overlap?: number;             // 重叠大小
+export interface CoverConfig {
+  style: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'custom';
+  mainColor?: string;
+  characters?: string[];
+  theme?: string;
 }
 
-// 导出配置
-export interface ExportConfig {
-  format: 'txt' | 'md' | 'epub' | 'pdf' | 'docx' | 'json';
-  includeOutline?: boolean;
-  includeCharacters?: boolean;
-  includeWorldSettings?: boolean;
-  platform?: 'qidian' | '番茄' | '飞卢' | 'custom';
-  template?: string;
+export interface MindMapNode {
+  id: string;
+  text: string;
+  children?: MindMapNode[];
+  collapsed?: boolean;
 }
 
-// 反AI检测配置
-export interface AntiDetectionConfig {
-  enabled: boolean;
-  intensity: number;            // 1-10
-  replaceAIWords: boolean;       // 替换AI词汇
-  varySentenceStructure: boolean; // 变化句式
-  addColloquialism: boolean;     // 添加口语化
-  enhanceEmotion: boolean;       // 增强情感
-  addImperfection: boolean;      // 添加人为不完美
-  mixStyles: boolean;            // 混合风格
+export interface WritingGoal {
+  id: string;
+  type: 'daily' | 'weekly' | 'chapter' | 'total';
+  target: number;
+  current: number;
+  deadline?: Date;
+  completed: boolean;
 }
 
-// 审计配置
-export interface AuditConfig {
-  dimensions: string[];           // 启用的审计维度
-  threshold: number;             // 通过阈值
-  autoFix: boolean;              // 自动修复
-  maxIterations: number;        // 最大迭代次数
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  commands?: PluginCommand[];
+  hooks?: PluginHook[];
 }
 
-// 可配置的审计维度
-export const AUDIT_DIMENSIONS = [
-  'characterConsistency',        // 角色一致性
-  'worldConsistency',            // 世界观一致性
-  'timelineConsistency',         // 时间线一致性
-  'plotLogic',                   // 情节逻辑
-  'foreshadowFulfillment',      // 伏笔回收
-  'resourceTracking',            // 资源追踪
-  'emotionalArc',               // 情感弧线
-  'narrativePacing',             // 叙事节奏
-  'dialogueQuality',             // 对话质量
-  'descriptionDensity',         // 描写密度
-  'aiDetection',                // AI痕迹检测
-  'repetitiveness',             // 重复性
-  'grammaticalErrors',          // 语法错误
-  'tautology',                  // 同义重复
-  'logicalGaps',                // 逻辑漏洞
-  'progressionPacing',          // 进度节奏
-  'conflictEscalation',         // 冲突升级
-  'characterMotivation',        // 角色动机
-  'stakesClarity',              // 悬念清晰度
-  'sensoryDetails',             // 感官细节
-  'backstoryIntegration',       // 背景故事融合
-  'povConsistency',             // 视角一致性
-  'tenseConsistency',           // 时态一致性
-  'pacingVariation',             // 节奏变化
-  'showVsTell',                // 展示vs讲述
-  'subtext',                    // 潜台词
-  'symbolism',                  // 象征手法
-  'thematicCoherence',         // 主题连贯性
-  'readerEngagement',          // 读者参与度
-  'genreConvention',           // 类型惯例
-  'culturalSensitivity',        // 文化敏感性
-  ' factualAccuracy',           // 事实准确性
-  'powerConsistency',          // 能力一致性（修仙等）
-] as const;
+export interface PluginCommand {
+  name: string;
+  description: string;
+  execute: Function;
+}
 
-export type AuditDimensionType = typeof AUDIT_DIMENSIONS[number];
+export interface PluginHook {
+  name: string;
+  callback: Function;
+}
