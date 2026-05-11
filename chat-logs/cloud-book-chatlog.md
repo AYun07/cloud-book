@@ -159,6 +159,21 @@ cloud-book/
 3. **同步更新**：每次会话结束后更新聊天记录
 4. **编译检查**：修改后运行 `npm run build` 确保无错误
 
+## 框架完善记录 - 2026年5月11日（续）
+
+### 本轮完善模块
+
+| 模块 | 新增功能 |
+|------|---------|
+| **CreativeHub RAG** | 向量检索、文本分块、混合搜索、结果重排序、批量导入、语义搜索 |
+| **ContextManager DSL** | @self/@character/@location/@world/@chapter/@hooks/@relation/@timeline/@items完整实现、过滤表达式、条件表达式、DSL语法验证 |
+| **KnowledgeGraph** | 从项目自动构建、图谱一致性检测、循环依赖检测、导出为JSON/Cypher/GraphML、多格式导入 |
+
+### 覆盖率更新
+- ✅ 完全覆盖: 21项 (+3)
+- ⚠️ 部分覆盖(待完善): 6项 (-3)
+- ❌ 未覆盖: 3项
+
 ---
 
 （待追加）

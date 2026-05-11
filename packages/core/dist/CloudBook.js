@@ -422,7 +422,7 @@ class CloudBook {
     async addToRAG(projectId, document) {
         return this.creativeHub.addRAGDocument(projectId, {
             content: document.content,
-            metadata: { type: document.type, sourceId: document.sourceId }
+            metadata: { type: document.type, sourceId: document.sourceId, createdAt: new Date() }
         });
     }
     async searchRAG(projectId, query) {

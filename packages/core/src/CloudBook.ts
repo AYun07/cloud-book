@@ -522,7 +522,7 @@ export class CloudBook {
   async addToRAG(projectId: string, document: { content: string; type: string; sourceId?: string }) {
     return this.creativeHub.addRAGDocument(projectId, {
       content: document.content,
-      metadata: { type: document.type as any, sourceId: document.sourceId }
+      metadata: { type: document.type as any, sourceId: document.sourceId, createdAt: new Date() }
     });
   }
 

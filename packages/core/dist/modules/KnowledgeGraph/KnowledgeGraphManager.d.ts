@@ -49,6 +49,60 @@ export declare class KnowledgeGraphManager {
     importGraph(projectId: string, graph: KnowledgeGraph): Promise<void>;
     private save;
     load(projectId: string): Promise<void>;
+    /**
+     * 从项目自动构建知识图谱
+     */
+    buildFromProject(projectId: string, characters: Character[], locations: Location[], factions: Faction[], chapters?: any[]): Promise<{
+        nodes: number;
+        relations: number;
+    }>;
+    private mapRelationType;
+    /**
+     * 生成可视化数据
+     */
+    generateVisualizationData(projectId: string): Promise<{
+        nodes: Array<{
+            id: string;
+            label: string;
+            type: string;
+            size: number;
+            color: string;
+            x?: number;
+            y?: number;
+        }>;
+        edges: Array<{
+            source: string;
+            target: string;
+            label: string;
+            type: string;
+        }>;
+    }>;
+    /**
+     * 检测图谱一致性
+     */
+    checkConsistency(projectId: string): Promise<{
+        orphanedNodes: GraphNode[];
+        duplicateRelations: Array<{
+            source: string;
+            target: string;
+            count: number;
+        }>;
+        circularDependencies: string[][];
+    }>;
+    private detectCycle;
+    /**
+     * 导出图谱为不同格式
+     */
+    exportAs(projectId: string, format: 'json' | 'cypher' | 'graphml'): string;
+    private exportAsCypher;
+    private exportAsGraphML;
+    /**
+     * 导入图谱
+     */
+    importFrom(projectId: string, data: string, format: 'json' | 'cypher' | 'graphml'): Promise<void>;
+    private parseCypher;
+    private parseProperties;
+    private parseGraphML;
     private generateId;
 }
 export default KnowledgeGraphManager;
