@@ -573,6 +573,201 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}" 
     const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
     return chineseChars + englishWords;
   }
+
+  async executeParallelTasks(tasks: AgentTask[]): Promise<AgentResponse[]> {
+    const results: AgentResponse[] = [];
+    
+    const promises = tasks.map(async (task) => {
+      const taskId = this.createTask(task);
+      try {
+        let result: any;
+        
+        switch (task.type) {
+          case 'architect':
+            result = await this.executeArchitectTask(task.context.project, task.context.task as any);
+            break;
+          case 'writer':
+            result = await this.executeWriterTask(task.context.project, task.context.chapterNumber);
+            break;
+          case 'auditor':
+            result = await this.executeAuditorTask(task.context.content, task.context.truthFiles);
+            break;
+          case 'reviser':
+            result = await this.executeReviserTask(task.context.content, task.context.issues, task.context.truthFiles);
+            break;
+          case 'styleEngineer':
+            result = await this.executeStyleEngineerTask(task.context.content, task.context.task as any);
+            break;
+          case 'radar':
+            result = await this.executeRadarTask(task.context.task as any);
+            break;
+        }
+        
+        this.updateTaskStatus(taskId, 'completed', result);
+        return result;
+      } catch (error: any) {
+        this.updateTaskStatus(taskId, 'failed', undefined, error.message);
+        return { success: false, error: error.message, message: `任务 ${taskId} 失败` };
+      }
+    });
+    
+    return Promise.all(promises);
+  }
+
+  private createTask(task: AgentTask): string {
+    const id = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.tasks.set(id, { ...task, id, status: 'pending' });
+    return id;
+  }
+
+  private updateTaskStatus(taskId: string, status: AgentTask['status'], result?: any, error?: string): void {
+    const task = this.tasks.get(taskId);
+    if (task) {
+      task.status = status;
+      task.result = result;
+      task.error = error;
+    }
+  }
+
+  getTaskStatus(taskId: string): AgentTask | undefined {
+    return this.tasks.get(taskId);
+  }
+
+  getAllTasks(): AgentTask[] {
+    return Array.from(this.tasks.values());
+  }
+
+  async executeChaptersBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    parallelCount: number = 3
+  ): Promise<{ chapters: Chapter[]; allResults: AgentResponse[] }> {
+    const chapters: Chapter[] = [];
+    const allResults: AgentResponse[] = [];
+    
+    for (let i = startChapter; i <= endChapter; i += parallelCount) {
+      const batchTasks: AgentTask[] = [];
+      
+      for (let j = i; j < Math.min(i + parallelCount, endChapter + 1); j++) {
+        batchTasks.push({
+          id: '',
+          type: 'writer',
+          description: `生成第${j}章`,
+          context: { project, chapterNumber: j },
+          status: 'pending'
+        });
+      }
+      
+      const batchResults = await this.executeParallelTasks(batchTasks);
+      allResults.push(...batchResults);
+      
+      for (const result of batchResults) {
+        if (result.success && result.data) {
+          chapters.push({
+            id: `chapter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            number: chapters.length + startChapter,
+            title: `第${chapters.length + startChapter}章`,
+            status: 'draft',
+            wordCount: this.countWords(result.data),
+            content: result.data
+          });
+        }
+      }
+    }
+    
+    return { chapters, allResults };
+  }
+
+  async executeFullPipeline(
+    project: NovelProject,
+    chapterCount: number,
+    onProgress?: (agent: string, status: string, progress: number) => void
+  ): Promise<{ chapters: Chapter[]; truthFiles: TruthFiles }> {
+    const truthFiles: TruthFiles = {
+      currentState: {
+        protagonist: {
+          id: project.characters?.[0]?.id || 'main',
+          name: project.characters?.[0]?.name || '主角',
+          location: '起点',
+          status: '初始'
+        },
+        knownFacts: [],
+        currentConflicts: [],
+        relationshipSnapshot: {},
+        activeSubplots: []
+      },
+      particleLedger: [],
+      pendingHooks: [],
+      chapterSummaries: [],
+      subplotBoard: [],
+      emotionalArcs: [],
+      characterMatrix: []
+    };
+
+    onProgress?.('架构师', '初始化', 0);
+    
+    const architectResult = await this.executeArchitectTask(project, 'outline_generation', {
+      chapterCount
+    });
+    
+    if (!architectResult.success) {
+      throw new Error('架构师规划失败');
+    }
+    
+    onProgress?.('架构师', '完成', 100);
+    onProgress?.('写作者', '开始写作', 0);
+    
+    const { chapters: generatedChapters } = await this.executeChaptersBatch(
+      project,
+      1,
+      chapterCount,
+      2
+    );
+    
+    onProgress?.('写作者', '完成', 100);
+    onProgress?.('审计员', '开始审计', 0);
+    
+    for (let i = 0; i < generatedChapters.length; i++) {
+      const chapter = generatedChapters[i];
+      
+      const auditResult = await this.executeAuditorTask(
+        chapter.content || '',
+        truthFiles,
+        { autoFix: true }
+      );
+      
+      if (auditResult.success && auditResult.data?.fixes?.length > 0) {
+        const reviserResult = await this.executeReviserTask(
+          chapter.content || '',
+          auditResult.data.issues,
+          truthFiles
+        );
+        
+        if (reviserResult.success) {
+          chapter.content = reviserResult.data;
+          chapter.status = 'draft';
+        }
+      }
+      
+      onProgress?.('审计员', `审计第${i + 1}章`, ((i + 1) / chapterCount) * 100);
+      
+      truthFiles.chapterSummaries.push({
+        chapterId: chapter.id,
+        chapterNumber: chapter.number,
+        title: chapter.title,
+        charactersPresent: [],
+        keyEvents: [],
+        stateChanges: [],
+        newHooks: [],
+        resolvedHooks: []
+      });
+    }
+    
+    onProgress?.('审计员', '完成', 100);
+    
+    return { chapters: generatedChapters, truthFiles };
+  }
 }
 
 export default AgentSystem;

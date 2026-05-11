@@ -15,6 +15,7 @@ import { CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 import { MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
 import { TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
 import { APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
+import { ProjectData } from './modules/LocalStorage/LocalStorage';
 export interface CloudBookConfig {
     llmConfigs: LLMConfig[];
     modelRoutes: ModelRoute[];
@@ -74,6 +75,7 @@ export declare class CloudBook {
     private networkManager;
     private cacheManager;
     private versionHistoryManager;
+    private localStorage;
     private currentProject?;
     private projects;
     constructor(config: CloudBookConfig);
@@ -102,6 +104,10 @@ export declare class CloudBook {
     compareVersions(projectId: string, v1: string, v2: string): Promise<any[]>;
     createProject(title: string, genre: Genre, writingMode?: 'original' | 'imitation' | 'derivative' | 'fanfic'): Promise<NovelProject>;
     importNovel(filePath: string): Promise<ParseResult>;
+    listProjects(): Promise<ProjectData[]>;
+    loadProject(projectId: string): Promise<NovelProject | null>;
+    deleteProject(projectId: string): Promise<boolean>;
+    exportChapter(projectId: string, chapterId: string, format: 'txt' | 'md'): Promise<string | null>;
     createImitationProject(parseResult: ParseResult, mode: 'imitation' | 'derivative' | 'fanfic', imitationLevel?: number): Promise<NovelProject>;
     addWorldInfo(projectId: string, info: {
         name: string;
@@ -135,7 +141,7 @@ export declare class CloudBook {
     addLocationToGraph(projectId: string, location: any): Promise<import("./types").GraphNode>;
     addFactionToGraph(projectId: string, faction: any): Promise<import("./types").GraphNode>;
     addRelation(projectId: string, source: string, target: string, type: string): Promise<import("./types").GraphRelation>;
-    findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraph/KnowledgeGraphManager").PathResult | null>;
+    findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraph/KnowledgeGraphManager").PathResult>;
     getCharacterNetwork(projectId: string, characterId: string, depth?: number): Promise<{
         characters: import("./types").GraphNode[];
         relations: import("./types").GraphRelation[];
@@ -153,8 +159,8 @@ export declare class CloudBook {
         issues?: any[];
     }>;
     executeMethodologyStep(projectId: string, step: 'constitution' | 'specify' | 'clarify' | 'plan' | 'tasks' | 'write' | 'analyze', params?: Record<string, any>): Promise<StepResult>;
-    getMethodologyProgress(projectId: string): import("./modules/SevenStepMethodology/SevenStepMethodology").MethodologyProgress | undefined;
-    getMethodologyNextAction(projectId: string): "constitution" | "specify" | "clarify" | "plan" | "tasks" | "write" | "analyze" | null;
+    getMethodologyProgress(projectId: string): import("./modules/SevenStepMethodology/SevenStepMethodology").MethodologyProgress;
+    getMethodologyNextAction(projectId: string): "constitution" | "specify" | "clarify" | "plan" | "tasks" | "write" | "analyze";
     getGenreTemplates(): GenreTemplate[];
     getGenreTemplate(genre: Genre): GenreTemplate | undefined;
     getGenreGuidance(genre: Genre): string;
@@ -185,7 +191,7 @@ export declare class CloudBook {
         type: string;
         schedule: string;
         params: Record<string, any>;
-    }): Promise<ScheduledTask | undefined>;
+    }): Promise<ScheduledTask>;
     getNotifications(unreadOnly?: boolean): Notification[];
     generateChapter(projectId: string, chapterNumber: number, options?: WritingOptions): Promise<Chapter>;
     batchGenerateChapters(projectId: string, startChapter: number, count: number, options?: WritingOptions): Promise<Chapter[]>;
@@ -195,7 +201,6 @@ export declare class CloudBook {
     humanize(text: string): Promise<string>;
     private buildContext;
     saveProject(projectId: string, storagePath?: string): Promise<void>;
-    loadProject(projectId: string, storagePath?: string): Promise<NovelProject>;
     getProject(projectId: string): NovelProject | undefined;
     getAllProjects(): NovelProject[];
     getCurrentProject(): NovelProject | undefined;

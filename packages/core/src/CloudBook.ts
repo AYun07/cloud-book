@@ -43,6 +43,7 @@ import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/Local
 import { NetworkManager } from './modules/NetworkManager/NetworkManager';
 import { CacheManager, MultiLevelCache } from './modules/CacheManager/CacheManager';
 import { VersionHistoryManager } from './modules/VersionHistory/VersionHistoryManager';
+import { LocalStorage, ProjectData, ChapterData, CardData } from './modules/LocalStorage/LocalStorage';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -110,6 +111,7 @@ export class CloudBook {
   private networkManager: NetworkManager;
   private cacheManager: CacheManager;
   private versionHistoryManager: VersionHistoryManager;
+  private localStorage: LocalStorage;
 
   private currentProject?: NovelProject;
   private projects: Map<string, NovelProject> = new Map();
@@ -163,6 +165,7 @@ export class CloudBook {
     this.networkManager = new NetworkManager();
     this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
     this.versionHistoryManager = new VersionHistoryManager(config.storagePath + '/versioning');
+    this.localStorage = new LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
 
     if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
       this.initializeOfflineMode(config.localAPIConfig);
@@ -292,15 +295,23 @@ export class CloudBook {
     genre: Genre,
     writingMode: 'original' | 'imitation' | 'derivative' | 'fanfic' = 'original'
   ): Promise<NovelProject> {
+    // 使用 LocalStorage 持久化
+    const projectData = await this.localStorage.createProject({
+      title,
+      genre: genre as string,
+      creationMode: writingMode,
+      language: this.i18nManager.getLocale()
+    });
+
     const project: NovelProject = {
-      id: this.generateId(),
+      id: projectData.id,
       title,
       genre,
       literaryGenre: 'novel',
       writingMode,
       status: 'planning',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date(projectData.createdAt),
+      updatedAt: new Date(projectData.updatedAt),
       chapters: [],
       characters: [],
       worldSetting: {
@@ -329,6 +340,66 @@ export class CloudBook {
 
   async importNovel(filePath: string): Promise<ParseResult> {
     return this.parser.parse(filePath);
+  }
+
+  async listProjects(): Promise<ProjectData[]> {
+    return this.localStorage.listProjects();
+  }
+
+  async loadProject(projectId: string): Promise<NovelProject | null> {
+    const projectData = await this.localStorage.getProject(projectId);
+    if (!projectData) {
+      return null;
+    }
+
+    const project: NovelProject = {
+      id: projectData.id,
+      title: projectData.title,
+      genre: projectData.genre as Genre,
+      literaryGenre: 'novel',
+      writingMode: projectData.creationMode as any,
+      status: 'writing',
+      createdAt: new Date(projectData.createdAt),
+      updatedAt: new Date(projectData.updatedAt),
+      chapters: projectData.chapters.map((c: any) => ({
+        id: c.id,
+        number: c.number,
+        title: c.title,
+        content: c.content,
+        wordCount: c.wordCount,
+        status: c.status,
+        createdAt: new Date(c.createdAt),
+        updatedAt: new Date(c.updatedAt)
+      })),
+      characters: [],
+      worldSetting: projectData.settings?.worldSettings || {
+        id: this.generateId(),
+        name: projectData.title,
+        genre: projectData.genre as Genre,
+        literaryGenre: 'novel'
+      }
+    };
+
+    this.projects.set(project.id, project);
+    this.currentProject = project;
+
+    await this.worldInfoManager.initialize(project.id);
+    await this.memoryManager.initialize(project.id);
+    await this.cardManager.initialize(project.id);
+    await this.knowledgeGraphManager.initialize(project.id);
+    await this.truthFileManager.initialize(project.id);
+    await this.creativeHub.createSession(project.id);
+
+    return project;
+  }
+
+  async deleteProject(projectId: string): Promise<boolean> {
+    this.projects.delete(projectId);
+    return this.localStorage.deleteProject(projectId);
+  }
+
+  async exportChapter(projectId: string, chapterId: string, format: 'txt' | 'md'): Promise<string | null> {
+    return this.localStorage.exportChapter(projectId, chapterId, format);
   }
 
   async createImitationProject(
@@ -747,12 +818,34 @@ export class CloudBook {
       project.chapters.push(chapter);
       project.updatedAt = new Date();
 
+      // 保存到本地存储
+      await this.localStorage.updateChapter(projectId, chapter.id, {
+        number: chapter.number,
+        title: chapter.title,
+        content: chapter.content,
+        status: chapter.status as 'draft' | 'revised' | 'final',
+        wordCount: chapter.wordCount,
+        auditResult: chapter.auditResult
+      });
+
       await this.truthFileManager.updateChapterSummary(projectId, chapter);
 
       return chapter;
     }
 
     const result = await this.writingPipeline.generateChapter(project, chapterNumber, await this.truthFileManager.getTruthFiles(projectId), options);
+    
+    // 保存到本地存储
+    if (result.chapter) {
+      await this.localStorage.updateChapter(projectId, result.chapter.id, {
+        number: result.chapter.number,
+        title: result.chapter.title,
+        content: result.chapter.content,
+        status: result.chapter.status as 'draft' | 'revised' | 'final',
+        wordCount: result.chapter.wordCount
+      });
+    }
+    
     return result.chapter;
   }
 
@@ -872,23 +965,6 @@ export class CloudBook {
     }
 
     fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
-  }
-
-  async loadProject(projectId: string, storagePath?: string): Promise<NovelProject> {
-    const basePath = storagePath || this.config.storagePath || './projects';
-    const filePath = path.join(basePath, `${projectId}.json`);
-
-    if (!fs.existsSync(filePath)) {
-      throw new Error('Project not found');
-    }
-
-    const data = fs.readFileSync(filePath, 'utf-8');
-    const project = JSON.parse(data) as NovelProject;
-
-    this.projects.set(project.id, project);
-    this.currentProject = project;
-
-    return project;
   }
 
   getProject(projectId: string): NovelProject | undefined {

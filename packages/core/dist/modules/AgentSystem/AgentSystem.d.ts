@@ -58,6 +58,19 @@ export declare class AgentSystem {
     private checkRiskAlert;
     private generateFixes;
     private countWords;
+    executeParallelTasks(tasks: AgentTask[]): Promise<AgentResponse[]>;
+    private createTask;
+    private updateTaskStatus;
+    getTaskStatus(taskId: string): AgentTask | undefined;
+    getAllTasks(): AgentTask[];
+    executeChaptersBatch(project: NovelProject, startChapter: number, endChapter: number, parallelCount?: number): Promise<{
+        chapters: Chapter[];
+        allResults: AgentResponse[];
+    }>;
+    executeFullPipeline(project: NovelProject, chapterCount: number, onProgress?: (agent: string, status: string, progress: number) => void): Promise<{
+        chapters: Chapter[];
+        truthFiles: TruthFiles;
+    }>;
 }
 export default AgentSystem;
 //# sourceMappingURL=AgentSystem.d.ts.map

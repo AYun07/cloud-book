@@ -67,6 +67,42 @@ export declare class WritingPipeline {
      * 统计字数
      */
     private countWords;
+    /**
+     * 批量生成章节
+     */
+    generateChaptersBatch(project: NovelProject, startChapter: number, endChapter: number, truthFiles: TruthFiles, options?: WritingOptions, onProgress?: (current: number, total: number, chapter?: Chapter) => void): Promise<Chapter[]>;
+    /**
+     * 续写现有小说
+     */
+    continueWriting(project: NovelProject, lastChapterNumber: number, newChaptersCount: number, truthFiles: TruthFiles, options?: WritingOptions): Promise<Chapter[]>;
+    /**
+     * 同人创作
+     */
+    writeFanfiction(sourceNovel: NovelProject, targetChapterNumber: number, premise: string, truthFiles: TruthFiles, options?: WritingOptions): Promise<{
+        chapter: Chapter;
+        deviationNote?: string;
+    }>;
+    /**
+     * 番外篇创作
+     */
+    writeSideStory(project: NovelProject, sideStoryTitle: string, viewpointCharacter: string, timelinePosition: string, truthFiles: TruthFiles, options?: WritingOptions): Promise<{
+        chapter: Chapter;
+        sideStoryNote?: string;
+    }>;
+    /**
+     * 多视角叙事
+     */
+    writeMultiPOV(project: NovelProject, chapterNumber: number, viewpoints: string[], truthFiles: TruthFiles, options?: WritingOptions): Promise<Chapter[]>;
+    /**
+     * 自动化完整创作流程
+     */
+    autoGenerateNovel(project: NovelProject, chapterCount: number, onPhase?: (phase: string, progress: number) => void): Promise<{
+        chapters: Chapter[];
+        truthFiles: TruthFiles;
+    }>;
+    private getOrCreateTruthFiles;
+    private generateBatchOutlines;
+    private updateTruthFilesAfterChapter;
 }
 export default WritingPipeline;
 //# sourceMappingURL=WritingPipeline.d.ts.map

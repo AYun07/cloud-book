@@ -439,6 +439,309 @@ export class NovelParser {
     
     return result.replace(/零+$/, '');
   }
+
+  /**
+   * 解析小说URL
+   */
+  async parseFromURL(url: string): Promise<ParseResult> {
+    const response = await fetch(url);
+    const content = await response.text();
+    const tempFilePath = '/tmp/novel-parse-' + Date.now() + '.txt';
+    
+    await this.writeTempFile(tempFilePath, content);
+    const result = await this.parse(tempFilePath);
+    
+    await this.deleteTempFile(tempFilePath);
+    return result;
+  }
+
+  private async writeTempFile(path: string, content: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      fs.writeFile(path, content, 'utf-8', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  private async deleteTempFile(path: string): Promise<void> {
+    return new Promise((resolve) => {
+      fs.unlink(path, () => resolve());
+    });
+  }
+
+  /**
+   * 从字符串解析（不依赖文件）
+   */
+  async parseFromString(content: string): Promise<ParseResult> {
+    const basicInfo = this.extractBasicInfo(content);
+    const chapters = this.splitChapters(content);
+    
+    const parsedChapters: ParsedChapter[] = [];
+    for (let i = 0; i < chapters.length; i++) {
+      const parsed = await this.parseChapter(chapters[i], i + 1);
+      parsedChapters.push(parsed);
+    }
+    
+    const characters = this.config.extractCharacters 
+      ? await this.extractCharacters(parsedChapters)
+      : [];
+    
+    const worldSettings = this.config.extractWorldSettings
+      ? await this.extractWorldSettings(parsedChapters)
+      : { locations: [], factions: [], items: [], timeline: [] };
+    
+    const styleFingerprint = this.config.analyzeStyle
+      ? await this.analyzeStyle(parsedChapters)
+      : this.getDefaultStyleFingerprint();
+    
+    const writingPatterns = this.config.analyzeStyle
+      ? await this.analyzeWritingPatterns(parsedChapters)
+      : [];
+    
+    return {
+      title: basicInfo.title,
+      author: basicInfo.author,
+      genre: basicInfo.genre,
+      estimatedWordCount: this.countWords(content),
+      chapters: parsedChapters,
+      characters,
+      worldSettings,
+      writingPatterns,
+      styleFingerprint
+    };
+  }
+
+  /**
+   * 批量导入多个文件
+   */
+  async parseMultiple(filePaths: string[]): Promise<ParseResult[]> {
+    const results: ParseResult[] = [];
+    
+    for (const filePath of filePaths) {
+      try {
+        const result = await this.parse(filePath);
+        results.push(result);
+      } catch (error) {
+        console.error(`解析失败 ${filePath}:`, error);
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * 分析章节间的关联
+   */
+  analyzeChapterConnections(chapters: ParsedChapter[]): {
+    previousChapter?: number;
+    nextChapter?: number;
+    sharedCharacters: string[];
+    locationChanges: { from: string; to: string }[];
+  }[] {
+    const connections: {
+      previousChapter?: number;
+      nextChapter?: number;
+      sharedCharacters: string[];
+      locationChanges: { from: string; to: string }[];
+    }[] = [];
+
+    for (let i = 0; i < chapters.length; i++) {
+      const current = chapters[i];
+      const connection: typeof connections[0] = {
+        sharedCharacters: [],
+        locationChanges: []
+      };
+
+      if (i > 0) {
+        const prev = chapters[i - 1];
+        connection.previousChapter = i;
+        connection.sharedCharacters = current.characters.filter(
+          c => prev.characters.includes(c)
+        );
+        
+        if (current.scenes.length > 0 && prev.scenes.length > 0) {
+          const prevLocation = prev.scenes[prev.scenes.length - 1].location;
+          const currLocation = current.scenes[0].location;
+          if (prevLocation !== currLocation) {
+            connection.locationChanges.push({ from: prevLocation, to: currLocation });
+          }
+        }
+      }
+
+      if (i < chapters.length - 1) {
+        connection.nextChapter = i + 2;
+      }
+
+      connections.push(connection);
+    }
+
+    return connections;
+  }
+
+  /**
+   * 生成结构化输出
+   */
+  generateStructuredOutput(result: ParseResult): {
+    metadata: { title: string; author?: string; genre?: string; wordCount: number };
+    chapters: { number: number; title: string; wordCount: number; characters: string[] }[];
+    characters: { name: string; appearances: number; description: string }[];
+    worldSettings: { locations: string[]; factions: string[]; items: string[] };
+    style: { avgSentenceLength: number; dialogueRatio: number; descriptionDensity: number };
+  } {
+    return {
+      metadata: {
+        title: result.title,
+        author: result.author,
+        genre: result.genre,
+        wordCount: result.estimatedWordCount
+      },
+      chapters: result.chapters.map(c => ({
+        number: c.index,
+        title: c.title,
+        wordCount: c.wordCount,
+        characters: c.characters
+      })),
+      characters: result.characters.map(c => ({
+        name: c.name,
+        appearances: c.appearances.length,
+        description: c.description
+      })),
+      worldSettings: {
+        locations: result.worldSettings.locations,
+        factions: result.worldSettings.factions,
+        items: result.worldSettings.items
+      },
+      style: {
+        avgSentenceLength: this.calculateAverageSentenceLength(result),
+        dialogueRatio: result.styleFingerprint.dialogueRatio,
+        descriptionDensity: result.styleFingerprint.descriptionDensity
+      }
+    };
+  }
+
+  private calculateAverageSentenceLength(result: ParseResult): number {
+    let totalWords = 0;
+    let totalSentences = 0;
+    
+    for (const chapter of result.chapters) {
+      totalWords += chapter.wordCount;
+      const sentences = chapter.content.split(/[。！？]/).length;
+      totalSentences += sentences;
+    }
+    
+    return totalSentences > 0 ? totalWords / totalSentences : 0;
+  }
+
+  /**
+   * 提取章节时间线
+   */
+  extractTimeline(chapters: ParsedChapter[]): {
+    chapter: number;
+    timeIndicator: string;
+    impliedTime: string;
+  }[] {
+    const timeline: { chapter: number; timeIndicator: string; impliedTime: string }[] = [];
+    const timePatterns = [
+      { pattern: /第[一二三四五六七八九十百千\d]+天/gi, type: 'day' },
+      { pattern: /第[一二三四五六七八九十百千\d]+年/gi, type: 'year' },
+      { pattern: /[早中晚]上/gi, type: 'timeOfDay' },
+      { pattern: /春天|夏天|秋天|冬天/gi, type: 'season' },
+      { pattern: /昨天|今天|明天|后天/gi, type: 'relative' },
+      { pattern: /上午|下午|晚上|凌晨|傍晚/gi, type: 'timeOfDay' }
+    ];
+
+    for (const chapter of chapters) {
+      for (const { pattern, type } of timePatterns) {
+        const matches = chapter.content.match(pattern);
+        if (matches && matches.length > 0) {
+          timeline.push({
+            chapter: chapter.index,
+            timeIndicator: matches[0],
+            impliedTime: type
+          });
+          break;
+        }
+      }
+    }
+
+    return timeline;
+  }
+
+  /**
+   * 分析人物关系网络
+   */
+  analyzeCharacterRelationships(
+    characters: ExtractedCharacter[],
+    chapters: ParsedChapter[]
+  ): {
+    character1: string;
+    character2: string;
+    interactionCount: number;
+    chapters: number[];
+    relationshipType?: string;
+  }[] {
+    const relationships: Map<string, {
+      character1: string;
+      character2: string;
+      interactionCount: number;
+      chapters: Set<number>;
+      relationshipType?: string;
+    }> = new Map();
+
+    for (const chapter of chapters) {
+      const chapterCharacters = chapter.characters;
+      
+      for (let i = 0; i < chapterCharacters.length; i++) {
+        for (let j = i + 1; j < chapterCharacters.length; j++) {
+          const key = [chapterCharacters[i], chapterCharacters[j]].sort().join('-');
+          
+          if (!relationships.has(key)) {
+            relationships.set(key, {
+              character1: chapterCharacters[i],
+              character2: chapterCharacters[j],
+              interactionCount: 0,
+              chapters: new Set(),
+              relationshipType: this.inferRelationshipType(chapter.content, chapterCharacters[i], chapterCharacters[j])
+            });
+          }
+          
+          const rel = relationships.get(key)!;
+          rel.interactionCount++;
+          rel.chapters.add(chapter.index);
+        }
+      }
+    }
+
+    return Array.from(relationships.values()).map(r => ({
+      character1: r.character1,
+      character2: r.character2,
+      interactionCount: r.interactionCount,
+      chapters: Array.from(r.chapters),
+      relationshipType: r.relationshipType
+    }));
+  }
+
+  private inferRelationshipType(content: string, char1: string, char2: string): string | undefined {
+    const intimacyPatterns = [
+      { pattern: /老公|老婆|妻子|丈夫|恋人|情侣|爱人/gi, type: 'romantic' },
+      { pattern: /父亲|母亲|爸爸|妈妈|儿子|女儿|孩子/gi, type: 'family' },
+      { pattern: /朋友|兄弟|姐妹|闺蜜|死党/gi, type: 'friend' },
+      { pattern: /敌人|对手|仇人|仇家/gi, type: 'enemy' },
+      { pattern: /师父|徒弟|弟子|学生/gi, type: 'master' },
+      { pattern: /上司|下属|员工|老板/gi, type: 'workplace' }
+    ];
+
+    for (const { pattern, type } of intimacyPatterns) {
+      const contentSubset = content.substring(0, 500);
+      if (pattern.test(contentSubset)) {
+        return type;
+      }
+      pattern.lastIndex = 0;
+    }
+
+    return undefined;
+  }
 }
 
 export default NovelParser;

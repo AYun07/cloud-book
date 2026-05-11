@@ -66,6 +66,7 @@ const LocalAPIServer_1 = require("./modules/LocalAPI/LocalAPIServer");
 const NetworkManager_1 = require("./modules/NetworkManager/NetworkManager");
 const CacheManager_1 = require("./modules/CacheManager/CacheManager");
 const VersionHistoryManager_1 = require("./modules/VersionHistory/VersionHistoryManager");
+const LocalStorage_1 = require("./modules/LocalStorage/LocalStorage");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 class CloudBook {
@@ -98,6 +99,7 @@ class CloudBook {
     networkManager;
     cacheManager;
     versionHistoryManager;
+    localStorage;
     currentProject;
     projects = new Map();
     constructor(config) {
@@ -140,6 +142,7 @@ class CloudBook {
         this.networkManager = new NetworkManager_1.NetworkManager();
         this.cacheManager = new CacheManager_1.CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
         this.versionHistoryManager = new VersionHistoryManager_1.VersionHistoryManager(config.storagePath + '/versioning');
+        this.localStorage = new LocalStorage_1.LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
         if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
             this.initializeOfflineMode(config.localAPIConfig);
         }
@@ -233,15 +236,22 @@ class CloudBook {
     // 项目管理 - 基础功能
     // ============================================
     async createProject(title, genre, writingMode = 'original') {
+        // 使用 LocalStorage 持久化
+        const projectData = await this.localStorage.createProject({
+            title,
+            genre: genre,
+            creationMode: writingMode,
+            language: this.i18nManager.getLocale()
+        });
         const project = {
-            id: this.generateId(),
+            id: projectData.id,
             title,
             genre,
             literaryGenre: 'novel',
             writingMode,
             status: 'planning',
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: new Date(projectData.createdAt),
+            updatedAt: new Date(projectData.updatedAt),
             chapters: [],
             characters: [],
             worldSetting: {
@@ -265,6 +275,58 @@ class CloudBook {
     }
     async importNovel(filePath) {
         return this.parser.parse(filePath);
+    }
+    async listProjects() {
+        return this.localStorage.listProjects();
+    }
+    async loadProject(projectId) {
+        const projectData = await this.localStorage.getProject(projectId);
+        if (!projectData) {
+            return null;
+        }
+        const project = {
+            id: projectData.id,
+            title: projectData.title,
+            genre: projectData.genre,
+            literaryGenre: 'novel',
+            writingMode: projectData.creationMode,
+            status: 'writing',
+            createdAt: new Date(projectData.createdAt),
+            updatedAt: new Date(projectData.updatedAt),
+            chapters: projectData.chapters.map((c) => ({
+                id: c.id,
+                number: c.number,
+                title: c.title,
+                content: c.content,
+                wordCount: c.wordCount,
+                status: c.status,
+                createdAt: new Date(c.createdAt),
+                updatedAt: new Date(c.updatedAt)
+            })),
+            characters: [],
+            worldSetting: projectData.settings?.worldSettings || {
+                id: this.generateId(),
+                name: projectData.title,
+                genre: projectData.genre,
+                literaryGenre: 'novel'
+            }
+        };
+        this.projects.set(project.id, project);
+        this.currentProject = project;
+        await this.worldInfoManager.initialize(project.id);
+        await this.memoryManager.initialize(project.id);
+        await this.cardManager.initialize(project.id);
+        await this.knowledgeGraphManager.initialize(project.id);
+        await this.truthFileManager.initialize(project.id);
+        await this.creativeHub.createSession(project.id);
+        return project;
+    }
+    async deleteProject(projectId) {
+        this.projects.delete(projectId);
+        return this.localStorage.deleteProject(projectId);
+    }
+    async exportChapter(projectId, chapterId, format) {
+        return this.localStorage.exportChapter(projectId, chapterId, format);
     }
     async createImitationProject(parseResult, mode, imitationLevel = 70) {
         const config = {
@@ -587,10 +649,29 @@ class CloudBook {
             project.chapters = project.chapters || [];
             project.chapters.push(chapter);
             project.updatedAt = new Date();
+            // 保存到本地存储
+            await this.localStorage.updateChapter(projectId, chapter.id, {
+                number: chapter.number,
+                title: chapter.title,
+                content: chapter.content,
+                status: chapter.status,
+                wordCount: chapter.wordCount,
+                auditResult: chapter.auditResult
+            });
             await this.truthFileManager.updateChapterSummary(projectId, chapter);
             return chapter;
         }
         const result = await this.writingPipeline.generateChapter(project, chapterNumber, await this.truthFileManager.getTruthFiles(projectId), options);
+        // 保存到本地存储
+        if (result.chapter) {
+            await this.localStorage.updateChapter(projectId, result.chapter.id, {
+                number: result.chapter.number,
+                title: result.chapter.title,
+                content: result.chapter.content,
+                status: result.chapter.status,
+                wordCount: result.chapter.wordCount
+            });
+        }
         return result.chapter;
     }
     async batchGenerateChapters(projectId, startChapter, count, options) {
@@ -678,18 +759,6 @@ class CloudBook {
             fs.mkdirSync(basePath, { recursive: true });
         }
         fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
-    }
-    async loadProject(projectId, storagePath) {
-        const basePath = storagePath || this.config.storagePath || './projects';
-        const filePath = path.join(basePath, `${projectId}.json`);
-        if (!fs.existsSync(filePath)) {
-            throw new Error('Project not found');
-        }
-        const data = fs.readFileSync(filePath, 'utf-8');
-        const project = JSON.parse(data);
-        this.projects.set(project.id, project);
-        this.currentProject = project;
-        return project;
     }
     getProject(projectId) {
         return this.projects.get(projectId);

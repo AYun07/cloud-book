@@ -409,6 +409,274 @@ ${content}
     const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
     return chineseChars + englishWords;
   }
+
+  /**
+   * 批量生成章节
+   */
+  async generateChaptersBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    truthFiles: TruthFiles,
+    options?: WritingOptions,
+    onProgress?: (current: number, total: number, chapter?: Chapter) => void
+  ): Promise<Chapter[]> {
+    const chapters: Chapter[] = [];
+    const total = endChapter - startChapter + 1;
+    const parallelCount = options?.parallelCount || 2;
+    
+    for (let i = startChapter; i <= endChapter; i += parallelCount) {
+      const batch: Promise<{ chapter: Chapter; chapterNumber: number }>[] = [];
+      
+      for (let j = i; j < Math.min(i + parallelCount, endChapter + 1); j++) {
+        batch.push(
+          this.generateChapter(project, j, truthFiles, options)
+            .then(result => ({ chapter: result.chapter, chapterNumber: j }))
+        );
+      }
+      
+      const results = await Promise.all(batch);
+      
+      for (const result of results.sort((a, b) => a.chapterNumber - b.chapterNumber)) {
+        chapters.push(result.chapter);
+        onProgress?.(chapters.length, total, result.chapter);
+      }
+    }
+    
+    return chapters;
+  }
+
+  /**
+   * 续写现有小说
+   */
+  async continueWriting(
+    project: NovelProject,
+    lastChapterNumber: number,
+    newChaptersCount: number,
+    truthFiles: TruthFiles,
+    options?: WritingOptions
+  ): Promise<Chapter[]> {
+    const chapters: Chapter[] = [];
+    
+    for (let i = 1; i <= newChaptersCount; i++) {
+      const chapterNumber = lastChapterNumber + i;
+      
+      const result = await this.generateChapter(project, chapterNumber, truthFiles, {
+        ...options,
+        chapterGuidance: options?.chapterGuidance || `这是第${chapterNumber}章的续写`
+      });
+      
+      chapters.push(result.chapter);
+    }
+    
+    return chapters;
+  }
+
+  /**
+   * 同人创作
+   */
+  async writeFanfiction(
+    sourceNovel: NovelProject,
+    targetChapterNumber: number,
+    premise: string,
+    truthFiles: TruthFiles,
+    options?: WritingOptions
+  ): Promise<{ chapter: Chapter; deviationNote?: string }> {
+    const deviationNote = `同人设定: ${premise}`;
+    
+    const result = await this.generateChapter(sourceNovel, targetChapterNumber, truthFiles, {
+      ...options,
+      chapterGuidance: `同人创作方向: ${premise}`
+    });
+    
+    return { chapter: result.chapter, deviationNote };
+  }
+
+  /**
+   * 番外篇创作
+   */
+  async writeSideStory(
+    project: NovelProject,
+    sideStoryTitle: string,
+    viewpointCharacter: string,
+    timelinePosition: string,
+    truthFiles: TruthFiles,
+    options?: WritingOptions
+  ): Promise<{ chapter: Chapter; sideStoryNote?: string }> {
+    const context = this.contextManager.buildWritingContext(project, 0, truthFiles);
+    
+    const sideStoryPrompt = `## 番外篇: ${sideStoryTitle}
+视角角色: ${viewpointCharacter}
+时间线位置: ${timelinePosition}
+
+${context}
+
+请从${viewpointCharacter}的视角创作一个番外篇，讲述${timelinePosition}发生的事情。
+目标字数: ${options?.targetWordCount || 2000}字`;
+
+    const modelConfig = this.llmManager.route('writing') || 
+                        this.llmManager.listModels()[0];
+
+    const result = await this.llmManager.generate(
+      sideStoryPrompt,
+      modelConfig?.name,
+      { temperature: 0.7, maxTokens: options?.targetWordCount || 2000 }
+    );
+
+    const chapter: Chapter = {
+      id: this.generateId(),
+      number: 0,
+      title: sideStoryTitle,
+      status: 'draft',
+      wordCount: this.countWords(result.text),
+      content: result.text,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    return { chapter, sideStoryNote: `番外篇-视角:${viewpointCharacter}-时间:${timelinePosition}` };
+  }
+
+  /**
+   * 多视角叙事
+   */
+  async writeMultiPOV(
+    project: NovelProject,
+    chapterNumber: number,
+    viewpoints: string[],
+    truthFiles: TruthFiles,
+    options?: WritingOptions
+  ): Promise<Chapter[]> {
+    const chapters: Chapter[] = [];
+    const wordsPerViewpoint = (options?.targetWordCount || 2000) / viewpoints.length;
+    
+    for (const viewpoint of viewpoints) {
+      const context = this.contextManager.buildWritingContext(project, chapterNumber, truthFiles);
+      
+      const povPrompt = `## 多视角叙事 - 第${chapterNumber}章
+当前视角: ${viewpoint}
+
+${context}
+
+请从${viewpoint}的视角创作第${chapterNumber}章。
+要求:
+1. 只描写该视角能感知到的事物
+2. 保持与其他视角的一致性
+3. 字数控制在${wordsPerViewpoint}字左右`;
+
+      const modelConfig = this.llmManager.route('writing') || 
+                          this.llmManager.listModels()[0];
+
+      const result = await this.llmManager.generate(
+        povPrompt,
+        modelConfig?.name,
+        { temperature: 0.7, maxTokens: wordsPerViewpoint }
+      );
+
+      chapters.push({
+        id: this.generateId(),
+        number: chapterNumber,
+        title: `第${this.toChineseNumber(chapterNumber)}章 - ${viewpoint}视角`,
+        status: 'draft',
+        wordCount: this.countWords(result.text),
+        content: result.text,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+    
+    return chapters;
+  }
+
+  /**
+   * 自动化完整创作流程
+   */
+  async autoGenerateNovel(
+    project: NovelProject,
+    chapterCount: number,
+    onPhase?: (phase: string, progress: number) => void
+  ): Promise<{ chapters: Chapter[]; truthFiles: TruthFiles }> {
+    onPhase?.('初始化真相文件', 0);
+    
+    let truthFiles = await this.getOrCreateTruthFiles(project);
+    
+    onPhase?.('生成章节大纲', 10);
+    await this.generateBatchOutlines(project, chapterCount, truthFiles);
+    
+    onPhase?.('开始写作', 20);
+    
+    const chapters = await this.generateChaptersBatch(
+      project,
+      1,
+      chapterCount,
+      truthFiles,
+      { autoAudit: true, autoHumanize: true },
+      (current, total) => {
+        const progress = 20 + (current / total) * 70;
+        onPhase?.(`写作进度: ${current}/${total}`, progress);
+      }
+    );
+    
+    onPhase?.('更新真相文件', 95);
+    for (const chapter of chapters) {
+      await this.updateTruthFilesAfterChapter(chapter, truthFiles);
+    }
+    
+    onPhase?.('完成', 100);
+    
+    return { chapters, truthFiles };
+  }
+
+  private async getOrCreateTruthFiles(project: NovelProject): Promise<TruthFiles> {
+    return project.truthFiles || {
+      currentState: {
+        protagonist: {
+          id: project.characters?.[0]?.id || 'main',
+          name: project.characters?.[0]?.name || '主角',
+          location: project.worldSetting?.locations?.[0]?.name || '未知地点',
+          status: '正常'
+        },
+        knownFacts: [],
+        currentConflicts: [],
+        relationshipSnapshot: {},
+        activeSubplots: []
+      },
+      particleLedger: [],
+      pendingHooks: [],
+      chapterSummaries: [],
+      subplotBoard: [],
+      emotionalArcs: [],
+      characterMatrix: []
+    };
+  }
+
+  private async generateBatchOutlines(
+    project: NovelProject,
+    chapterCount: number,
+    truthFiles: TruthFiles
+  ): Promise<string[]> {
+    const outlines: string[] = [];
+    
+    for (let i = 1; i <= chapterCount; i++) {
+      const outline = await this.generateOutline(project, i, truthFiles);
+      outlines.push(outline);
+    }
+    
+    return outlines;
+  }
+
+  private async updateTruthFilesAfterChapter(chapter: Chapter, truthFiles: TruthFiles): Promise<void> {
+    truthFiles.chapterSummaries.push({
+      chapterId: chapter.id,
+      chapterNumber: chapter.number,
+      title: chapter.title,
+      charactersPresent: chapter.characters || [],
+      keyEvents: [],
+      stateChanges: [],
+      newHooks: [],
+      resolvedHooks: []
+    });
+  }
 }
 
 export default WritingPipeline;
