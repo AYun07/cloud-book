@@ -1,6 +1,6 @@
 /**
- * Genre Configuration Manager - NovelWriter 8大类型
- * 管理不同类型的专属配置和模板
+ * 题材配置管理器
+ * 支持所有文学题材的专属配置和模板
  */
 
 import { 

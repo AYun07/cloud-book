@@ -1,6 +1,6 @@
 /**
- * Card 管理器 - NovelForge 功能
- * 管理卡片系统，支持Pydantic风格的Schema验证
+ * 卡片管理器
+ * Schema验证的结构化信息管理
  */
 
 import { Card, CardSchema, SchemaProperty, SchemaDefinition } from '../../types';

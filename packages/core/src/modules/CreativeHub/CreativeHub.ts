@@ -1,6 +1,6 @@
 /**
- * Creative Hub 模块 - AI-Novel-Writing-Assistant 功能
- * 创意中心，支持RAG检索和多工具协作
+ * 创意中心模块
+ * RAG检索增强，支持多工具协作
  */
 
 import { 

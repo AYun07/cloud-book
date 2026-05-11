@@ -1,5 +1,5 @@
 /**
- * Auto Director 模块 - AI-Novel-Writing-Assistant 功能
+ * 故事导演模块
  * 自动分析市场趋势，生成故事方向和章节规划
  */
 

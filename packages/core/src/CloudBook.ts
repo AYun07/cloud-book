@@ -1,6 +1,6 @@
 /**
- * Cloud Book - 完整写作引擎核心
- * 整合20个开源项目所有功能
+ * Cloud Book - 全能AI小说创作引擎
+ * 完全原创，整合所有创作功能
  */
 
 import {
@@ -245,7 +245,7 @@ export class CloudBook {
   }
 
   // ============================================
-  // World Info 管理 (KoboldAI-Client)
+  // 世界信息管理
   // ============================================
 
   async addWorldInfo(projectId: string, info: { name: string; keywords: string[]; content: string; depth?: number }) {
@@ -411,7 +411,7 @@ export class CloudBook {
   }
 
   // ============================================
-  // Genre Config (NovelWriter)
+  // 题材配置
   // ============================================
 
   getGenreTemplates(): GenreTemplate[] {

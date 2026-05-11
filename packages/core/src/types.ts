@@ -1,21 +1,143 @@
 /**
  * Cloud Book - 完整类型定义
- * 整合20个开源项目的所有类型
+ * 全能AI小说创作引擎
  */
 
-// ============================================
-// 基础类型
-// ============================================
-
 export type LiteraryGenre = 
-  | 'novel' | 'prose' | 'poetry' | 'drama' | 'screenplay' 
-  | 'fairytale' | 'fable' | 'biography' | 'reportage';
+  | 'novel'
+  | 'short_story'
+  | 'novella'
+  | 'prose'
+  | 'poetry'
+  | 'haiku'
+  | 'free_verse'
+  | 'classical_poetry'
+  | 'drama'
+  | 'screenplay'
+  | 'teleplay'
+  | 'micro_film'
+  | 'fairytale'
+  | 'fable'
+  | 'allegory'
+  | 'myth'
+  | 'legend'
+  | 'biography'
+  | 'autobiography'
+  | 'memoir'
+  | 'reportage'
+  | 'essay'
+  | 'column'
+  | 'blog'
+  | 'script'
+  | 'stage_play'
+  | 'comic_script'
+  | 'game_narrative'
+  | 'visual_novel_script';
 
 export type Genre = 
-  | 'fantasy' | 'xianxia' | 'wuxia' | 'western_fantasy' | 'scifi'
-  | 'cyberpunk' | 'mystery' | 'detective' | 'romance' | 'urban'
-  | 'historical' | 'military' | 'gaming' | 'light_novel' | 'fanfiction' 
-  | 'horror' | 'thriller';
+  | 'fantasy'
+  | 'xianxia'
+  | 'wuxia'
+  | 'western_fantasy'
+  | 'dark_fantasy'
+  | 'epic_fantasy'
+  | 'urban_fantasy'
+  | 'scifi'
+  | 'hard_sci-fi'
+  | 'soft_sci-fi'
+  | 'space_opera'
+  | 'cyberpunk'
+  | 'dystopian'
+  | 'post_apocalyptic'
+  | 'alternate_history'
+  | 'time_travel'
+  | 'mystery'
+  | 'detective'
+  | 'locked_room'
+  | 'historical_mystery'
+  | 'psychological_thriller'
+  | 'legal_thriller'
+  | 'medical_thriller'
+  | 'romance'
+  | 'historical_romance'
+  | 'paranormal_romance'
+  | 'science_fiction_romance'
+  | 'young_adult_romance'
+  | 'erotic_romance'
+  | 'urban'
+  | 'modern_urban'
+  | 'workplace_romance'
+  | 'crime_fiction'
+  | 'police_procedural'
+  | 'noir'
+  | 'hardboiled'
+  | 'historical'
+  | 'ancient_china'
+  | 'medieval_europe'
+  | 'ming_qing_fiction'
+  | 'three_kingdoms'
+  | 'republican_era'
+  | 'military'
+  | 'war_story'
+  | 'battlefield_hero'
+  | 'strategic_command'
+  | 'special_forces'
+  | 'aviation'
+  | 'naval'
+  | 'gaming'
+  | 'esports'
+  | 'game_world_immersion'
+  | 'game_mechanics'
+  | 'light_novel'
+  | 'anime_style'
+  | 'school_life'
+  | 'isekai'
+  | 'comedy'
+  | 'slapstick'
+  | 'dark_comedy'
+  | 'romantic_comedy'
+  | 'satire'
+  | 'parody'
+  | 'fanfiction'
+  | 'original_character'
+  | 'cross_over'
+  | 'alternate_universe'
+  | 'slash'
+  | 'femslash'
+  | 'het'
+  | 'horror'
+  | 'supernatural_horror'
+  | 'psychological_horror'
+  | 'body_horror'
+  | 'cosmic_horror'
+  | 'gothic_horror'
+  | 'thriller'
+  | 'suspense'
+  | 'action'
+  | 'martial_arts'
+  | 'adventure'
+  | 'survival'
+  | 'espionage'
+  | 'religious'
+  | 'mythology'
+  | 'folklore'
+  | 'cultivation'
+  | 'system'
+  | 'regression'
+  | 'transmigration'
+  | 'time_loops'
+  | 'game_transmigration'
+  | 'book_transmigration'
+  | 'vampire'
+  | 'werewolf'
+  | 'angel_demon'
+  | 'urban_wizard'
+  | 'superhero'
+  | 'psychological'
+  | 'literary_fiction'
+  | 'metafiction'
+  | 'experimental'
+  | 'blended_genre';
 
 export type WritingMode = 'original' | 'imitation' | 'derivative' | 'fanfic';
 
@@ -24,10 +146,6 @@ export type ChapterStatus =
   | 'finalized' | 'published';
 
 export type WritingMode2 = 'novel' | 'adventure' | 'chatbot';
-
-// ============================================
-// KoboldAI-Client 功能
-// ============================================
 
 export interface WorldInfo {
   id: string;
@@ -68,10 +186,6 @@ export interface Story {
   createdAt: Date;
   updatedAt: Date;
 }
-
-// ============================================
-// AI-Novel-Writing-Assistant 功能
-// ============================================
 
 export interface AutoDirectorResult {
   directions: StoryDirection[];
@@ -123,15 +237,11 @@ export interface HubContext {
   pendingTasks: string[];
 }
 
-// ============================================
-// NovelForge 功能
-// ============================================
-
 export interface Card {
   id: string;
   type: string;
   title: string;
-  content: string;
+  content: Record<string, any>;
   schema: CardSchema;
   parentId?: string;
   children?: string[];
@@ -161,7 +271,7 @@ export interface SchemaDefinition {
 
 export interface GraphNode {
   id: string;
-  type: 'character' | 'location' | 'item' | 'faction';
+  type: 'character' | 'location' | 'item' | 'faction' | 'event' | 'concept';
   name: string;
   properties: Record<string, any>;
 }
@@ -190,10 +300,6 @@ export interface ContextFilter {
   type: 'previous' | 'sibling' | 'index' | 'filter';
   expression?: string;
 }
-
-// ============================================
-// InkOS 功能
-// ============================================
 
 export type AgentType = 
   | 'architect' | 'writer' | 'auditor' | 'reviser' | 'styleEngineer' | 'radar';
@@ -308,8 +414,8 @@ export interface StyleFingerprint {
   punctuationPattern: string;
   dialogueRatio: number;
   descriptionDensity: number;
-  narrativeVoice: 'first_person' | 'third_person';
-  tense: 'past' | 'present';
+  narrativeVoice: 'first_person' | 'second_person' | 'third_person';
+  tense: 'past' | 'present' | 'future';
   emotionalWords: string[];
   signaturePhrases: string[];
   tabooWords: string[];
@@ -342,10 +448,6 @@ export interface WebhookConfig {
   url: string;
   secret?: string;
 }
-
-// ============================================
-// novel-writer 七步方法论
-// ============================================
 
 export interface WritingStep {
   step: 'constitution' | 'specify' | 'clarify' | 'plan' | 'tasks' | 'write' | 'analyze';
@@ -407,17 +509,19 @@ export interface TaskItem {
   estimatedTime?: number;
 }
 
-// ============================================
-// NovelWriter 功能 (EdwardAThomson)
-// ============================================
-
 export interface GenreConfig {
   genre: Genre;
+  literaryGenre: LiteraryGenre;
   subgenres: string[];
   factions: FactionTemplate[];
   characterAttributes: CharacterAttribute[];
   locationTypes: string[];
   narrativeFrameworks: string[];
+  powerSystem?: string;
+  requiredElements: string[];
+  tabooElements: string[];
+  typicalArcPatterns: string[];
+  recommendedLength: { min: number; max: number };
 }
 
 export interface FactionTemplate {
@@ -438,7 +542,7 @@ export interface CharacterAttribute {
 export interface CharacterArc {
   id: string;
   characterId: string;
-  arcType: 'positive' | 'negative' | 'flat' | 'circular';
+  arcType: 'positive' | 'negative' | 'flat' | 'circular' | 'transformation';
   stages: ArcStage[];
 }
 
@@ -463,10 +567,6 @@ export interface ReviewLevel {
   dimensions: string[];
   autoFix: boolean;
 }
-
-// ============================================
-// 通用功能
-// ============================================
 
 export interface Character {
   id: string;
@@ -513,6 +613,7 @@ export interface WorldSetting {
   id: string;
   name: string;
   genre: Genre;
+  literaryGenre: LiteraryGenre;
   powerSystem?: string;
   locations?: Location[];
   factions?: Faction[];
@@ -603,10 +704,6 @@ export interface NovelProject {
   updatedAt: Date;
 }
 
-// ============================================
-// AI & 审计功能
-// ============================================
-
 export interface LLMConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'custom';
   name: string;
@@ -665,10 +762,6 @@ export const AUDIT_DIMENSIONS = [
 
 export type AuditDimensionType = typeof AUDIT_DIMENSIONS[number];
 
-// ============================================
-// 反AI检测
-// ============================================
-
 export interface AntiDetectionConfig {
   enabled: boolean;
   intensity: number;
@@ -693,10 +786,6 @@ export interface AIIndicator {
   severity: number;
   location?: string;
 }
-
-// ============================================
-// 导入/导出 & 工具功能
-// ============================================
 
 export interface ImportConfig {
   filePath: string;
@@ -723,6 +812,7 @@ export interface ParseResult {
   title: string;
   author?: string;
   genre?: Genre;
+  literaryGenre?: LiteraryGenre;
   estimatedWordCount: number;
   chapters: ParsedChapter[];
   characters: ExtractedCharacter[];
@@ -770,7 +860,7 @@ export interface WritingPattern {
 }
 
 export interface CoverConfig {
-  style: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'custom';
+  style: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom';
   mainColor?: string;
   characters?: string[];
   theme?: string;
@@ -811,4 +901,23 @@ export interface PluginCommand {
 export interface PluginHook {
   name: string;
   callback: Function;
+}
+
+export interface TrendAnalysis {
+  popularElements: string[];
+  trendingGenres: string[];
+  successfulPatterns: string[];
+  marketGaps: string[];
+}
+
+export interface CompetitorAnalysis {
+  title: string;
+  author: string;
+  genre: Genre;
+  wordCount: number;
+  updateFrequency: string;
+  hotElements: string[];
+  strengths: string[];
+  weaknesses: string[];
+  readerReviews: string[];
 }

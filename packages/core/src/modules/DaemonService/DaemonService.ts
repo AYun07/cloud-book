@@ -1,6 +1,6 @@
 /**
- * Daemon Service - 守护进程模块
- * 后台任务调度、通知推送、自动写作
+ * 守护进程服务
+ * 后台任务调度、通知推送
  */
 
 import { DaemonConfig, NotificationConfig, NovelProject } from '../../types';

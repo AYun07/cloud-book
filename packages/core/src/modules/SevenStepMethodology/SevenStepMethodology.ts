@@ -1,5 +1,5 @@
 /**
- * Seven Step Methodology - novel-writer 七步方法论
+ * 七步创作法
  * Constitution → Specify → Clarify → Plan → Tasks → Write → Analyze
  */
 

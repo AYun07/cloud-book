@@ -1,6 +1,6 @@
 /**
- * Knowledge Graph 管理器 - NovelForge Neo4j 功能
- * 管理角色、地点、物品、势力关系图谱
+ * 知识图谱管理器
+ * 角色、地点、物品、势力关系图谱
  */
 
 import { KnowledgeGraph, GraphNode, GraphRelation, Character, Location, Item, Faction } from '../../types';

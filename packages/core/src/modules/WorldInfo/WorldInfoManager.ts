@@ -1,6 +1,6 @@
 /**
- * World Info 管理器 - KoboldAI-Client 功能
- * 管理世界设定信息，支持条件逻辑和层级
+ * 世界信息管理器
+ * 层级化的世界设定信息，支持条件逻辑
  */
 
 import { WorldInfo } from '../../types';

@@ -1,6 +1,6 @@
 /**
- * Memory 管理器 - KoboldAI-Client 功能
- * 管理记忆、作者笔记和系统提示
+ * 记忆管理器
+ * 记忆、作者笔记和系统提示分类管理
  */
 
 import { Memory } from '../../types';

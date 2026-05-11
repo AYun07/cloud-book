@@ -1,6 +1,6 @@
 /**
- * Agent 系统 - InkOS 5类Agent架构
- * 架构师、写作者、审计员、修订师、风格工程师、雷达
+ * Agent 智能体系统
+ * 六类创作智能体：架构师、写作者、审计员、修订师、风格工程师、雷达
  */
 
 import { Agent, AgentType, NovelProject, Chapter, TruthFiles } from '../../types';
