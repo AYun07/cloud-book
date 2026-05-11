@@ -37,6 +37,12 @@ import { PluginSystem } from './PluginSystem/PluginSystem';
 import { CoverGenerator, CoverDesign } from './CoverGenerator/CoverGenerator';
 import { MindMapGenerator, MindMapData } from './MindMapGenerator/MindMapGenerator';
 import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './TrendAnalyzer/TrendAnalyzer';
+import { I18nManager, GrammarChecker, SpellChecker } from './I18n/I18nManager';
+import { GlobalLiteraryConfig } from './GlobalLiterary/GlobalLiteraryConfig';
+import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './LocalAPI/LocalAPIServer';
+import { NetworkManager } from './NetworkManager/NetworkManager';
+import { CacheManager, MultiLevelCache } from './CacheManager/CacheManager';
+import { VersionHistoryManager } from './VersionHistory/VersionHistoryManager';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -50,6 +56,16 @@ export interface CloudBookConfig {
   daemonConfig?: {
     enabled: boolean;
     intervalMinutes?: number;
+  };
+  i18nConfig?: {
+    primaryLanguage?: string;
+    fallbackLanguage?: string;
+    autoDetect?: boolean;
+  };
+  connectionMode?: 'online' | 'offline' | 'hybrid';
+  localAPIConfig?: {
+    port?: number;
+    apiKeys?: APIKeyConfig[];
   };
 }
 
@@ -86,6 +102,14 @@ export class CloudBook {
   private coverGenerator: CoverGenerator;
   private mindMapGenerator: MindMapGenerator;
   private trendAnalyzer: TrendAnalyzer;
+
+  private i18nManager: I18nManager;
+  private globalLiteraryConfig: GlobalLiteraryConfig;
+  private localAPIServer?: LocalAPIServer;
+  private offlineLLMManager?: OfflineLLMManager;
+  private networkManager: NetworkManager;
+  private cacheManager: CacheManager;
+  private versionHistoryManager: VersionHistoryManager;
 
   private currentProject?: NovelProject;
   private projects: Map<string, NovelProject> = new Map();
@@ -130,6 +154,20 @@ export class CloudBook {
     this.mindMapGenerator = new MindMapGenerator();
     this.trendAnalyzer = new TrendAnalyzer(this.llmManager);
 
+    this.i18nManager = new I18nManager({
+      primary: config.i18nConfig?.primaryLanguage as any || 'zh-CN',
+      fallback: config.i18nConfig?.fallbackLanguage as any || 'en-US',
+      autoDetect: config.i18nConfig?.autoDetect ?? true
+    });
+    this.globalLiteraryConfig = new GlobalLiteraryConfig();
+    this.networkManager = new NetworkManager();
+    this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
+    this.versionHistoryManager = new VersionHistoryManager(config.storagePath + '/versioning');
+
+    if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
+      this.initializeOfflineMode(config.localAPIConfig);
+    }
+
     if (config.daemonConfig?.enabled) {
       this.daemonService = new DaemonService(
         {
@@ -143,6 +181,106 @@ export class CloudBook {
         config.storagePath + '/daemon'
       );
     }
+  }
+
+  private async initializeOfflineMode(config?: { port?: number; apiKeys?: APIKeyConfig[] }): Promise<void> {
+    if (config?.apiKeys && config.apiKeys.length > 0) {
+      this.offlineLLMManager = new OfflineLLMManager(config.apiKeys);
+      await this.offlineLLMManager.initializeOfflineServer(config.port || 8080);
+    }
+  }
+
+  // ============================================
+  // 多语言和本地化功能
+  // ============================================
+
+  setLanguage(language: string): void {
+    this.i18nManager.setLocale(language as any);
+  }
+
+  getLanguage(): string {
+    return this.i18nManager.getLocale();
+  }
+
+  detectLanguage(text: string): { language: string; confidence: number } {
+    return this.i18nManager.detectLanguage(text);
+  }
+
+  async checkGrammar(text: string): Promise<any> {
+    const checker = new GrammarChecker(this.i18nManager.getLocale(), this.llmManager);
+    return checker.checkGrammar(text);
+  }
+
+  getSupportedLanguages(): any[] {
+    return this.i18nManager.getSupportedLanguages();
+  }
+
+  translate(key: string, params?: Record<string, string>): string {
+    return this.i18nManager.t(key, params);
+  }
+
+  // ============================================
+  // 全球文学功能
+  // ============================================
+
+  getGlobalGenreConfig(genre: Genre): any {
+    return this.globalLiteraryConfig.getGenreConfig(genre);
+  }
+
+  getGlobalGenres(): any[] {
+    return this.globalLiteraryConfig.getAllGenres();
+  }
+
+  searchGenres(query: string, language?: string): any[] {
+    return this.globalLiteraryConfig.searchGenres(query, (language as any) || this.i18nManager.getLocale());
+  }
+
+  // ============================================
+  // 网络和缓存功能
+  // ============================================
+
+  async getNetworkStatus(): Promise<any> {
+    return this.networkManager.getStatus();
+  }
+
+  async checkConnection(): Promise<boolean> {
+    return this.networkManager.checkConnection();
+  }
+
+  onNetworkChange(callback: (status: any) => void): () => void {
+    return this.networkManager.onStatusChange(callback);
+  }
+
+  async getCacheStats(): Promise<any> {
+    return this.cacheManager.getStats();
+  }
+
+  clearCache(): void {
+    this.cacheManager.clear();
+  }
+
+  // ============================================
+  // 版本历史功能
+  // ============================================
+
+  async createVersion(projectId: string, content: string, summary?: string): Promise<any> {
+    return this.versionHistoryManager.createVersion(projectId, content, { summary });
+  }
+
+  async getVersionHistory(projectId: string, limit?: number): Promise<any[]> {
+    return this.versionHistoryManager.getVersionHistory(projectId, { limit });
+  }
+
+  async restoreVersion(projectId: string, versionId: string): Promise<any> {
+    return this.versionHistoryManager.restoreVersion(projectId, versionId);
+  }
+
+  async createBranch(projectId: string, name: string, description?: string): Promise<any> {
+    return this.versionHistoryManager.createBranch(projectId, name, description);
+  }
+
+  async compareVersions(projectId: string, v1: string, v2: string): Promise<any[]> {
+    return this.versionHistoryManager.compareVersions(projectId, v1, v2);
   }
 
   // ============================================

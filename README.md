@@ -156,34 +156,37 @@ cloud-book/
 │   │       ├── types.ts         # 类型定义
 │   │       └── modules/
 │   │           ├── AIAudit/           # 审计引擎
-│   │           ├── AntiDetection/     # 反AI检测
-│   │           ├── AutoDirector/      # 故事导演
+│   │           ├── AntiDetection/      # 反AI检测
+│   │           ├── AutoDirector/       # 故事导演
 │   │           ├── Card/              # 卡片管理
+│   │           ├── CacheManager/       # 缓存管理
 │   │           ├── ContextManager/     # 上下文管理
-│   │           ├── CoverGenerator/    # 封面生成
+│   │           ├── CoverGenerator/     # 封面生成
 │   │           ├── CreativeHub/        # 创意中心
 │   │           ├── DaemonService/      # 守护进程
 │   │           ├── GenreConfig/        # 题材配置
 │   │           ├── GlobalLiterary/     # 全球文学配置
-│   │           ├── I18n/               # 多语言支持
+│   │           ├── I18n/              # 多语言支持
 │   │           ├── ImitationEngine/    # 仿写引擎
-│   │           ├── KnowledgeGraph/     # 知识图谱
+│   │           ├── KnowledgeGraph/      # 知识图谱
 │   │           ├── LocalAPI/           # 本地API代理
 │   │           ├── LLMProvider/        # LLM管理
-│   │           ├── Memory/             # 记忆管理
-│   │           ├── MindMapGenerator/   # 思维导图
-│   │           ├── NovelParser/        # 小说解析
-│   │           ├── PluginSystem/       # 插件系统
+│   │           ├── Memory/            # 记忆管理
+│   │           ├── MindMapGenerator/    # 思维导图
+│   │           ├── NetworkManager/      # 网络状态管理
+│   │           ├── NovelParser/         # 小说解析
+│   │           ├── PluginSystem/        # 插件系统
 │   │           ├── SevenStepMethodology/ # 七步法
-│   │           ├── TruthFiles/         # 真相文件
-│   │           ├── TrendAnalyzer/      # 趋势分析
-│   │           ├── WorldInfo/          # 世界信息
-│   │           └── WritingEngine/      # 写作引擎
+│   │           ├── TruthFiles/          # 真相文件
+│   │           ├── TrendAnalyzer/       # 趋势分析
+│   │           ├── VersionHistory/       # 版本历史
+│   │           ├── WorldInfo/           # 世界信息
+│   │           └── WritingEngine/       # 写作引擎
 │   ├── web/                     # Web界面
 │   ├── desktop/                 # 桌面应用
-│   ├── cli/                    # 命令行工具
-│   └── mobile/                 # 移动应用
-└── docs/                      # 文档
+│   ├── cli/                     # 命令行工具
+│   └── mobile/                  # 移动应用
+└── docs/                        # 文档
 ```
 
 ## 快速开始

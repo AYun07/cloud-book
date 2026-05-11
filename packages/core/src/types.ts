@@ -1043,3 +1043,69 @@ export interface LiteraryFormConfig {
   structure: Partial<Record<Language, string>>;
   length: { min: number; max: number; typical: number };
 }
+
+export interface CacheConfig {
+  maxSize: number;
+  ttl: number;
+  storage: 'memory' | 'localStorage' | 'disk';
+  serializer?: 'json' | 'msgpack' | 'binary';
+}
+
+export interface CacheEntry<T = any> {
+  key: string;
+  value: T;
+  timestamp: number;
+  expiresAt: number;
+  size: number;
+  hits: number;
+}
+
+export interface CacheStats {
+  size: number;
+  maxSize: number;
+  hitRate: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+}
+
+export interface Version {
+  id: string;
+  version: number;
+  timestamp: Date;
+  content: string;
+  summary?: string;
+  author?: string;
+  tags?: string[];
+  metadata?: Record<string, any>;
+  parentId?: string;
+  branch?: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  headVersionId: string;
+}
+
+export interface Diff {
+  type: 'add' | 'remove' | 'modify';
+  lineNumber?: number;
+  oldContent?: string;
+  newContent?: string;
+  context?: string;
+}
+
+export interface ChangeStats {
+  additions: number;
+  deletions: number;
+  modifications: number;
+}
+
+export interface NetworkConfig {
+  checkInterval: number;
+  timeout: number;
+  fallbackUrls: string[];
+}
