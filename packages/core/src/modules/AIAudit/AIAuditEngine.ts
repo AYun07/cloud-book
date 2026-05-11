@@ -75,43 +75,43 @@ export class AIAuditEngine {
     dimension: string,
     truthFiles: TruthFiles
   ): Promise<{ dimension: AuditDimension; issues: Issue[] }> {
-    const issues: Issue[] = [];
     let score = 1.0;
     let details = '';
+    let dimensionIssues: Issue[] = [];
     
     switch (dimension) {
       case 'characterConsistency':
-        ({ score, issues, details } = this.checkCharacterConsistency(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkCharacterConsistency(content, truthFiles));
         break;
       case 'worldConsistency':
-        ({ score, issues, details } = this.checkWorldConsistency(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkWorldConsistency(content, truthFiles));
         break;
       case 'timelineConsistency':
-        ({ score, issues, details } = this.checkTimelineConsistency(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkTimelineConsistency(content, truthFiles));
         break;
       case 'plotLogic':
-        ({ score, issues, details } = this.checkPlotLogic(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkPlotLogic(content, truthFiles));
         break;
       case 'foreshadowFulfillment':
-        ({ score, issues, details } = this.checkForeshadowFulfillment(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkForeshadowFulfillment(content, truthFiles));
         break;
       case 'resourceTracking':
-        ({ score, issues, details } = this.checkResourceTracking(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkResourceTracking(content, truthFiles));
         break;
       case 'emotionalArc':
-        ({ score, issues, details } = this.checkEmotionalArc(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkEmotionalArc(content, truthFiles));
         break;
       case 'narrativePacing':
-        ({ score, issues, details } = this.checkNarrativePacing(content));
+        ({ score, issues: dimensionIssues, details } = this.checkNarrativePacing(content));
         break;
       case 'aiDetection':
-        ({ score, issues, details } = this.checkAIDetection(content));
+        ({ score, issues: dimensionIssues, details } = this.checkAIDetection(content));
         break;
       case 'repetitiveness':
-        ({ score, issues, details } = this.checkRepetitiveness(content));
+        ({ score, issues: dimensionIssues, details } = this.checkRepetitiveness(content));
         break;
       case 'powerConsistency':
-        ({ score, issues, details } = this.checkPowerConsistency(content, truthFiles));
+        ({ score, issues: dimensionIssues, details } = this.checkPowerConsistency(content, truthFiles));
         break;
       default:
         score = 0.9;
@@ -125,7 +125,7 @@ export class AIAuditEngine {
         passed: score >= this.config.threshold,
         details
       },
-      issues
+      issues: dimensionIssues
     };
   }
 

@@ -79,10 +79,8 @@ export class LocalAPIServer {
 
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const options: http.ServerOptions = {
-        host: this.config.host || '0.0.0.0',
-        port: this.config.port
-      };
+      const host = this.config.host || '0.0.0.0';
+      const port = this.config.port;
 
       if (this.config.ssl?.enabled) {
         this.server = https.createServer({
@@ -97,8 +95,8 @@ export class LocalAPIServer {
         reject(err);
       });
 
-      this.server.listen(options.port, options.host, () => {
-        console.log(`Local API Server running on ${this.config.host || '0.0.0.0'}:${this.config.port}`);
+      this.server.listen(port, host, () => {
+        console.log(`Local API Server running on ${host}:${port}`);
         resolve();
       });
     });
@@ -293,7 +291,9 @@ export class LocalAPIServer {
   private setCachedResponse(key: string, response: ProxyResponse): void {
     if (this.cache.size >= this.config.cache!.maxSize) {
       const oldestKey = this.cache.keys().next().value;
-      this.cache.delete(oldestKey);
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+      }
     }
     
     this.cache.set(key, {

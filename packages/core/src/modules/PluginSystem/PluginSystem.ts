@@ -13,9 +13,14 @@ export interface PluginContext {
 }
 
 export interface HookPayload {
-  name: string;
-  context: PluginContext;
+  name?: string;
+  context?: PluginContext;
   data?: any;
+  commandName?: string;
+  args?: any;
+  result?: any;
+  error?: string;
+  [key: string]: any;
 }
 
 export interface CommandResult {

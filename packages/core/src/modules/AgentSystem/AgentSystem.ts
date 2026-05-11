@@ -21,6 +21,7 @@ export interface AgentResponse {
   success: boolean;
   data?: any;
   message: string;
+  error?: string;
 }
 
 export class AgentSystem {
@@ -171,7 +172,7 @@ export class AgentSystem {
     
     try {
       const prompt = this.buildWriterPrompt(project, chapterNumber, options);
-      const content = await this.llmManager.complete(prompt, { task: 'writing', temperature: 0.75 });
+      const content = await this.llmManager.complete(prompt, { temperature: 0.75, maxTokens: 3000 });
       
       return { success: true, data: content, message: `${agent.name}生成第${chapterNumber}章` };
     } catch (error: any) {
@@ -209,7 +210,7 @@ export class AgentSystem {
     
     try {
       const prompt = this.buildReviserPrompt(content, issues, truthFiles);
-      const revised = await this.llmManager.complete(prompt, { task: 'revision', temperature: 0.6 });
+      const revised = await this.llmManager.complete(prompt, { temperature: 0.6, maxTokens: 3000 });
       
       return { success: true, data: revised, message: `${agent.name}完成修订` };
     } catch (error: any) {
@@ -340,7 +341,7 @@ export class AgentSystem {
 
 请详细描述每个方面。`;
 
-    return this.llmManager.complete(prompt, { task: 'planning', temperature: 0.7 });
+    return this.llmManager.complete(prompt, { temperature: 0.7, maxTokens: 2000 });
   }
 
   private async architectCharacterDesign(project: Partial<NovelProject>, params?: Record<string, any>): Promise<any> {
@@ -358,7 +359,7 @@ export class AgentSystem {
 
 每个角色需要包含：外貌、性格、背景、动机、关系网。`;
 
-    return this.llmManager.complete(prompt, { task: 'planning', temperature: 0.7 });
+    return this.llmManager.complete(prompt, { temperature: 0.7, maxTokens: 2000 });
   }
 
   private async architectPlotPlanning(project: Partial<NovelProject>, params?: Record<string, any>): Promise<any> {
@@ -377,7 +378,7 @@ export class AgentSystem {
 
 请详细描述每个情节点。`;
 
-    return this.llmManager.complete(prompt, { task: 'planning', temperature: 0.75 });
+    return this.llmManager.complete(prompt, { temperature: 0.75, maxTokens: 3000 });
   }
 
   private async architectOutlineGeneration(project: Partial<NovelProject>, params?: Record<string, any>): Promise<any> {
@@ -396,7 +397,7 @@ export class AgentSystem {
 
 请确保节奏感：前期铺垫、中期发展、后期高潮。`;
 
-    return this.llmManager.complete(prompt, { task: 'planning', temperature: 0.7 });
+    return this.llmManager.complete(prompt, { temperature: 0.7, maxTokens: 3000 });
   }
 
   private buildWriterPrompt(project: NovelProject, chapterNumber: number, options?: any): string {
@@ -457,7 +458,7 @@ ${content.slice(0, 5000)}
 
 请用JSON格式输出。`;
 
-    const result = await this.llmManager.complete(prompt, { task: 'style', temperature: 0.3 });
+    const result = await this.llmManager.complete(prompt, { temperature: 0.3, maxTokens: 2000 });
     
     try {
       const jsonMatch = result.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
@@ -486,7 +487,7 @@ ${styleSource}
 
 请输出调整后的完整内容：`;
 
-    return this.llmManager.complete(stylePrompt, { task: 'style', temperature: 0.6 });
+    return this.llmManager.complete(stylePrompt, { temperature: 0.6, maxTokens: 3000 });
   }
 
   private async humanizeContent(content: string): Promise<string> {
@@ -504,7 +505,7 @@ ${content}
 
 请输出处理后的完整内容：`;
 
-    return this.llmManager.complete(humanizePrompt, { task: 'style', temperature: 0.8 });
+    return this.llmManager.complete(humanizePrompt, { temperature: 0.8, maxTokens: 3000 });
   }
 
   private async analyzeTrends(params?: Record<string, any>): Promise<any> {
@@ -520,7 +521,7 @@ ${content}
 
 请提供详细的趋势报告和建议。`;
 
-    return this.llmManager.complete(prompt, { task: 'analysis', temperature: 0.7 });
+    return this.llmManager.complete(prompt, { temperature: 0.7, maxTokens: 2000 });
   }
 
   private async reviewPerformance(params?: Record<string, any>): Promise<any> {
@@ -540,7 +541,7 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}" 
 
 请提供改进建议。`;
 
-    return this.llmManager.complete(prompt, { task: 'analysis', temperature: 0.6 });
+    return this.llmManager.complete(prompt, { temperature: 0.6, maxTokens: 2000 });
   }
 
   private async checkRiskAlert(params?: Record<string, any>): Promise<any> {
@@ -559,7 +560,7 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}" 
 
 请提供风险评估报告。`;
 
-    return this.llmManager.complete(prompt, { task: 'analysis', temperature: 0.5 });
+    return this.llmManager.complete(prompt, { temperature: 0.5, maxTokens: 2000 });
   }
 
   private async generateFixes(auditResult: any): Promise<string[]> {

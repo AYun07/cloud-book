@@ -1,17 +1,21 @@
 {
   "name": "cloud-book",
   "version": "1.0.0",
-  "description": "☁️ AI驱动的下一代小说创作平台 - 整合20个优秀项目优势的终极创作工具",
-  "private": true,
+  "description": "☁️ AI驱动的下一代小说创作平台 - 面向全球的多语言智能写作系统",
+  "private": false,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "clean": "pnpm -r clean"
+    "dev": "tsc --watch -p packages/core/tsconfig.json",
+    "build": "tsc -p packages/core/tsconfig.json",
+    "build:all": "pnpm -r build",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint packages/core/src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf packages/*/dist",
+    "prepare": "pnpm build"
   },
   "keywords": [
     "novel",
@@ -19,8 +23,22 @@
     "ai",
     "creative-writing",
     "story-generation",
-    "fiction"
+    "fiction",
+    "webnovel",
+    "writing-assistant",
+    "ai-writing",
+    "multi-language"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "Cloud Book Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cloud-book/cloud-book"
+  },
+  "bugs": {
+    "url": "https://github.com/cloud-book/cloud-book/issues"
+  }
 }

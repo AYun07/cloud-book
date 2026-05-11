@@ -7,19 +7,19 @@ import { LiteraryGenre, Genre, Language } from '../../types';
 
 export interface GlobalGenreConfig {
   genre: Genre;
-  names: Record<Language, string>;
-  description: Record<Language, string>;
-  subgenres: Record<Language, string[]>;
+  names: Partial<Record<Language, string>>;
+  description: Partial<Record<Language, string>>;
+  subgenres: Partial<Record<Language, string[]>>;
   examples: string[];
   regions: string[];
-  characteristics: Record<Language, string[]>;
+  characteristics: Partial<Record<Language, string[]>>;
 }
 
 export interface LiteraryFormConfig {
   form: LiteraryGenre;
-  names: Record<Language, string>;
-  description: Record<Language, string>;
-  structure: Record<Language, string>;
+  names: Partial<Record<Language, string>>;
+  description: Partial<Record<Language, string>>;
+  structure: Partial<Record<Language, string>>;
   length: { min: number; max: number; typical: number };
 }
 

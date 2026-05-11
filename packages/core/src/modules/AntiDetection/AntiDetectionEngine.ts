@@ -49,8 +49,8 @@ export class AntiDetectionEngine {
     human: ['我', '咱们', '俺', '俺们', '咱', '咱们的']
   };
 
-  constructor(config: AntiDetectionConfig = { enabled: true, intensity: 5 }) {
-    this.config = {
+  constructor(config: Partial<AntiDetectionConfig> = {}) {
+    const defaultConfig: AntiDetectionConfig = {
       enabled: true,
       intensity: 5,
       replaceAIWords: true,
@@ -58,9 +58,9 @@ export class AntiDetectionEngine {
       addColloquialism: false,
       enhanceEmotion: true,
       addImperfection: true,
-      mixStyles: false,
-      ...config
+      mixStyles: false
     };
+    this.config = { ...defaultConfig, ...config };
   }
 
   /**

@@ -41,7 +41,8 @@ export class TruthFileManager {
         },
         knownFacts: [],
         currentConflicts: [],
-        relationshipSnapshot: {}
+        relationshipSnapshot: {},
+        activeSubplots: []
       },
       particleLedger: [],
       pendingHooks: [],

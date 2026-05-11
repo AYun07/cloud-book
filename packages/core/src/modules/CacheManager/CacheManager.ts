@@ -3,6 +3,12 @@
  * 支持多种缓存策略
  */
 
+declare const localStorage: {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+} | undefined;
+
 export interface CacheConfig {
   maxSize: number;
   ttl: number;
@@ -210,9 +216,9 @@ export class CacheManager<T = any> {
     if (this.config.storage === 'memory') return;
 
     try {
-      const data = Array.from(this.cache.entries()).map(([key, entry]) => ({
-        key,
-        ...entry
+      const data = Array.from(this.cache.entries()).map(([k, entry]) => ({
+        ...entry,
+        key: k
       }));
 
       if (this.config.storage === 'localStorage' && typeof localStorage !== 'undefined') {

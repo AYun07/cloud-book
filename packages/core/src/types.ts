@@ -368,8 +368,11 @@ export interface ProtagonistState {
   location: string;
   status: string;
   level?: string;
-  resources: Record<string, number>;
+  resources?: Record<string, number>;
 }
+
+export type WorldState = CurrentState;
+export type Resource = Particle;
 
 export interface Particle {
   id: string;
@@ -805,6 +808,15 @@ export interface AntiDetectionConfig {
   mixStyles: boolean;
 }
 
+export interface AuditConfig {
+  dimensions: string[];
+  threshold: number;
+  autoFix: boolean;
+  maxIterations: number;
+  reviewLevels?: ('scene' | 'chapter' | 'batch')[];
+  enableAutoFix?: boolean;
+}
+
 export interface DetectionResult {
   isAI: boolean;
   confidence: number;
@@ -820,7 +832,7 @@ export interface AIIndicator {
 }
 
 export interface ImportConfig {
-  filePath: string;
+  filePath?: string;
   encoding?: string;
   splitPattern?: RegExp;
   preserveFormatting?: boolean;
@@ -892,7 +904,7 @@ export interface WritingPattern {
 }
 
 export interface CoverConfig {
-  style: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom';
+  style?: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom';
   mainColor?: string;
   characters?: string[];
   theme?: string;
@@ -1108,4 +1120,13 @@ export interface NetworkConfig {
   checkInterval: number;
   timeout: number;
   fallbackUrls: string[];
+}
+
+export interface WritingOptions {
+  targetWordCount?: number;
+  styleGuidance?: string;
+  chapterGuidance?: string;
+  autoAudit?: boolean;
+  autoHumanize?: boolean;
+  parallelCount?: number;
 }

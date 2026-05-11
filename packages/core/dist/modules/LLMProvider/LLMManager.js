@@ -1,0 +1,369 @@
+"use strict";
+/**
+ * Cloud Book - 多模型支持模块
+ * 支持所有主流大模型和本地部署
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LLMManager = void 0;
+class LLMManager {
+    providers = new Map();
+    routes = [];
+    defaultProvider;
+    constructor() {
+        this.registerBuiltinProviders();
+    }
+    /**
+     * 注册内置提供者
+     */
+    registerBuiltinProviders() {
+        // OpenAI
+        this.registerProvider({
+            name: 'openai',
+            provider: 'openai',
+            generate: async (prompt, options) => {
+                const config = this.getConfig('openai');
+                if (!config)
+                    throw new Error('OpenAI config not found');
+                return this.callOpenAICompatibleAPI(config, prompt, options);
+            },
+            stream: async (prompt, options, onChunk) => {
+                const config = this.getConfig('openai');
+                if (!config)
+                    throw new Error('OpenAI config not found');
+                await this.streamOpenAICompatibleAPI(config, prompt, options, onChunk);
+            }
+        });
+        // Anthropic
+        this.registerProvider({
+            name: 'anthropic',
+            provider: 'anthropic',
+            generate: async (prompt, options) => {
+                const config = this.getConfig('anthropic');
+                if (!config)
+                    throw new Error('Anthropic config not found');
+                return this.callAnthropicAPI(config, prompt, options);
+            }
+        });
+        // DeepSeek
+        this.registerProvider({
+            name: 'deepseek',
+            provider: 'deepseek',
+            generate: async (prompt, options) => {
+                const config = this.getConfig('deepseek');
+                if (!config)
+                    throw new Error('DeepSeek config not found');
+                return this.callOpenAICompatibleAPI(config, prompt, options);
+            }
+        });
+        // Ollama (本地)
+        this.registerProvider({
+            name: 'ollama',
+            provider: 'ollama',
+            generate: async (prompt, options) => {
+                const config = this.getConfig('ollama');
+                if (!config)
+                    throw new Error('Ollama config not found');
+                return this.callOllamaAPI(config, prompt, options);
+            }
+        });
+        // KoboldCPP (本地)
+        this.registerProvider({
+            name: 'koboldcpp',
+            provider: 'koboldcpp',
+            generate: async (prompt, options) => {
+                const config = this.getConfig('koboldcpp');
+                if (!config)
+                    throw new Error('KoboldCPP config not found');
+                return this.callKoboldAPI(config, prompt, options);
+            }
+        });
+    }
+    /**
+     * 注册自定义提供者
+     */
+    registerProvider(provider) {
+        this.providers.set(provider.name, provider);
+    }
+    /**
+     * 添加模型配置
+     */
+    addModel(config) {
+        const provider = this.getProviderForConfig(config);
+        if (provider) {
+            this.providers.set(config.name, provider);
+        }
+        // 设置默认
+        if (!this.defaultProvider) {
+            this.defaultProvider = config.name;
+        }
+    }
+    /**
+     * 根据配置获取提供者
+     */
+    getProviderForConfig(config) {
+        const baseProvider = config.provider === 'custom'
+            ? 'openai' // custom 默认使用 OpenAI 兼容格式
+            : config.provider;
+        const base = this.providers.get(baseProvider);
+        if (!base)
+            return null;
+        // 返回一个包装后的提供者
+        return {
+            name: config.name,
+            provider: config.provider,
+            generate: async (prompt, options) => {
+                return base.generate(prompt, options);
+            }
+        };
+    }
+    /**
+     * 获取模型配置
+     */
+    modelConfigs = new Map();
+    addConfig(config) {
+        this.modelConfigs.set(config.name, config);
+        this.addModel(config);
+    }
+    getConfig(name) {
+        return this.modelConfigs.get(name);
+    }
+    /**
+     * 生成文本
+     */
+    async generate(prompt, modelName, options) {
+        const name = modelName || this.defaultProvider;
+        const provider = this.providers.get(name || '');
+        if (!provider) {
+            throw new Error(`Provider not found: ${name}`);
+        }
+        return provider.generate(prompt, options);
+    }
+    /**
+     * 补全文本（generate的别名，保持兼容性）
+     */
+    async complete(prompt, options) {
+        const result = await this.generate(prompt, this.defaultProvider, {
+            temperature: options?.temperature ?? 0.7,
+            maxTokens: options?.maxTokens ?? 2000
+        });
+        return result.text;
+    }
+    /**
+     * 流式生成
+     */
+    async stream(prompt, modelName, options, onChunk) {
+        const name = modelName || this.defaultProvider;
+        const provider = this.providers.get(name || '');
+        if (!provider?.stream) {
+            throw new Error(`Streaming not supported for: ${name}`);
+        }
+        return provider.stream(prompt, options, onChunk);
+    }
+    /**
+     * 设置模型路由
+     */
+    setRoutes(routes) {
+        this.routes = routes;
+    }
+    /**
+     * 根据任务类型路由
+     */
+    route(task) {
+        const route = this.routes.find(r => r.task === task);
+        return route?.llmConfig;
+    }
+    /**
+     * 设置默认模型
+     */
+    setDefault(modelName) {
+        this.defaultProvider = modelName;
+    }
+    /**
+     * 获取所有模型
+     */
+    listModels() {
+        return Array.from(this.modelConfigs.values());
+    }
+    /**
+     * 调用 OpenAI 兼容 API
+     */
+    async callOpenAICompatibleAPI(config, prompt, options) {
+        const endpoint = config.endpoint || 'https://api.openai.com/v1';
+        const response = await fetch(`${endpoint}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: options?.temperature ?? 0.7,
+                max_tokens: options?.maxTokens ?? 2000,
+                top_p: options?.topP,
+                frequency_penalty: options?.frequencyPenalty,
+                presence_penalty: options?.presencePenalty,
+                stop: options?.stop
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        return {
+            text: data.choices?.[0]?.message?.content || '',
+            usage: data.usage ? {
+                promptTokens: data.usage.prompt_tokens || 0,
+                completionTokens: data.usage.completion_tokens || 0,
+                totalTokens: data.usage.total_tokens || 0
+            } : undefined,
+            model: config.model,
+            finishReason: data.choices?.[0]?.finish_reason
+        };
+    }
+    /**
+     * 流式调用 OpenAI 兼容 API
+     */
+    async streamOpenAICompatibleAPI(config, prompt, options, onChunk) {
+        const endpoint = config.endpoint || 'https://api.openai.com/v1';
+        const response = await fetch(`${endpoint}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model,
+                messages: [{ role: 'user', content: prompt }],
+                temperature: options?.temperature ?? 0.7,
+                max_tokens: options?.maxTokens ?? 2000,
+                stream: true
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) {
+            throw new Error('Response body is null');
+        }
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[DONE]')
+                        return;
+                    try {
+                        const parsed = JSON.parse(data);
+                        const content = parsed.choices?.[0]?.delta?.content;
+                        if (content) {
+                            onChunk(content);
+                        }
+                    }
+                    catch (e) {
+                        // 忽略解析错误
+                    }
+                }
+            }
+        }
+    }
+    /**
+     * 调用 Anthropic API
+     */
+    async callAnthropicAPI(config, prompt, options) {
+        const endpoint = config.endpoint || 'https://api.anthropic.com/v1';
+        const response = await fetch(`${endpoint}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': config.apiKey || '',
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: config.model,
+                max_tokens: options?.maxTokens ?? 1024,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            text: data.content?.[0]?.text || '',
+            usage: {
+                promptTokens: data.usage?.input_tokens || 0,
+                completionTokens: data.usage?.output_tokens || 0,
+                totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)
+            },
+            model: config.model,
+            finishReason: data.stop_reason
+        };
+    }
+    /**
+     * 调用 Ollama API
+     */
+    async callOllamaAPI(config, prompt, options) {
+        const endpoint = config.endpoint || 'http://localhost:11434';
+        const response = await fetch(`${endpoint}/api/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: config.model,
+                prompt,
+                stream: false,
+                options: {
+                    temperature: options?.temperature ?? 0.7,
+                    num_predict: options?.maxTokens ?? 2000,
+                    top_p: options?.topP
+                }
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            text: data.response || '',
+            model: config.model
+        };
+    }
+    /**
+     * 调用 KoboldAPI
+     */
+    async callKoboldAPI(config, prompt, options) {
+        const endpoint = config.endpoint || 'http://localhost:5000';
+        const response = await fetch(`${endpoint}/api/v1/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt,
+                max_length: options?.maxTokens ?? 512,
+                temperature: options?.temperature ?? 0.7,
+                top_p: options?.topP ?? 0.9,
+                rep_pen: options?.frequencyPenalty ?? 1.1
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            text: data.results?.[0]?.text || '',
+            model: config.model
+        };
+    }
+}
+exports.LLMManager = LLMManager;
+exports.default = LLMManager;
+//# sourceMappingURL=LLMManager.js.map

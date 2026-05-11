@@ -3,8 +3,7 @@
  * 管理创作过程中的上下文注入
  */
 
-import { NovelProject, Chapter, Character, WorldSetting, StyleFingerprint } from '../../types';
-import { TruthFiles } from '../TruthFiles/TruthFileManager';
+import { NovelProject, Chapter, Character, WorldSetting, StyleFingerprint, TruthFiles } from '../../types';
 
 export interface ContextEntry {
   type: 'character' | 'world' | 'previous' | 'style' | 'truth';
@@ -138,26 +137,26 @@ ${activeCharacters.map(char => {
 
       if (state.currentConflicts.length > 0) {
         context += `\n### 当前冲突
-${state.currentConflicts.map(c => `- ${c}`).join('\n')}`;
+${state.currentConflicts.map((c: string) => `- ${c}`).join('\n')}`;
       }
 
       if (state.relationshipSnapshot) {
         context += `\n### 关系快照
-${Object.entries(state.relationshipSnapshot).map(([name, status]) => `- ${name}: ${status}`).join('\n')}`;
+${Object.entries(state.relationshipSnapshot).map(([name, status]: [string, string]) => `- ${name}: ${status}`).join('\n')}`;
       }
     }
 
     if (truthFiles.pendingHooks && truthFiles.pendingHooks.length > 0) {
-      const pending = truthFiles.pendingHooks.filter(h => h.status !== 'paid_off');
+      const pending = truthFiles.pendingHooks.filter((h: any) => h.status !== 'paid_off');
       if (pending.length > 0) {
         context += `\n### 待回收伏笔
-${pending.slice(0, 5).map(h => `- ${h.description}`).join('\n')}`;
+${pending.slice(0, 5).map((h: any) => `- ${h.description}`).join('\n')}`;
       }
     }
 
     if (truthFiles.particleLedger && truthFiles.particleLedger.length > 0) {
       context += `\n### 重要物品
-${truthFiles.particleLedger.slice(0, 5).map(r => `- ${r.name}: ${r.type}`).join('\n')}`;
+${truthFiles.particleLedger.slice(0, 5).map((r: any) => `- ${r.name}: ${r.type}`).join('\n')}`;
     }
 
     return context;
@@ -237,8 +236,8 @@ ${ch.summary || '（无摘要）'}`).join('\n\n')}`;
 
     // @hooks - 获取待回收伏笔
     result = result.replace(/@hooks/g, () => {
-      const hooks = truthFiles.pendingHooks?.filter(h => h.status !== 'paid_off') || [];
-      return hooks.map(h => h.description).join('; ') || '暂无伏笔';
+      const hooks = truthFiles.pendingHooks?.filter((h: any) => h.status !== 'paid_off') || [];
+      return hooks.map((h: any) => h.description).join('; ') || '暂无伏笔';
     });
 
     // @truth - 获取真相文件摘要

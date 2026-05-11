@@ -13,6 +13,7 @@ import {
 
 export interface GenreTemplate {
   genre: Genre;
+  literaryGenre?: string;
   name: string;
   description: string;
   subgenres: string[];
@@ -274,11 +275,16 @@ export class GenreConfigManager {
 
     return {
       genre,
+      literaryGenre: 'novel',
       subgenres: options?.subgenre ? [options.subgenre] : template.subgenres,
       factions: options?.customFactions || template.factions,
       characterAttributes: template.characterAttributes,
       locationTypes: template.locationTypes,
-      narrativeFrameworks: template.narrativeFrameworks
+      narrativeFrameworks: template.narrativeFrameworks,
+      requiredElements: template.requiredElements,
+      tabooElements: template.tabooElements,
+      typicalArcPatterns: template.typicalArcPatterns,
+      recommendedLength: template.recommendedLength
     };
   }
 

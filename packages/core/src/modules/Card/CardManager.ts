@@ -144,12 +144,16 @@ export class CardManager {
     content: Record<string, any>,
     parentId?: string
   ): Promise<Card> {
+    const schema = this.schemas.get(type);
+    if (!schema) {
+      throw new Error(`Unknown card type: ${type}`);
+    }
     const card: Card = {
       id: this.generateId(),
       type,
       title,
       content,
-      schema: this.schemas.get(type),
+      schema,
       parentId
     };
 

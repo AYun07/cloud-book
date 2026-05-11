@@ -454,7 +454,7 @@ export class SpellChecker {
   }
 
   private isCommonWord(word: string): boolean {
-    const commonWords: Record<Language, string[]> = {
+    const commonWords: Partial<Record<Language, string[]>> = {
       'en-US': ['the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at'],
       'zh-CN': [],
       'zh-TW': [],
@@ -488,8 +488,6 @@ export class SpellChecker {
       'en-GB': [],
       'en-AU': [],
       'en-CA': [],
-      'ja-JP': [],
-      'ko-KR': [],
       'es-MX': [],
       'es-AR': [],
       'fr-CA': [],

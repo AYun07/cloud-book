@@ -124,8 +124,8 @@ export class SevenStepMethodology {
 请详细阐述每一条原则和规则的理由。`;
 
       const response = await this.llmManager.complete(constitutionPrompt, {
-        task: 'planning',
-        temperature: 0.7
+        temperature: 0.7,
+        maxTokens: 2000
       });
 
       const constitution = this.parseConstitution(response, params);
@@ -161,8 +161,8 @@ export class SevenStepMethodology {
 9. 要求：特殊需求或限制`;
 
       const response = await this.llmManager.complete(specPrompt, {
-        task: 'planning',
-        temperature: 0.7
+        temperature: 0.7,
+        maxTokens: 2000
       });
 
       const spec = this.parseSpec(response, params);
@@ -207,8 +207,8 @@ export class SevenStepMethodology {
 请详细描述每个方面。`;
 
       const response = await this.llmManager.complete(clarifyPrompt, {
-        task: 'planning',
-        temperature: 0.7
+        temperature: 0.7,
+        maxTokens: 2000
       });
 
       const clarifications = {
@@ -258,8 +258,8 @@ export class SevenStepMethodology {
 请确保节奏感和情节连贯性。`;
 
       const response = await this.llmManager.complete(planPrompt, {
-        task: 'planning',
-        temperature: 0.75
+        temperature: 0.75,
+        maxTokens: 3000
       });
 
       const plan = this.parsePlan(response, targetChapters);
@@ -296,8 +296,8 @@ export class SevenStepMethodology {
 请列出所有写作任务。`;
 
       const response = await this.llmManager.complete(tasksPrompt, {
-        task: 'planning',
-        temperature: 0.6
+        temperature: 0.6,
+        maxTokens: 2000
       });
 
       const tasks = this.parseTasks(response);
@@ -342,8 +342,8 @@ export class SevenStepMethodology {
 请开始写作：`;
 
       const content = await this.llmManager.complete(writePrompt, {
-        task: 'writing',
-        temperature: 0.75
+        temperature: 0.75,
+        maxTokens: 3000
       });
 
       return {
@@ -377,8 +377,8 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
 请提供详细的分析报告和改进建议。`;
 
       const response = await this.llmManager.complete(analyzePrompt, {
-        task: 'analysis',
-        temperature: 0.6
+        temperature: 0.6,
+        maxTokens: 2000
       });
 
       const analysis = {

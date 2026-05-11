@@ -90,6 +90,9 @@ export class ImitationEngine {
     context: GenerationContext,
     derivativeType: ImitationConfig['derivativeType']
   ): Promise<string> {
+    if (!derivativeType) {
+      throw new Error('derivativeType is required for derivative generation');
+    }
     const prompt = this.buildDerivativePrompt(context, derivativeType);
     
     const result = await this.llmProvider.generate(prompt, {

@@ -67,10 +67,12 @@ export class LLMManager {
       provider: 'openai',
       generate: async (prompt, options) => {
         const config = this.getConfig('openai');
+        if (!config) throw new Error('OpenAI config not found');
         return this.callOpenAICompatibleAPI(config, prompt, options);
       },
       stream: async (prompt, options, onChunk) => {
         const config = this.getConfig('openai');
+        if (!config) throw new Error('OpenAI config not found');
         await this.streamOpenAICompatibleAPI(config, prompt, options, onChunk);
       }
     });
@@ -81,6 +83,7 @@ export class LLMManager {
       provider: 'anthropic',
       generate: async (prompt, options) => {
         const config = this.getConfig('anthropic');
+        if (!config) throw new Error('Anthropic config not found');
         return this.callAnthropicAPI(config, prompt, options);
       }
     });
@@ -91,6 +94,7 @@ export class LLMManager {
       provider: 'deepseek',
       generate: async (prompt, options) => {
         const config = this.getConfig('deepseek');
+        if (!config) throw new Error('DeepSeek config not found');
         return this.callOpenAICompatibleAPI(config, prompt, options);
       }
     });
@@ -101,6 +105,7 @@ export class LLMManager {
       provider: 'ollama',
       generate: async (prompt, options) => {
         const config = this.getConfig('ollama');
+        if (!config) throw new Error('Ollama config not found');
         return this.callOllamaAPI(config, prompt, options);
       }
     });
@@ -111,6 +116,7 @@ export class LLMManager {
       provider: 'koboldcpp',
       generate: async (prompt, options) => {
         const config = this.getConfig('koboldcpp');
+        if (!config) throw new Error('KoboldCPP config not found');
         return this.callKoboldAPI(config, prompt, options);
       }
     });
@@ -189,6 +195,20 @@ export class LLMManager {
     }
     
     return provider.generate(prompt, options);
+  }
+
+  /**
+   * 补全文本（generate的别名，保持兼容性）
+   */
+  async complete(
+    prompt: string, 
+    options?: { task?: string; temperature?: number; maxTokens?: number }
+  ): Promise<string> {
+    const result = await this.generate(prompt, this.defaultProvider, {
+      temperature: options?.temperature ?? 0.7,
+      maxTokens: options?.maxTokens ?? 2000
+    });
+    return result.text;
   }
 
   /**
@@ -271,17 +291,24 @@ export class LLMManager {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
+    };
     
     return {
-      text: data.choices[0]?.message?.content || '',
+      text: data.choices?.[0]?.message?.content || '',
       usage: data.usage ? {
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
       } : undefined,
       model: config.model,
-      finishReason: data.choices[0]?.finish_reason
+      finishReason: data.choices?.[0]?.finish_reason
     };
   }
 
@@ -376,7 +403,11 @@ export class LLMManager {
       throw new Error(`API Error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      content?: Array<{ text?: string }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
+      stop_reason?: string;
+    };
     
     return {
       text: data.content?.[0]?.text || '',
@@ -421,7 +452,7 @@ export class LLMManager {
       throw new Error(`API Error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { response?: string };
     
     return {
       text: data.response || '',
@@ -457,7 +488,7 @@ export class LLMManager {
       throw new Error(`API Error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { results?: Array<{ text?: string }> };
     
     return {
       text: data.results?.[0]?.text || '',

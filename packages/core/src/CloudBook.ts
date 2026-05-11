@@ -12,37 +12,37 @@ import {
   AuditConfig,
   AntiDetectionConfig,
   Genre
-} from '../types';
+} from './types';
 
-import { NovelParser, ParseResult } from './NovelParser/NovelParser';
-import { ImitationEngine, ImitationConfig, GenerationContext } from './ImitationEngine/ImitationEngine';
-import { AntiDetectionEngine, DetectionResult } from './AntiDetection/AntiDetectionEngine';
-import { LLMManager } from './LLMProvider/LLMManager';
-import { AIAuditEngine } from './AIAudit/AIAuditEngine';
-import { TruthFileManager } from './TruthFiles/TruthFileManager';
-import { WritingPipeline } from './WritingEngine/WritingPipeline';
-import { ContextManager } from './ContextManager/ContextManager';
+import { NovelParser, ParseResult } from './modules/NovelParser/NovelParser';
+import { ImitationEngine, ImitationConfig, GenerationContext } from './modules/ImitationEngine/ImitationEngine';
+import { AntiDetectionEngine, DetectionResult } from './modules/AntiDetection/AntiDetectionEngine';
+import { LLMManager } from './modules/LLMProvider/LLMManager';
+import { AIAuditEngine } from './modules/AIAudit/AIAuditEngine';
+import { TruthFileManager } from './modules/TruthFiles/TruthFileManager';
+import { WritingPipeline } from './modules/WritingEngine/WritingPipeline';
+import { ContextManager } from './modules/ContextManager/ContextManager';
 
-import { WorldInfoManager } from './WorldInfo/WorldInfoManager';
-import { MemoryManager } from './Memory/MemoryManager';
-import { AutoDirector, DirectorConfig } from './AutoDirector/AutoDirector';
-import { CreativeHub, RAGDocument } from './CreativeHub/CreativeHub';
-import { CardManager } from './Card/CardManager';
-import { KnowledgeGraphManager } from './KnowledgeGraph/KnowledgeGraphManager';
-import { AgentSystem, AgentTask, AgentResponse } from './AgentSystem/AgentSystem';
-import { DaemonService, ScheduledTask, Notification } from './DaemonService/DaemonService';
-import { SevenStepMethodology, StepResult } from './SevenStepMethodology/SevenStepMethodology';
-import { GenreConfigManager, GenreTemplate } from './GenreConfig/GenreConfigManager';
-import { PluginSystem } from './PluginSystem/PluginSystem';
-import { CoverGenerator, CoverDesign } from './CoverGenerator/CoverGenerator';
-import { MindMapGenerator, MindMapData } from './MindMapGenerator/MindMapGenerator';
-import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './TrendAnalyzer/TrendAnalyzer';
-import { I18nManager, GrammarChecker, SpellChecker } from './I18n/I18nManager';
-import { GlobalLiteraryConfig } from './GlobalLiterary/GlobalLiteraryConfig';
-import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './LocalAPI/LocalAPIServer';
-import { NetworkManager } from './NetworkManager/NetworkManager';
-import { CacheManager, MultiLevelCache } from './CacheManager/CacheManager';
-import { VersionHistoryManager } from './VersionHistory/VersionHistoryManager';
+import { WorldInfoManager } from './modules/WorldInfo/WorldInfoManager';
+import { MemoryManager } from './modules/Memory/MemoryManager';
+import { AutoDirector, DirectorConfig } from './modules/AutoDirector/AutoDirector';
+import { CreativeHub, RAGDocument } from './modules/CreativeHub/CreativeHub';
+import { CardManager } from './modules/Card/CardManager';
+import { KnowledgeGraphManager } from './modules/KnowledgeGraph/KnowledgeGraphManager';
+import { AgentSystem, AgentTask, AgentResponse } from './modules/AgentSystem/AgentSystem';
+import { DaemonService, ScheduledTask, Notification } from './modules/DaemonService/DaemonService';
+import { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
+import { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
+import { PluginSystem } from './modules/PluginSystem/PluginSystem';
+import { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
+import { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
+import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+import { I18nManager, GrammarChecker, SpellChecker } from './modules/I18n/I18nManager';
+import { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';
+import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
+import { NetworkManager } from './modules/NetworkManager/NetworkManager';
+import { CacheManager, MultiLevelCache } from './modules/CacheManager/CacheManager';
+import { VersionHistoryManager } from './modules/VersionHistory/VersionHistoryManager';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -306,7 +306,8 @@ export class CloudBook {
       worldSetting: {
         id: this.generateId(),
         name: title,
-        genre
+        genre,
+        literaryGenre: 'novel'
       }
     };
 
@@ -354,14 +355,15 @@ export class CloudBook {
       worldSetting: {
         id: this.generateId(),
         name: parseResult.title,
-        genre: parseResult.genre || 'fantasy'
+        genre: parseResult.genre || 'fantasy',
+        literaryGenre: parseResult.literaryGenre || 'novel'
       },
       styleFingerprint: parseResult.styleFingerprint,
       status: 'planning',
       createdAt: new Date(),
       updatedAt: new Date(),
       chapters: [],
-      characters: parseResult.characters.map(c => ({
+      characters: parseResult.characters.map((c: any) => ({
         id: this.generateId(),
         name: c.name,
         aliases: c.aliases,
@@ -584,11 +586,11 @@ export class CloudBook {
   // Cover Generator
   // ============================================
 
-  async generateCoverDesign(project: Partial<NovelProject>, config?: { style?: string; mainColor?: string }) {
+  async generateCoverDesign(project: Partial<NovelProject>, config?: { style?: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom'; mainColor?: string }) {
     return this.coverGenerator.generateDesign(project, config);
   }
 
-  async generateCoverPrompt(project: Partial<NovelProject>, config?: { style?: string; mainColor?: string }) {
+  async generateCoverPrompt(project: Partial<NovelProject>, config?: { style?: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom'; mainColor?: string }) {
     return this.coverGenerator.generateImagePrompt(project, config);
   }
 
@@ -675,7 +677,13 @@ export class CloudBook {
           title: project.sourceNovel || '',
           estimatedWordCount: 0,
           chapters: [],
-          characters: project.characters || [],
+          characters: (project.characters || []).map(c => ({
+            name: c.name,
+            aliases: c.aliases || [],
+            description: c.background || '',
+            appearances: [],
+            relationships: []
+          })),
           worldSettings: {
             locations: [],
             factions: [],
@@ -744,7 +752,8 @@ export class CloudBook {
       return chapter;
     }
 
-    return this.writingPipeline.generateChapter(project, chapterNumber, options);
+    const result = await this.writingPipeline.generateChapter(project, chapterNumber, await this.truthFileManager.getTruthFiles(projectId), options);
+    return result.chapter;
   }
 
   async batchGenerateChapters(
@@ -824,8 +833,6 @@ export class CloudBook {
 
   private async buildContext(project: NovelProject, chapterNumber: number): Promise<GenerationContext> {
     const truthFiles = await this.truthFileManager.getTruthFiles(project.id);
-    const worldInfoContext = await this.buildWorldInfoContext(project.id, '');
-    const memoryContext = await this.buildMemoryContext(project.id, { recentChapters: 3 });
 
     return {
       currentChapter: chapterNumber,
@@ -846,11 +853,10 @@ export class CloudBook {
       worldSetting: project.worldSetting || {
         id: '',
         name: '',
-        genre: 'fantasy'
+        genre: 'fantasy',
+        literaryGenre: 'novel'
       },
-      previousChapterSummary: project.chapters?.[chapterNumber - 2]?.summary,
-      worldInfoContext,
-      memoryContext
+      previousChapterSummary: project.chapters?.[chapterNumber - 2]?.summary
     };
   }
 
@@ -858,19 +864,19 @@ export class CloudBook {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
 
-    const path = storagePath || this.config.storagePath || './projects';
-    const filePath = path.join(path, `${projectId}.json`);
+    const basePath = storagePath || this.config.storagePath || './projects';
+    const filePath = path.join(basePath, `${projectId}.json`);
 
-    if (!fs.existsSync(path)) {
-      fs.mkdirSync(path, { recursive: true });
+    if (!fs.existsSync(basePath)) {
+      fs.mkdirSync(basePath, { recursive: true });
     }
 
     fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
   }
 
   async loadProject(projectId: string, storagePath?: string): Promise<NovelProject> {
-    const path = storagePath || this.config.storagePath || './projects';
-    const filePath = path.join(path, `${projectId}.json`);
+    const basePath = storagePath || this.config.storagePath || './projects';
+    const filePath = path.join(basePath, `${projectId}.json`);
 
     if (!fs.existsSync(filePath)) {
       throw new Error('Project not found');
@@ -921,14 +927,14 @@ export class CloudBook {
     const project = this.projects.get(projectId);
     if (!project) throw new Error('Project not found');
 
-    const path = storagePath || this.config.storagePath || './exports';
+    const basePath = storagePath || this.config.storagePath || './exports';
 
-    if (!fs.existsSync(path)) {
-      fs.mkdirSync(path, { recursive: true });
+    if (!fs.existsSync(basePath)) {
+      fs.mkdirSync(basePath, { recursive: true });
     }
 
     const fileName = `${project.title}.${format}`;
-    const filePath = path.join(path, fileName);
+    const filePath = path.join(basePath, fileName);
 
     let content = '';
 
