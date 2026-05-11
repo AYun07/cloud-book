@@ -77,6 +77,94 @@ export declare class AIAuditEngine {
      * 获取角色别名
      */
     private getAliases;
+    /**
+     * 对话质量检查
+     */
+    private checkDialogueQuality;
+    /**
+     * 描写密度检查
+     */
+    private checkDescriptionDensity;
+    /**
+     * 语法错误检查
+     */
+    private checkGrammaticalErrors;
+    /**
+     * 重复冗余检查
+     */
+    private checkTautology;
+    /**
+     * 逻辑漏洞检查
+     */
+    private checkLogicalGaps;
+    /**
+     * 发展节奏检查
+     */
+    private checkProgressionPacing;
+    /**
+     * 冲突升级检查
+     */
+    private checkConflictEscalation;
+    /**
+     * 角色动机检查
+     */
+    private checkCharacterMotivation;
+    /**
+     * 利害清晰度检查
+     */
+    private checkStakesClarity;
+    /**
+     * 感官细节检查
+     */
+    private checkSensoryDetails;
+    /**
+     * 背景故事融合检查
+     */
+    private checkBackstoryIntegration;
+    /**
+     * 视角一致性检查
+     */
+    private checkPOVConsistency;
+    /**
+     * 时态一致性检查
+     */
+    private checkTenseConsistency;
+    /**
+     * 节奏变化检查
+     */
+    private checkPacingVariation;
+    /**
+     * 展示vs叙述检查
+     */
+    private checkShowVsTell;
+    /**
+     * 潜文本/潜台词检查
+     */
+    private checkSubtext;
+    /**
+     * 象征意象/象征手法检查
+     */
+    private checkSymbolism;
+    /**
+     * 主题一致性检查
+     */
+    private checkThematicCoherence;
+    /**
+     * 读者参与度检查
+     */
+    private checkReaderEngagement;
+    /**
+     * 类型惯例检查
+     */
+    private checkGenreConvention;
+    /**
+     * 文化敏感性检查
+     */
+    private checkCulturalSensitivity;
+    /**
+     * 事实准确性检查
+     */
+    private checkFactualAccuracy;
 }
 export default AIAuditEngine;
 //# sourceMappingURL=AIAuditEngine.d.ts.map
