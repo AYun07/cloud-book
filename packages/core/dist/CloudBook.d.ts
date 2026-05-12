@@ -248,14 +248,14 @@ export declare class CloudBook {
         message: string;
     }>;
     initializeSnowflake(projectId: string): Promise<SnowflakeStep[]>;
-    scrapeUrl(url: string): Promise<ScrapedContent>;
+    scrapeUrl(url: string): Promise<ScrapedContent | null>;
     scrapeNovelChapter(url: string): Promise<{
         title: string;
         content: string;
         chapterNumber?: number;
         nextChapterUrl?: string;
         prevChapterUrl?: string;
-    }>;
+    } | null>;
     scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]>;
 }
 export default CloudBook;

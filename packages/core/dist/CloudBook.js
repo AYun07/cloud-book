@@ -982,13 +982,16 @@ class CloudBook {
     // Web Scraper - 网页爬取
     // ============================================
     async scrapeUrl(url) {
-        return this.webScraper.scrape(url);
+        const result = await this.webScraper.scrape(url);
+        return result.success ? result.data || null : null;
     }
     async scrapeNovelChapter(url) {
-        return this.webScraper.scrapeNovelChapter(url);
+        const result = await this.webScraper.scrapeNovelChapter(url);
+        return result.success ? result.data || null : null;
     }
     async scrapeBatchUrls(urls) {
-        return this.webScraper.scrapeBatch(urls);
+        const results = await this.webScraper.scrapeBatch(urls);
+        return results.filter(r => r.success && r.data).map(r => r.data);
     }
 }
 exports.CloudBook = CloudBook;

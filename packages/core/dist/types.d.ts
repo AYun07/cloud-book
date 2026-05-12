@@ -26,6 +26,12 @@ export interface WorldInfo {
     depth?: number;
     key?: string;
     secondary?: boolean;
+    parentId?: string;
+    tags?: string[];
+    active?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+    children?: WorldInfo[];
 }
 export interface Memory {
     id: string;

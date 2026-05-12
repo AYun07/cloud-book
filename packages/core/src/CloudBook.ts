@@ -1258,8 +1258,9 @@ export class CloudBook {
   // Web Scraper - 网页爬取
   // ============================================
 
-  async scrapeUrl(url: string): Promise<ScrapedContent> {
-    return this.webScraper.scrape(url);
+  async scrapeUrl(url: string): Promise<ScrapedContent | null> {
+    const result = await this.webScraper.scrape(url);
+    return result.success ? result.data || null : null;
   }
 
   async scrapeNovelChapter(url: string): Promise<{
@@ -1268,12 +1269,14 @@ export class CloudBook {
     chapterNumber?: number;
     nextChapterUrl?: string;
     prevChapterUrl?: string;
-  }> {
-    return this.webScraper.scrapeNovelChapter(url);
+  } | null> {
+    const result = await this.webScraper.scrapeNovelChapter(url);
+    return result.success ? result.data || null : null;
   }
 
   async scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]> {
-    return this.webScraper.scrapeBatch(urls);
+    const results = await this.webScraper.scrapeBatch(urls);
+    return results.filter(r => r.success && r.data).map(r => r.data!);
   }
 }
 
