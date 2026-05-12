@@ -711,6 +711,7 @@ export interface NovelProject {
   id: string;
   title: string;
   subtitle?: string;
+  author?: string;
   genre: Genre;
   literaryGenre: LiteraryGenre;
   writingMode: WritingMode;

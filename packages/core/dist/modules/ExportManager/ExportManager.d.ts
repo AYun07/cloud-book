@@ -1,15 +1,25 @@
 /**
  * 多格式导出管理器
- * 支持导出为txt、md、json、epub、pdf等格式
+ * 支持导出为txt、md、json、epub、pdf、docx、html等格式
  */
-import { NovelProject, Chapter } from '../../types';
+import { NovelProject } from '../../types';
 export interface ExportOptions {
-    format: 'txt' | 'md' | 'json' | 'epub' | 'html' | 'pdf';
+    format: 'txt' | 'md' | 'json' | 'epub' | 'html' | 'pdf' | 'docx';
     includeMetadata?: boolean;
     includeChapterList?: boolean;
     includeToc?: boolean;
     encoding?: 'utf-8' | 'gbk' | 'gb2312';
     lineBreak?: 'crlf' | 'lf';
+    template?: string;
+    paperSize?: 'A4' | 'A5' | 'B5' | 'letter';
+    fontSize?: number;
+    fontFamily?: string;
+    margins?: {
+        top: number;
+        right: number;
+        bottom: number;
+        left: number;
+    };
 }
 export interface ExportResult {
     success: boolean;
@@ -18,25 +28,48 @@ export interface ExportResult {
     size?: number;
     error?: string;
 }
+export interface BatchExportOptions extends ExportOptions {
+    splitByChapters?: boolean;
+    chaptersPerFile?: number;
+}
+export interface ExportTemplate {
+    id: string;
+    name: string;
+    description: string;
+    options: Partial<ExportOptions>;
+}
 export declare class ExportManager {
     private defaultOptions;
+    private templates;
+    constructor();
+    private registerDefaultTemplates;
+    registerTemplate(template: ExportTemplate): void;
+    getTemplates(): ExportTemplate[];
     export(project: NovelProject, options?: Partial<ExportOptions>): Promise<ExportResult>;
-    exportChapter(chapter: Chapter, project: NovelProject, options?: Partial<ExportOptions>): Promise<ExportResult>;
-    exportBatch(chapters: Chapter[], project: NovelProject, options?: Partial<ExportOptions>): Promise<{
+    exportBatch(projects: NovelProject[], options?: Partial<BatchExportOptions>): Promise<{
         results: ExportResult[];
         totalSize: number;
     }>;
+    exportWithTemplate(project: NovelProject, templateId: string): Promise<ExportResult>;
     private toTxt;
     private toMarkdown;
     private toJson;
     private toEpub;
+    private buildEpubMetadata;
+    private buildEpubManifest;
+    private buildEpubSpine;
+    private buildEpubNav;
     private toHtml;
-    private chapterToTxt;
-    private chapterToMarkdown;
+    private toPdfHtml;
+    private toDocx;
     private generateFilename;
     private calculateSize;
     private escapeHtml;
     private escapeXml;
+    private generateUuid;
+    private generateHtmlStyles;
+    private formatContent;
+    private formatPdfContent;
     saveToFile(result: ExportResult, filePath: string): Promise<void>;
 }
 export default ExportManager;

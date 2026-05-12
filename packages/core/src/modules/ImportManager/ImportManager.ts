@@ -1,6 +1,6 @@
 /**
  * 多格式导入管理器
- * 支持导入txt、md、json、epub等格式的小说
+ * 支持导入txt、md、json、epub、docx等格式的小说
  */
 
 declare const FileReader: {
@@ -32,10 +32,11 @@ interface Event {
 import { NovelProject, Chapter } from '../../types';
 
 export interface ImportOptions {
-  format: 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html';
+  format: 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx';
   encoding?: 'utf-8' | 'gbk' | 'gb2312';
   chapterPattern?: RegExp;
   extractMetadata?: boolean;
+  preserveFormatting?: boolean;
 }
 
 export interface ImportResult {
@@ -44,19 +45,39 @@ export interface ImportResult {
   chapters?: Chapter[];
   warnings?: string[];
   error?: string;
+  metadata?: ImportMetadata;
+}
+
+export interface ImportMetadata {
+  title?: string;
+  author?: string;
+  genre?: string;
+  wordCount?: number;
+  chapterCount?: number;
+  importFormat?: string;
+  importTime?: Date;
 }
 
 export interface ParseChapter {
   number: number;
   title: string;
   content: string;
+  summary?: string;
+  keywords?: string[];
+}
+
+export interface FormatDetector {
+  format: ImportOptions['format'];
+  confidence: number;
+  evidence: string[];
 }
 
 export class ImportManager {
   private defaultOptions: ImportOptions = {
     format: 'auto',
     encoding: 'utf-8',
-    extractMetadata: true
+    extractMetadata: true,
+    preserveFormatting: true
   };
 
   private chapterPatterns: RegExp[] = [
@@ -65,7 +86,32 @@ export class ImportManager {
     /^第\d+章/m,
     /^第[一二三四五六七八九十百千\d]+节/m,
     /^\d+\./m,
+    /^第[一二三四五六七八九十百千\d]+卷/m,
+    /^Volume\s+\d+/im,
   ];
+
+  private formatHints: Map<string, ImportOptions['format']> = new Map([
+    ['chapter', 'md'],
+    ['novel', 'txt'],
+    ['book', 'txt'],
+    ['story', 'txt'],
+    ['writing', 'md'],
+    ['draft', 'md'],
+    ['manuscript', 'txt'],
+  ]);
+
+  constructor() {
+    this.initializeFormatHints();
+  }
+
+  private initializeFormatHints(): void {
+    this.formatHints.set('晋江', 'txt');
+    this.formatHints.set('起点', 'txt');
+    this.formatHints.set('番茄', 'txt');
+    this.formatHints.set('七猫', 'txt');
+    this.formatHints.set('红袖', 'txt');
+    this.formatHints.set('潇湘', 'txt');
+  }
 
   async import(content: string, options?: Partial<ImportOptions>): Promise<ImportResult> {
     const opts = { ...this.defaultOptions, ...options };
@@ -73,12 +119,17 @@ export class ImportManager {
     try {
       let format = opts.format;
       if (format === 'auto') {
-        format = this.detectFormat(content, opts);
+        const detection = this.detectFormat(content, opts);
+        format = detection.format;
       }
 
       let project: Partial<NovelProject> = {};
       let chapters: Chapter[] = [];
       const warnings: string[] = [];
+      const metadata: ImportMetadata = {
+        importFormat: format,
+        importTime: new Date()
+      };
 
       switch (format) {
         case 'txt':
@@ -111,6 +162,12 @@ export class ImportManager {
           chapters = epubResult.chapters;
           break;
 
+        case 'docx':
+          const docxResult = this.parseDocx(content);
+          project = docxResult.metadata;
+          chapters = docxResult.chapters;
+          break;
+
         default:
           throw new Error(`Unsupported format: ${format}`);
       }
@@ -119,11 +176,15 @@ export class ImportManager {
         warnings.push('未检测到章节，请检查文件格式');
       }
 
+      metadata.chapterCount = chapters.length;
+      metadata.wordCount = chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
+
       return {
         success: true,
         project,
         chapters,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
+        metadata
       };
     } catch (error: any) {
       return {
@@ -139,7 +200,7 @@ export class ImportManager {
         resolve({ success: false, error: 'FileReader not available' });
         return;
       }
-      
+
       const reader = new FileReader();
 
       reader.onload = (e) => {
@@ -155,33 +216,77 @@ export class ImportManager {
         });
       };
 
-      reader.readAsText(file);
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'docx' || ext === 'doc') {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
     });
   }
 
-  private detectFormat(content: string, options: ImportOptions): 'txt' | 'md' | 'json' | 'html' | 'epub' {
-    const trimmed = content.trim();
+  detectFormat(content: string, options?: Partial<ImportOptions>): FormatDetector {
+    const detectors: FormatDetector[] = [];
 
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
       try {
-        JSON.parse(trimmed);
-        return 'json';
+        JSON.parse(content.trim());
+        detectors.push({
+          format: 'json',
+          confidence: 95,
+          evidence: ['Valid JSON syntax detected']
+        });
       } catch {}
     }
 
-    if (trimmed.startsWith('<?xml') || trimmed.includes('<package')) {
-      return 'epub';
+    if (content.includes('<package') && content.includes('xmlns="http://www.idpf.org/2007/opf"')) {
+      detectors.push({
+        format: 'epub',
+        confidence: 90,
+        evidence: ['EPUB package structure detected']
+      });
     }
 
-    if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html')) {
-      return 'html';
+    if (content.includes('w:wordDocument') && content.includes('xmlns:w=')) {
+      detectors.push({
+        format: 'docx',
+        confidence: 90,
+        evidence: ['DOCX XML structure detected']
+      });
     }
 
-    if (trimmed.startsWith('#') || trimmed.startsWith('##')) {
-      return 'md';
+    if (content.includes('<!DOCTYPE') || (content.includes('<html') && content.includes('<body'))) {
+      detectors.push({
+        format: 'html',
+        confidence: 85,
+        evidence: ['HTML structure detected']
+      });
     }
 
-    return 'txt';
+    const markdownIndicators = [
+      /^# .+$/m,
+      /^\*\*.*\*\*$/m,
+      /^## .+$/m,
+      /^\[.+\]\(.+\)$/m,
+      /^---$/m
+    ];
+    const mdScore = markdownIndicators.filter(p => p.test(content)).length;
+    if (mdScore >= 2) {
+      detectors.push({
+        format: 'md',
+        confidence: 70 + mdScore * 10,
+        evidence: [`${mdScore} Markdown indicators found`]
+      });
+    }
+
+    detectors.push({
+      format: 'txt',
+      confidence: 50,
+      evidence: ['Default fallback format']
+    });
+
+    detectors.sort((a, b) => b.confidence - a.confidence);
+    return detectors[0];
   }
 
   private parseTxt(content: string, options: ImportOptions): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
@@ -392,6 +497,7 @@ export class ImportManager {
 
   private parseEpub(content: string): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
     const metadata: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
 
     const titleMatch = content.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
     if (titleMatch) metadata.title = titleMatch[1];
@@ -399,7 +505,97 @@ export class ImportManager {
     const authorMatch = content.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i);
     if (authorMatch) (metadata as any).author = authorMatch[1];
 
-    return { metadata, chapters: [] };
+    const descMatch = content.match(/<dc:description[^>]*>([^<]+)<\/dc:description>/i);
+    if (descMatch) metadata.corePremise = descMatch[1];
+
+    const subjectMatch = content.match(/<dc:subject[^>]*>([^<]+)<\/dc:subject>/gi);
+    if (subjectMatch) {
+      const subjects = subjectMatch.map(s => s.replace(/<[^>]+>/g, ''));
+      (metadata as any).tags = subjects;
+    }
+
+    const chapterMatches = content.match(/<item[^>]+href="([^"]+\.xhtml)"[^>]*>/gi);
+    if (chapterMatches) {
+      chapterMatches.forEach((match, index) => {
+        const hrefMatch = match.match(/href="([^"]+\.xhtml)"/);
+        if (hrefMatch && !hrefMatch[1].includes('nav') && !hrefMatch[1].includes('style')) {
+          chapters.push(this.createChapter({
+            number: index + 1,
+            title: `第${index + 1}章`,
+            content: ''
+          }, index + 1));
+        }
+      });
+    }
+
+    return { metadata, chapters };
+  }
+
+  private parseDocx(content: string): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
+    const metadata: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
+
+    const titleMatch = content.match(/<w:t>([^<]+)<\/w:t>/g);
+    if (titleMatch && titleMatch.length > 0) {
+      const firstText = titleMatch[0].replace(/<[^>]+>/g, '');
+      if (firstText.length < 50) {
+        metadata.title = firstText;
+      }
+    }
+
+    const boldTexts = content.match(/<w:rPr>[\s\S]*?<w:b[\s\S]*?\/><\/w:rPr>[\s\S]*?<w:t[^>]*>([^<]+)<\/w:t>/g);
+    if (boldTexts && boldTexts.length > 0) {
+      const firstBold = boldTexts[0].match(/<w:t[^>]*>([^<]+)<\/w:t>/);
+      if (firstBold && firstBold[1].length < 100) {
+        if (!metadata.title) metadata.title = firstBold[1];
+      }
+    }
+
+    const allText = content
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const paragraphs = allText.split(/\.\s{2,}/);
+    if (paragraphs.length > 0) {
+      const chapterPattern = /^第[一二三四五六七八九十百千\d]+章/m;
+      let currentChapter: ParseChapter | null = null;
+      let currentContent: string[] = [];
+
+      for (const para of paragraphs) {
+        if (chapterPattern.test(para)) {
+          if (currentChapter) {
+            currentChapter.content = currentContent.join('\n\n');
+            chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+          }
+
+          const titleMatch = para.match(/(第[一二三四五六七八九十百千\d]+章)[^\n]*/);
+          currentChapter = {
+            number: chapters.length + 1,
+            title: titleMatch ? titleMatch[0].substring(0, 50) : `第${chapters.length + 1}章`,
+            content: ''
+          };
+          currentContent = [];
+        } else if (currentChapter) {
+          currentContent.push(para);
+        }
+      }
+
+      if (currentChapter) {
+        currentChapter.content = currentContent.join('\n\n');
+        chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+      }
+    }
+
+    if (chapters.length === 0) {
+      chapters.push(this.createChapter({
+        number: 1,
+        title: metadata.title || '内容',
+        content: allText.substring(0, 50000)
+      }, 1));
+    }
+
+    return { metadata, chapters };
   }
 
   private createChapterPattern(lines: string[]): RegExp {
@@ -471,7 +667,8 @@ export class ImportManager {
       { format: 'md', extensions: ['.md', '.markdown'], description: 'Markdown格式' },
       { format: 'json', extensions: ['.json'], description: 'JSON格式（Cloud Book项目文件）' },
       { format: 'html', extensions: ['.html', '.htm'], description: 'HTML网页格式' },
-      { format: 'epub', extensions: ['.epub'], description: 'EPUB电子书格式' }
+      { format: 'epub', extensions: ['.epub'], description: 'EPUB电子书格式' },
+      { format: 'docx', extensions: ['.docx', '.doc'], description: 'Word文档格式' }
     ];
   }
 }
