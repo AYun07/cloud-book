@@ -75,9 +75,7 @@ program
       'romance': 'romance',
       'mystery': 'mystery',
       'horror': 'horror',
-      'historical': 'historical',
-      'game': 'game',
-      'other': 'other'
+      'historical': 'historical'
     };
 
     const modeMap: Record<string, any> = {

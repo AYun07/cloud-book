@@ -31,9 +31,13 @@ export { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGener
 export { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
 export { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
 
-export { I18nManager, GrammarChecker, SpellChecker } from './modules/I18n/I18nManager';
+export { I18nManager } from './modules/I18nManager/I18nManager';
 export { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';
 export { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
 export { NetworkManager } from './modules/NetworkManager/NetworkManager';
 export { CacheManager, MultiLevelCache } from './modules/CacheManager/CacheManager';
 export { VersionHistoryManager } from './modules/VersionHistory/VersionHistoryManager';
+export { LocalStorage, StorageConfig, ProjectData } from './modules/LocalStorage/LocalStorage';
+export { GoalManager, WritingGoal, GoalStreak, GoalStats } from './modules/GoalManager/GoalManager';
+export { CostTracker, CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
+export { SnowflakeMethodology, SnowflakeStep, SnowflakeProject } from './modules/SnowflakeMethodology/SnowflakeMethodology';

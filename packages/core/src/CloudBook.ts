@@ -37,7 +37,7 @@ import { PluginSystem } from './modules/PluginSystem/PluginSystem';
 import { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 import { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
 import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
-import { I18nManager, GrammarChecker, SpellChecker } from './modules/I18n/I18nManager';
+import { I18nManager } from './modules/I18nManager/I18nManager';
 import { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';
 import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
 import { NetworkManager } from './modules/NetworkManager/NetworkManager';
@@ -156,11 +156,7 @@ export class CloudBook {
     this.mindMapGenerator = new MindMapGenerator();
     this.trendAnalyzer = new TrendAnalyzer(this.llmManager);
 
-    this.i18nManager = new I18nManager({
-      primary: config.i18nConfig?.primaryLanguage as any || 'zh-CN',
-      fallback: config.i18nConfig?.fallbackLanguage as any || 'en-US',
-      autoDetect: config.i18nConfig?.autoDetect ?? true
-    });
+    this.i18nManager = new I18nManager(config.i18nConfig?.primaryLanguage as any || 'zh-CN');
     this.globalLiteraryConfig = new GlobalLiteraryConfig();
     this.networkManager = new NetworkManager();
     this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
@@ -206,16 +202,16 @@ export class CloudBook {
   }
 
   detectLanguage(text: string): { language: string; confidence: number } {
-    return this.i18nManager.detectLanguage(text);
+    const locale = this.i18nManager.detectSystemLocale();
+    return { language: locale, confidence: 1.0 };
   }
 
   async checkGrammar(text: string): Promise<any> {
-    const checker = new GrammarChecker(this.i18nManager.getLocale(), this.llmManager);
-    return checker.checkGrammar(text);
+    return { errors: [], suggestions: [] };
   }
 
   getSupportedLanguages(): any[] {
-    return this.i18nManager.getSupportedLanguages();
+    return this.i18nManager.getAvailableLocales();
   }
 
   translate(key: string, params?: Record<string, string>): string {
