@@ -200,6 +200,7 @@ export interface Memory {
   id: string;
   content: string;
   type: 'memory' | 'authorsNote' | 'systemPrompt';
+  score?: number;
 }
 
 export interface GenerationSettings {

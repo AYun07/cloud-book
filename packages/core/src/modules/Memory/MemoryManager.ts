@@ -1,11 +1,13 @@
 /**
  * 记忆管理器
  * 记忆、作者笔记和系统提示分类管理
+ * 集成AdvancedVectorizerV2进行语义搜索
  */
 
 import { Memory } from '../../types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AdvancedVectorizerV2 } from '../../config/advanced-vectorizer-v2.js';
 
 export interface MemoryContext {
   recentChapters?: number;
@@ -19,9 +21,11 @@ export class MemoryManager {
   private authorNotes: Map<string, Memory[]> = new Map();
   private systemPrompts: Map<string, Memory[]> = new Map();
   private storagePath: string;
+  private vectorizer: AdvancedVectorizerV2;
 
   constructor(storagePath: string = './data/memory') {
     this.storagePath = storagePath;
+    this.vectorizer = new AdvancedVectorizerV2();
   }
 
   async initialize(projectId: string): Promise<void> {
@@ -191,13 +195,19 @@ export class MemoryManager {
     await this.save(projectId);
   }
 
-  async searchMemories(projectId: string, query: string): Promise<Memory[]> {
+  async searchMemories(projectId: string, query: string, limit: number = 10): Promise<Memory[]> {
     const allMemories = await this.getAllMemories(projectId);
-    const queryLower = query.toLowerCase();
+    if (allMemories.length === 0) return [];
     
-    return allMemories.filter(memory =>
-      memory.content.toLowerCase().includes(queryLower)
-    );
+    // 使用高级向量器进行语义搜索
+    const texts = allMemories.map(m => m.content);
+    const results = this.vectorizer.search(query, texts, limit);
+    
+    // 将搜索结果映射回Memory对象
+    return results.map(result => {
+      const memory = allMemories.find(m => m.content === result.text);
+      return memory ? { ...memory, score: result.score } : null;
+    }).filter(Boolean) as (Memory & { score?: number })[];
   }
 
   private async save(projectId: string): Promise<void> {

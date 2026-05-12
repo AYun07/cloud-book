@@ -1,6 +1,7 @@
 /**
  * 记忆管理器
  * 记忆、作者笔记和系统提示分类管理
+ * 集成AdvancedVectorizerV2进行语义搜索
  */
 import { Memory } from '../../types';
 export interface MemoryContext {
@@ -14,6 +15,7 @@ export declare class MemoryManager {
     private authorNotes;
     private systemPrompts;
     private storagePath;
+    private vectorizer;
     constructor(storagePath?: string);
     initialize(projectId: string): Promise<void>;
     addMemory(projectId: string, content: string, type?: Memory['type']): Promise<Memory>;
@@ -26,7 +28,7 @@ export declare class MemoryManager {
     getRelevantMemories(projectId: string, context: MemoryContext): Promise<Memory[]>;
     buildMemoryContext(projectId: string, context?: MemoryContext): Promise<string>;
     consolidateMemories(projectId: string, summary: string): Promise<void>;
-    searchMemories(projectId: string, query: string): Promise<Memory[]>;
+    searchMemories(projectId: string, query: string, limit?: number): Promise<Memory[]>;
     private save;
     load(projectId: string): Promise<void>;
     private generateId;

@@ -1,0 +1,71 @@
+{
+  "memories": [
+    {
+      "id": "mem_1778577310710_9fpa0c43n",
+      "content": "李明是华山派大弟子，性格正直，武功高强",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310711_356h8f4du",
+      "content": "华山派位于西岳华山，是武林中的名门正派",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310711_32vgbfsyw",
+      "content": "华山剑法以轻盈灵动著称，天下闻名",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310711_797bg1u12",
+      "content": "君子剑岳不群是华山派掌门，表面正派实则阴险",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310711_baf8z1cpy",
+      "content": "岳灵珊是岳不群之女，华山派小师妹，喜欢令狐冲",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310712_4epu3ktvi",
+      "content": "令狐冲是华山派弟子，独孤九剑传人",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310712_4b48ej4xy",
+      "content": "少林寺藏经阁收藏无数武功秘笈",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310713_nk7fksgtk",
+      "content": "丐帮降龙十八掌威震江湖",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310713_3hi3rzucu",
+      "content": "武当山太极拳以柔克刚",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310713_dmlmhzmsi",
+      "content": "姑苏慕容复擅长斗转星移",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310713_vik4jatmp",
+      "content": "王语嫣是慕容复表妹，精通天下武学",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310714_yabp4ykpj",
+      "content": "萧峰是契丹人，曾任丐帮帮主",
+      "type": "memory"
+    },
+    {
+      "id": "mem_1778577310714_w1kfsg6sx",
+      "content": "倚天剑和屠龙刀是江湖至宝",
+      "type": "memory"
+    }
+  ],
+  "authorNotes": [],
+  "systemPrompts": []
+}

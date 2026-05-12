@@ -1,18 +1,23 @@
 "use strict";
 /**
  * Cloud Book - 向量与离线配置
- * 2026年5月12日 04:55
+ * 2026年5月12日 05:13
  *
- * 向量方案：使用LLM模拟生成embedding
+ * 向量方案：
+ * - advanced-v2: 高性能无模型向量方案（推荐，匹敌大模型）
+ * - basic: 基础无模型向量方案
+ * - llm-simulated: LLM模拟
+ * - openai/siliconflow: 在线API
+ *
  * 离线模式：本地Ollama接口（可选）
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ALL_PROVIDER_CONFIGS = exports.OFFLINE_CONFIG = exports.VECTOR_CONFIG = void 0;
 exports.getProviderConfig = getProviderConfig;
 exports.VECTOR_CONFIG = {
-    provider: 'llm-simulated',
-    dimensions: 1536,
-    model: 'deepseek-v4-flash'
+    provider: 'advanced-v2',
+    dimensions: 2048,
+    model: 'AdvancedVectorizerV2'
 };
 exports.OFFLINE_CONFIG = {
     enabled: true,

@@ -2,6 +2,7 @@
 /**
  * 记忆管理器
  * 记忆、作者笔记和系统提示分类管理
+ * 集成AdvancedVectorizerV2进行语义搜索
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -40,13 +41,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MemoryManager = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const advanced_vectorizer_v2_js_1 = require("../../config/advanced-vectorizer-v2.js");
 class MemoryManager {
     memories = new Map();
     authorNotes = new Map();
     systemPrompts = new Map();
     storagePath;
+    vectorizer;
     constructor(storagePath = './data/memory') {
         this.storagePath = storagePath;
+        this.vectorizer = new advanced_vectorizer_v2_js_1.AdvancedVectorizerV2();
     }
     async initialize(projectId) {
         this.memories.set(projectId, []);
@@ -193,10 +197,18 @@ class MemoryManager {
         this.memories.set(projectId, [consolidated]);
         await this.save(projectId);
     }
-    async searchMemories(projectId, query) {
+    async searchMemories(projectId, query, limit = 10) {
         const allMemories = await this.getAllMemories(projectId);
-        const queryLower = query.toLowerCase();
-        return allMemories.filter(memory => memory.content.toLowerCase().includes(queryLower));
+        if (allMemories.length === 0)
+            return [];
+        // 使用高级向量器进行语义搜索
+        const texts = allMemories.map(m => m.content);
+        const results = this.vectorizer.search(query, texts, limit);
+        // 将搜索结果映射回Memory对象
+        return results.map(result => {
+            const memory = allMemories.find(m => m.content === result.text);
+            return memory ? { ...memory, score: result.score } : null;
+        }).filter(Boolean);
     }
     async save(projectId) {
         const dir = path.join(this.storagePath, projectId);
