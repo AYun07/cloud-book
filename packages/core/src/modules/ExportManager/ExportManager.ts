@@ -39,6 +39,21 @@ export interface ExportTemplate {
   options: Partial<ExportOptions>;
 }
 
+export type ExportFormat = 'txt' | 'md' | 'json' | 'epub' | 'html' | 'pdf' | 'docx';
+
+export interface ExportConfig {
+  includeMetadata?: boolean;
+  includeChapterList?: boolean;
+  includeToc?: boolean;
+  encoding?: 'utf-8' | 'gbk' | 'gb2312';
+  lineBreak?: 'crlf' | 'lf';
+  template?: string;
+  paperSize?: 'A4' | 'A5' | 'B5' | 'letter';
+  fontSize?: number;
+  fontFamily?: string;
+  margins?: { top: number; right: number; bottom: number; left: number };
+}
+
 export class ExportManager {
   private defaultOptions: ExportOptions = {
     format: 'md',
@@ -169,6 +184,34 @@ export class ExportManager {
         error: error.message
       };
     }
+  }
+
+  async exportProject(project: NovelProject, format: ExportFormat, config?: ExportConfig): Promise<string> {
+    const options: Partial<ExportOptions> = { format, ...config };
+    const result = await this.export(project, options);
+    if (!result.success || !result.content) {
+      throw new Error(result.error || 'Export failed');
+    }
+    return result.content;
+  }
+
+  async exportChapter(chapter: Chapter, format: ExportFormat): Promise<string> {
+    const chapterProject = {
+      id: 'chapter-export',
+      title: chapter.title,
+      genre: 'fantasy' as const,
+      literaryGenre: 'novel' as const,
+      writingMode: 'original' as const,
+      status: 'draft' as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chapters: [chapter]
+    };
+    return this.exportProject(chapterProject as any, format);
+  }
+
+  getSupportedFormats(): ExportFormat[] {
+    return ['txt', 'md', 'json', 'epub', 'html', 'pdf', 'docx'];
   }
 
   async exportBatch(

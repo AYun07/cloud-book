@@ -41,6 +41,8 @@ export interface ShortcutConfig {
   preventDefault: boolean;
 }
 
+export type ShortcutCategory = 'file' | 'edit' | 'navigation' | 'writing' | 'ai' | 'view' | 'custom';
+
 export class KeyboardShortcuts {
   private shortcuts: Map<string, Shortcut> = new Map();
   private customHandlers: Map<string, () => void> = new Map();
@@ -176,6 +178,10 @@ export class KeyboardShortcuts {
     this.shortcuts.set(key, shortcut);
   }
 
+  register(shortcut: Shortcut): void {
+    this.registerShortcut(shortcut);
+  }
+
   unregisterShortcut(key: string, modifiers?: ('ctrl' | 'alt' | 'shift' | 'meta')[]): void {
     const shortcutKey = this.generateKey(key, modifiers);
     this.shortcuts.delete(shortcutKey);
@@ -215,6 +221,27 @@ export class KeyboardShortcuts {
 
   getShortcutsByCategory(category: Shortcut['category']): Shortcut[] {
     return Array.from(this.shortcuts.values()).filter(s => s.category === category);
+  }
+
+  getByCategory(category: 'file' | 'edit' | 'navigation' | 'writing' | 'ai' | 'view' | 'custom'): Shortcut[] {
+    return this.getShortcutsByCategory(category);
+  }
+
+  getAll(): Shortcut[] {
+    return Array.from(this.shortcuts.values());
+  }
+
+  execute(key: string, modifiers?: ('ctrl' | 'alt' | 'shift' | 'meta')[]): boolean {
+    const shortcutKey = this.generateKey(key, modifiers);
+    const shortcut = this.shortcuts.get(shortcutKey);
+    if (shortcut) {
+      const handler = this.customHandlers.get(shortcut.action);
+      if (handler) {
+        handler();
+        return true;
+      }
+    }
+    return false;
   }
 
   getShortcutsByGroup(group: string): Shortcut[] {

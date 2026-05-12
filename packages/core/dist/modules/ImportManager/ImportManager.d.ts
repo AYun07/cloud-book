@@ -44,6 +44,7 @@ export interface FormatDetector {
     confidence: number;
     evidence: string[];
 }
+export type ImportFormat = 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx';
 export declare class ImportManager {
     private defaultOptions;
     private chapterPatterns;
@@ -52,7 +53,7 @@ export declare class ImportManager {
     private initializeFormatHints;
     import(content: string, options?: Partial<ImportOptions>): Promise<ImportResult>;
     importFromFile(file: File, options?: Partial<ImportOptions>): Promise<ImportResult>;
-    detectFormat(content: string, options?: Partial<ImportOptions>): FormatDetector;
+    detectFormatContent(content: string, options?: Partial<ImportOptions>): FormatDetector;
     private parseTxt;
     private parseMarkdown;
     private parseJson;
@@ -70,6 +71,9 @@ export declare class ImportManager {
         extensions: string[];
         description: string;
     }[];
+    importProject(filePath: string, format?: ImportFormat): Promise<NovelProject>;
+    importChapter(filePath: string, format?: ImportFormat): Promise<Chapter>;
+    detectFormat(filePath: string): ImportFormat;
 }
 export default ImportManager;
 //# sourceMappingURL=ImportManager.d.ts.map

@@ -49,6 +49,7 @@ export interface GoalStats {
 
 export class GoalManager {
   private goals: WritingGoal[] = [];
+  private currentGoal: WritingGoal | null = null;
   private dailyProgress: DailyProgress[] = [];
   private streak: GoalStreak = {
     current: 0,
@@ -56,8 +57,27 @@ export class GoalManager {
     lastActiveDate: new Date()
   };
 
-  constructor() {
+  constructor(storagePath?: string) {
     this.loadData();
+  }
+
+  setGoal(goal: WritingGoal): void {
+    this.currentGoal = goal;
+    if (!this.goals.find(g => g.id === goal.id)) {
+      this.goals.push(goal);
+    }
+    this.saveData();
+  }
+
+  getCurrentGoal(): WritingGoal | null {
+    return this.currentGoal || this.getActiveGoals()[0] || null;
+  }
+
+  recordWriting(words: number, date?: Date): void {
+    this.recordDailyProgress({ wordsWritten: words });
+    if (this.currentGoal) {
+      this.updateProgress(this.currentGoal.id, words);
+    }
   }
 
   createGoal(goal: Omit<WritingGoal, 'id' | 'createdAt' | 'status' | 'current'>): WritingGoal {

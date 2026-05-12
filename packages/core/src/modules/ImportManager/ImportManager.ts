@@ -72,6 +72,8 @@ export interface FormatDetector {
   evidence: string[];
 }
 
+export type ImportFormat = 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx';
+
 export class ImportManager {
   private defaultOptions: ImportOptions = {
     format: 'auto',
@@ -119,7 +121,7 @@ export class ImportManager {
     try {
       let format = opts.format;
       if (format === 'auto') {
-        const detection = this.detectFormat(content, opts);
+        const detection = this.detectFormatContent(content, opts);
         format = detection.format;
       }
 
@@ -225,7 +227,7 @@ export class ImportManager {
     });
   }
 
-  detectFormat(content: string, options?: Partial<ImportOptions>): FormatDetector {
+  detectFormatContent(content: string, options?: Partial<ImportOptions>): FormatDetector {
     const detectors: FormatDetector[] = [];
 
     if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
@@ -670,6 +672,70 @@ export class ImportManager {
       { format: 'epub', extensions: ['.epub'], description: 'EPUB电子书格式' },
       { format: 'docx', extensions: ['.docx', '.doc'], description: 'Word文档格式' }
     ];
+  }
+
+  async importProject(filePath: string, format?: ImportFormat): Promise<NovelProject> {
+    const fs = require('fs');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const result = await this.import(content, { format: format || 'auto' });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Import failed');
+    }
+
+    return {
+      id: `imported_${Date.now()}`,
+      title: result.project?.title || '导入项目',
+      genre: (result.project?.genre as any) || 'novel',
+      literaryGenre: 'novel',
+      status: 'imported' as any,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chapters: result.chapters || [],
+      characters: result.project?.characters || []
+    } as NovelProject;
+  }
+
+  async importChapter(filePath: string, format?: ImportFormat): Promise<Chapter> {
+    const fs = require('fs');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const result = await this.import(content, { format: format || 'auto' });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Import failed');
+    }
+
+    if (result.chapters && result.chapters.length > 0) {
+      return result.chapters[0];
+    }
+
+    const contentText = typeof content === 'string' ? content : '';
+    return {
+      id: `imported_chapter_${Date.now()}`,
+      number: 1,
+      title: result.project?.title || '导入章节',
+      status: 'draft' as const,
+      content: contentText,
+      wordCount: contentText.length,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  detectFormat(filePath: string): ImportFormat {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const formatMap: Record<string, ImportFormat> = {
+      'txt': 'txt',
+      'md': 'md',
+      'markdown': 'md',
+      'json': 'json',
+      'html': 'html',
+      'htm': 'html',
+      'epub': 'epub',
+      'docx': 'docx',
+      'doc': 'docx'
+    };
+    return formatMap[ext || ''] || 'auto';
   }
 }
 

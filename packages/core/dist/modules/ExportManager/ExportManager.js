@@ -123,6 +123,31 @@ class ExportManager {
             };
         }
     }
+    async exportProject(project, format, config) {
+        const options = { format, ...config };
+        const result = await this.export(project, options);
+        if (!result.success || !result.content) {
+            throw new Error(result.error || 'Export failed');
+        }
+        return result.content;
+    }
+    async exportChapter(chapter, format) {
+        const chapterProject = {
+            id: 'chapter-export',
+            title: chapter.title,
+            genre: 'fantasy',
+            literaryGenre: 'novel',
+            writingMode: 'original',
+            status: 'draft',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            chapters: [chapter]
+        };
+        return this.exportProject(chapterProject, format);
+    }
+    getSupportedFormats() {
+        return ['txt', 'md', 'json', 'epub', 'html', 'pdf', 'docx'];
+    }
     async exportBatch(projects, options) {
         const results = [];
         let totalSize = 0;

@@ -24,6 +24,16 @@ class CostTracker {
     setBudgets(budgets) {
         this.budgets = budgets;
     }
+    setBudget(budget) {
+        this.budgets = budget;
+    }
+    getBudget() {
+        return Object.keys(this.budgets).length > 0 ? this.budgets : null;
+    }
+    record(record) {
+        this.records.push(record);
+        this.saveRecords();
+    }
     setModelCost(model, inputCost, outputCost) {
         this.costPerToken[model] = { input: inputCost, output: outputCost };
     }

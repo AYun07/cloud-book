@@ -183,8 +183,8 @@ export class CloudBook {
     this.exportManager = new ExportManager();
     this.importManager = new ImportManager();
     this.keyboardShortcuts = new KeyboardShortcuts();
-    this.goalManager = new GoalManager(config.storagePath + '/goals');
-    this.costTracker = new CostTracker(config.storagePath + '/costs');
+    this.goalManager = new GoalManager();
+    this.costTracker = new CostTracker();
     this.snowflakeMethodology = new SnowflakeMethodology(this.llmManager);
     this.webScraper = new WebScraper();
 
@@ -417,10 +417,6 @@ export class CloudBook {
   async deleteProject(projectId: string): Promise<boolean> {
     this.projects.delete(projectId);
     return this.localStorage.deleteProject(projectId);
-  }
-
-  async exportChapter(projectId: string, chapterId: string, format: 'txt' | 'md'): Promise<string | null> {
-    return this.localStorage.exportChapter(projectId, chapterId, format);
   }
 
   async createImitationProject(
@@ -1180,8 +1176,8 @@ export class CloudBook {
     return chapter;
   }
 
-  detectImportFormat(filePath: string): ImportFormat {
-    return this.importManager.detectFormat(filePath);
+  detectImportFormat(filePath: string): string {
+    return this.importManager.detectFormat(filePath) as string;
   }
 
   // ============================================
@@ -1192,15 +1188,15 @@ export class CloudBook {
     this.keyboardShortcuts.register(shortcut);
   }
 
-  getShortcuts(category?: ShortcutCategory): Shortcut[] {
+  getShortcuts(category?: string): Shortcut[] {
     if (category) {
-      return this.keyboardShortcuts.getByCategory(category);
+      return this.keyboardShortcuts.getByCategory(category as any);
     }
     return this.keyboardShortcuts.getAll();
   }
 
   executeShortcut(key: string, modifiers?: string[]): boolean {
-    return this.keyboardShortcuts.execute(key, modifiers);
+    return this.keyboardShortcuts.execute(key, modifiers as any);
   }
 
   // ============================================
@@ -1253,16 +1249,14 @@ export class CloudBook {
 
   async executeSnowflakeStep(
     projectId: string,
-    step: SnowflakeStep,
+    step: number,
     params?: Record<string, any>
-  ): Promise<SnowflakeProject> {
-    const project = this.projects.get(projectId);
-    if (!project) throw new Error('Project not found');
+  ): Promise<{ success: boolean; data?: any; message: string }> {
     return this.snowflakeMethodology.executeStep(projectId, step, params);
   }
 
-  getSnowflakeProgress(projectId: string): SnowflakeProject | null {
-    return this.snowflakeMethodology.getProgress(projectId);
+  async initializeSnowflake(projectId: string): Promise<SnowflakeStep[]> {
+    return this.snowflakeMethodology.initializeProject(projectId);
   }
 
   // ============================================

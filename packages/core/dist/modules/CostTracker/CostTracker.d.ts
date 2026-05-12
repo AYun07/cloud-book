@@ -40,6 +40,9 @@ export declare class CostTracker {
     private costPerToken;
     constructor(budgets?: CostBudget);
     setBudgets(budgets: CostBudget): void;
+    setBudget(budget: CostBudget): void;
+    getBudget(): CostBudget | null;
+    record(record: CostRecord): void;
     setModelCost(model: string, inputCost: number, outputCost: number): void;
     recordCost(model: string, provider: string, inputTokens: number, outputTokens: number, operation: string, projectId?: string, chapterId?: string): Promise<CostRecord>;
     getStats(startDate?: Date, endDate?: Date, projectId?: string): CostStats;

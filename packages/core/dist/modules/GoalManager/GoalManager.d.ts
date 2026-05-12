@@ -38,9 +38,13 @@ export interface GoalStats {
 }
 export declare class GoalManager {
     private goals;
+    private currentGoal;
     private dailyProgress;
     private streak;
-    constructor();
+    constructor(storagePath?: string);
+    setGoal(goal: WritingGoal): void;
+    getCurrentGoal(): WritingGoal | null;
+    recordWriting(words: number, date?: Date): void;
     createGoal(goal: Omit<WritingGoal, 'id' | 'createdAt' | 'status' | 'current'>): WritingGoal;
     updateProgress(goalId: string, amount: number): WritingGoal | null;
     setProgress(goalId: string, value: number): WritingGoal | null;

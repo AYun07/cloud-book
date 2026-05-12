@@ -16,6 +16,13 @@ import { MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
 import { TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
 import { APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
 import { ProjectData } from './modules/LocalStorage/LocalStorage';
+import { ExportFormat, ExportConfig } from './modules/ExportManager/ExportManager';
+import { ImportFormat } from './modules/ImportManager/ImportManager';
+import { Shortcut } from './modules/KeyboardShortcuts/KeyboardShortcuts';
+import { WritingGoal, GoalStats, GoalStreak } from './modules/GoalManager/GoalManager';
+import { CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
+import { SnowflakeStep } from './modules/SnowflakeMethodology/SnowflakeMethodology';
+import { ScrapedContent } from './modules/WebScraper/WebScraper';
 export interface CloudBookConfig {
     llmConfigs: LLMConfig[];
     modelRoutes: ModelRoute[];
@@ -76,6 +83,13 @@ export declare class CloudBook {
     private cacheManager;
     private versionHistoryManager;
     private localStorage;
+    private exportManager;
+    private importManager;
+    private keyboardShortcuts;
+    private goalManager;
+    private costTracker;
+    private snowflakeMethodology;
+    private webScraper;
     private currentProject?;
     private projects;
     constructor(config: CloudBookConfig);
@@ -107,7 +121,6 @@ export declare class CloudBook {
     listProjects(): Promise<ProjectData[]>;
     loadProject(projectId: string): Promise<NovelProject | null>;
     deleteProject(projectId: string): Promise<boolean>;
-    exportChapter(projectId: string, chapterId: string, format: 'txt' | 'md'): Promise<string | null>;
     createImitationProject(parseResult: ParseResult, mode: 'imitation' | 'derivative' | 'fanfic', imitationLevel?: number): Promise<NovelProject>;
     addWorldInfo(projectId: string, info: {
         name: string;
@@ -213,6 +226,39 @@ export declare class CloudBook {
     private generateId;
     private toChineseNumber;
     private countWords;
+    exportProjectFull(projectId: string, format: ExportFormat, config?: ExportConfig): Promise<string>;
+    exportChapter(projectId: string, chapterId: string, format: ExportFormat): Promise<string>;
+    getExportFormats(): ExportFormat[];
+    importProjectFromFile(filePath: string, format?: ImportFormat): Promise<NovelProject>;
+    importChapterFromFile(projectId: string, filePath: string, format?: ImportFormat): Promise<Chapter>;
+    detectImportFormat(filePath: string): string;
+    registerShortcut(shortcut: Shortcut): void;
+    getShortcuts(category?: string): Shortcut[];
+    executeShortcut(key: string, modifiers?: string[]): boolean;
+    setWritingGoal(goal: WritingGoal): void;
+    getCurrentGoal(): WritingGoal | null;
+    recordWriting(words: number, date?: Date): void;
+    getGoalStats(): GoalStats;
+    getStreak(): GoalStreak;
+    recordCost(record: CostRecord): void;
+    getCostStats(): CostStats;
+    setBudget(budget: CostBudget): void;
+    getBudget(): CostBudget | null;
+    executeSnowflakeStep(projectId: string, step: number, params?: Record<string, any>): Promise<{
+        success: boolean;
+        data?: any;
+        message: string;
+    }>;
+    initializeSnowflake(projectId: string): Promise<SnowflakeStep[]>;
+    scrapeUrl(url: string): Promise<ScrapedContent>;
+    scrapeNovelChapter(url: string): Promise<{
+        title: string;
+        content: string;
+        chapterNumber?: number;
+        nextChapterUrl?: string;
+        prevChapterUrl?: string;
+    }>;
+    scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]>;
 }
 export default CloudBook;
 //# sourceMappingURL=CloudBook.d.ts.map

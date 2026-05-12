@@ -18,7 +18,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SnowflakeMethodology = exports.CostTracker = exports.GoalManager = exports.LocalStorage = exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = exports.GenreConfigManager = exports.SevenStepMethodology = exports.DaemonService = exports.AgentSystem = exports.KnowledgeGraphManager = exports.CardManager = exports.CreativeHub = exports.AutoDirector = exports.MemoryManager = exports.WorldInfoManager = exports.ContextManager = exports.WritingPipeline = exports.TruthFileManager = exports.AIAuditEngine = exports.LLMManager = exports.AntiDetectionEngine = exports.ImitationEngine = exports.NovelParser = exports.CloudBook = void 0;
+exports.WebScraper = exports.KeyboardShortcuts = exports.ImportManager = exports.ExportManager = exports.SnowflakeMethodology = exports.CostTracker = exports.GoalManager = exports.LocalStorage = exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = exports.GenreConfigManager = exports.SevenStepMethodology = exports.DaemonService = exports.AgentSystem = exports.KnowledgeGraphManager = exports.CardManager = exports.CreativeHub = exports.AutoDirector = exports.MemoryManager = exports.WorldInfoManager = exports.ContextManager = exports.WritingPipeline = exports.TruthFileManager = exports.AIAuditEngine = exports.LLMManager = exports.AntiDetectionEngine = exports.ImitationEngine = exports.NovelParser = exports.CloudBook = void 0;
 var CloudBook_1 = require("./CloudBook");
 Object.defineProperty(exports, "CloudBook", { enumerable: true, get: function () { return CloudBook_1.CloudBook; } });
 __exportStar(require("./types"), exports);
@@ -88,4 +88,12 @@ var CostTracker_1 = require("./modules/CostTracker/CostTracker");
 Object.defineProperty(exports, "CostTracker", { enumerable: true, get: function () { return CostTracker_1.CostTracker; } });
 var SnowflakeMethodology_1 = require("./modules/SnowflakeMethodology/SnowflakeMethodology");
 Object.defineProperty(exports, "SnowflakeMethodology", { enumerable: true, get: function () { return SnowflakeMethodology_1.SnowflakeMethodology; } });
+var ExportManager_1 = require("./modules/ExportManager/ExportManager");
+Object.defineProperty(exports, "ExportManager", { enumerable: true, get: function () { return ExportManager_1.ExportManager; } });
+var ImportManager_1 = require("./modules/ImportManager/ImportManager");
+Object.defineProperty(exports, "ImportManager", { enumerable: true, get: function () { return ImportManager_1.ImportManager; } });
+var KeyboardShortcuts_1 = require("./modules/KeyboardShortcuts/KeyboardShortcuts");
+Object.defineProperty(exports, "KeyboardShortcuts", { enumerable: true, get: function () { return KeyboardShortcuts_1.KeyboardShortcuts; } });
+var WebScraper_1 = require("./modules/WebScraper/WebScraper");
+Object.defineProperty(exports, "WebScraper", { enumerable: true, get: function () { return WebScraper_1.WebScraper; } });
 //# sourceMappingURL=index.js.map

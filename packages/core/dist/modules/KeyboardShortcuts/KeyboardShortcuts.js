@@ -130,6 +130,9 @@ class KeyboardShortcuts {
         const key = this.generateKey(shortcut.key, shortcut.modifiers);
         this.shortcuts.set(key, shortcut);
     }
+    register(shortcut) {
+        this.registerShortcut(shortcut);
+    }
     unregisterShortcut(key, modifiers) {
         const shortcutKey = this.generateKey(key, modifiers);
         this.shortcuts.delete(shortcutKey);
@@ -163,6 +166,24 @@ class KeyboardShortcuts {
     }
     getShortcutsByCategory(category) {
         return Array.from(this.shortcuts.values()).filter(s => s.category === category);
+    }
+    getByCategory(category) {
+        return this.getShortcutsByCategory(category);
+    }
+    getAll() {
+        return Array.from(this.shortcuts.values());
+    }
+    execute(key, modifiers) {
+        const shortcutKey = this.generateKey(key, modifiers);
+        const shortcut = this.shortcuts.get(shortcutKey);
+        if (shortcut) {
+            const handler = this.customHandlers.get(shortcut.action);
+            if (handler) {
+                handler();
+                return true;
+            }
+        }
+        return false;
     }
     getShortcutsByGroup(group) {
         return Array.from(this.shortcuts.values()).filter(s => s.group === group);

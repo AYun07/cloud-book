@@ -7,14 +7,31 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GoalManager = void 0;
 class GoalManager {
     goals = [];
+    currentGoal = null;
     dailyProgress = [];
     streak = {
         current: 0,
         longest: 0,
         lastActiveDate: new Date()
     };
-    constructor() {
+    constructor(storagePath) {
         this.loadData();
+    }
+    setGoal(goal) {
+        this.currentGoal = goal;
+        if (!this.goals.find(g => g.id === goal.id)) {
+            this.goals.push(goal);
+        }
+        this.saveData();
+    }
+    getCurrentGoal() {
+        return this.currentGoal || this.getActiveGoals()[0] || null;
+    }
+    recordWriting(words, date) {
+        this.recordDailyProgress({ wordsWritten: words });
+        if (this.currentGoal) {
+            this.updateProgress(this.currentGoal.id, words);
+        }
     }
     createGoal(goal) {
         const newGoal = {
