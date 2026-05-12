@@ -12,6 +12,8 @@ import {
   Avatar,
   List,
   message,
+  Row,
+  Col
 } from 'antd';
 import {
   PlusOutlined,
@@ -20,380 +22,382 @@ import {
   UserOutlined,
   HeartOutlined,
   FlagOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  SaveOutlined
 } from '@ant-design/icons';
+import { useCloudBook } from '../context/CloudBookContext';
+import { Character } from '@cloudbook/core';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-interface Character {
-  id: string;
-  name: string;
-  avatar?: string;
-  role: 'protagonist' | 'antagonist' | 'supporting';
-  gender: 'male' | 'female' | 'other';
-  age?: number;
-  personality: string;
-  goals: string;
-  background: string;
-  relationships: string[];
-  status: 'active' | 'inactive';
-}
-
-const mockCharacters: Character[] = [
-  {
-    id: '1',
-    name: '林辰',
-    role: 'protagonist',
-    gender: 'male',
-    age: 18,
-    personality: '沉稳冷静，重情重义，有正义感',
-    goals: '寻找失散的家人，揭开身世之谜',
-    background: '从小在孤儿院长大，拥有神秘的血脉之力',
-    relationships: ['苏婉清（恋人）', '赵无极（师父）'],
-    status: 'active'
-  },
-  {
-    id: '2',
-    name: '苏婉清',
-    role: 'supporting',
-    gender: 'female',
-    age: 17,
-    personality: '温柔善良，聪慧机敏，善解人意',
-    goals: '成为最强的炼药师',
-    background: '丹道世家的千金，天赋异禀',
-    relationships: ['林辰（恋人）', '苏震天（父亲）'],
-    status: 'active'
-  },
-  {
-    id: '3',
-    name: '赵无极',
-    role: 'supporting',
-    gender: 'male',
-    age: 50,
-    personality: '严厉但护短，外表粗犷内心细腻',
-    goals: '培养出超越自己的弟子',
-    background: '曾经的天才武者，因伤隐退',
-    relationships: ['林辰（弟子）'],
-    status: 'active'
-  },
-  {
-    id: '4',
-    name: '血魔',
-    role: 'antagonist',
-    gender: 'male',
-    age: 数百岁,
-    personality: '残忍嗜杀，野心勃勃，冷酷无情',
-    goals: '夺取神器，称霸大陆',
-    background: '上古魔修转世，实力深不可测',
-    relationships: [],
-    status: 'active'
-  }
-];
-
-const roleLabels: Record<string, string> = {
-  protagonist: '主角',
-  antagonist: '反派',
-  supporting: '配角'
-};
-
-const roleColors: Record<string, string> = {
-  protagonist: 'gold',
-  antagonist: 'red',
-  supporting: 'blue'
-};
-
-const genderLabels: Record<string, string> = {
-  male: '男',
-  female: '女',
-  other: '其他'
-};
-
 const CharacterPage: React.FC = () => {
-  const [characters, setCharacters] = useState<Character[]>(mockCharacters);
-  const [selectedChar, setSelectedChar] = useState<Character | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingChar, setEditingChar] = useState<Character | null>(null);
+  const { currentProject, addCharacter, updateCharacter, deleteCharacter, characters } = useCloudBook();
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [form] = Form.useForm();
 
-  const handleAddCharacter = () => {
-    setEditingChar(null);
-    form.resetFields();
-    setIsModalVisible(true);
-  };
-
-  const handleEditCharacter = (char: Character) => {
-    setEditingChar(char);
-    form.setFieldsValue({
-      name: char.name,
-      role: char.role,
-      gender: char.gender,
-      age: char.age,
-      personality: char.personality,
-      goals: char.goals,
-      background: char.background,
-      relationships: char.relationships.join('\n')
-    });
-    setIsModalVisible(true);
-  };
-
-  const handleDeleteCharacter = (id: string) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除这个角色吗？',
-      onOk: () => {
-        setCharacters(prev => prev.filter(c => c.id !== id));
-        message.success('删除成功');
-      }
-    });
-  };
-
-  const handleSave = () => {
-    form.validateFields().then(values => {
-      const newChar: Character = {
-        id: editingChar?.id || `char${Date.now()}`,
-        name: values.name,
-        role: values.role,
-        gender: values.gender,
-        age: values.age || undefined,
-        personality: values.personality,
-        goals: values.goals,
-        background: values.background,
-        relationships: values.relationships.split('\n').filter(Boolean),
-        status: 'active'
-      };
-
-      if (editingChar) {
-        setCharacters(prev => prev.map(c => c.id === editingChar.id ? newChar : c));
-        message.success('修改成功');
-      } else {
-        setCharacters(prev => [...prev, newChar]);
-        message.success('添加成功');
-      }
-      setIsModalVisible(false);
+  const handleOpenModal = (character?: Character) => {
+    if (character) {
+      setEditingCharacter(character);
+      form.setFieldsValue({
+        name: character.name,
+        role: character.role,
+        gender: character.gender,
+        age: character.age,
+        personality: character.personality,
+        goals: character.goals?.join('\n') || '',
+        background: character.background,
+        relationships: character.relationships?.map(r => r.targetName).join('\n') || ''
+      });
+    } else {
+      setEditingCharacter(null);
       form.resetFields();
-    });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (values: any) => {
+    if (!currentProject) {
+      message.warning('请先选择一个项目');
+      return;
+    }
+
+    const newCharacter: Omit<Character, 'id'> = {
+      name: values.name,
+      role: values.role,
+      gender: values.gender,
+      age: values.age,
+      personality: values.personality,
+      goals: values.goals.split('\n').filter(Boolean),
+      background: values.background,
+      relationships: values.relationships.split('\n').filter(Boolean).map(name => ({
+        targetId: '',
+        targetName: name,
+        type: 'friend'
+      })),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    try {
+      if (editingCharacter) {
+        await updateCharacter(currentProject.id, { ...editingCharacter, ...newCharacter });
+        message.success('角色更新成功');
+      } else {
+        await addCharacter(currentProject.id, newCharacter);
+        message.success('角色创建成功');
+      }
+      setIsModalOpen(false);
+      form.resetFields();
+    } catch (err) {
+      message.error('操作失败：' + (err instanceof Error ? err.message : '未知错误'));
+    }
+  };
+
+  const handleDelete = async (character: Character) => {
+    if (!currentProject) return;
+    
+    try {
+      await deleteCharacter(currentProject.id, character.id);
+      message.success('角色删除成功');
+    } catch (err) {
+      message.error('删除失败：' + (err instanceof Error ? err.message : '未知错误'));
+    }
+  };
+
+  const getRoleTag = (role: string) => {
+    switch (role) {
+      case 'protagonist':
+        return <Tag color="red">主角</Tag>;
+      case 'antagonist':
+        return <Tag color="orange">反派</Tag>;
+      default:
+        return <Tag color="blue">配角</Tag>;
+    }
+  };
+
+  const getStatusTag = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Tag color="green">活跃</Tag>;
+      default:
+        return <Tag color="gray">非活跃</Tag>;
+    }
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <Title level={2} style={{ color: '#fff', marginBottom: 8 }}>角色管理</Title>
-          <Text type="secondary">创建和管理小说中的角色</Text>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCharacter}>
-          添加角色
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <Title level={3}>👤 角色管理</Title>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />}
+          onClick={() => handleOpenModal()}
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: 'none'
+          }}
+        >
+          创建角色
         </Button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        <Card style={{ background: '#0f3460' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#667eea' }}>{characters.length}</Text>
-            <div style={{ color: '#999', marginTop: 4 }}>总角色数</div>
-          </div>
-        </Card>
-        <Card style={{ background: '#0f3460' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#ffd700' }}>
-              {characters.filter(c => c.role === 'protagonist').length}
-            </Text>
-            <div style={{ color: '#999', marginTop: 4 }}>主角</div>
-          </div>
-        </Card>
-        <Card style={{ background: '#0f3460' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#1890ff' }}>
-              {characters.filter(c => c.role === 'supporting').length}
-            </Text>
-            <div style={{ color: '#999', marginTop: 4 }}>配角</div>
-          </div>
-        </Card>
-        <Card style={{ background: '#0f3460' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#f5222d' }}>
-              {characters.filter(c => c.role === 'antagonist').length}
-            </Text>
-            <div style={{ color: '#999', marginTop: 4 }}>反派</div>
-          </div>
-        </Card>
-      </div>
+      <Row gutter={16}>
+        <Col span={16}>
+          <Card 
+            style={{ 
+              background: '#1a1a2e',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            {characters && characters.length > 0 ? (
+              <List
+                grid={{ gutter: 16, column: 2 }}
+                dataSource={characters}
+                renderItem={(character) => (
+                  <List.Item>
+                    <Card 
+                      hoverable
+                      style={{ 
+                        background: '#16213e',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <Avatar 
+                          size={64} 
+                          icon={<UserOutlined />} 
+                          style={{ 
+                            marginRight: 16,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                            <Text strong style={{ fontSize: 16, color: '#fff' }}>{character.name}</Text>
+                            <Space style={{ marginLeft: 8 }}>
+                              {getRoleTag(character.role)}
+                              {getStatusTag(character.status || 'active')}
+                            </Space>
+                          </div>
+                          
+                          {character.age && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              年龄: {character.age}岁
+                            </Text>
+                          )}
+                          
+                          <Paragraph style={{ margin: '8px 0', color: '#ccc', fontSize: 13 }}>
+                            {character.personality}
+                          </Paragraph>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <Title level={3} style={{ color: '#fff', marginBottom: 16 }}>角色列表</Title>
-          <List
-            grid={{ gutter: 16, column: 3 }}
-            dataSource={characters}
-            renderItem={character => (
-              <List.Item>
-                <Card 
-                  style={{ 
-                    background: '#0f3460',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                    border: selectedChar?.id === character.id ? '2px solid #667eea' : 'none'
-                  }}
-                  hoverable
-                  onClick={() => setSelectedChar(character)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Avatar size={56} icon={<UserOutlined />} style={{ background: '#667eea' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>
-                          {character.name}
-                        </Text>
-                        <Tag color={roleColors[character.role]}>
-                          {roleLabels[character.role]}
-                        </Tag>
+                          {character.relationships && character.relationships.length > 0 && (
+                            <div style={{ marginTop: 8 }}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>关系:</Text>
+                              <Space>
+                                {character.relationships.slice(0, 3).map((rel, idx) => (
+                                  <Tag key={idx} color="purple">{rel.targetName}</Tag>
+                                ))}
+                              </Space>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                            <Button 
+                              size="small" 
+                              icon={<EditOutlined />}
+                              onClick={() => handleOpenModal(character)}
+                            >
+                              编辑
+                            </Button>
+                            <Button 
+                              size="small" 
+                              icon={<DeleteOutlined />}
+                              danger
+                              onClick={() => handleDelete(character)}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {genderLabels[character.gender]} · {character.age}岁
-                      </Text>
-                    </div>
-                  </div>
-                  <Space style={{ marginTop: 12 }}>
-                    <Button size="small" icon={<EditOutlined />} onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditCharacter(character);
-                    }}>
-                      编辑
-                    </Button>
-                    <Button size="small" danger icon={<DeleteOutlined />} onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCharacter(character.id);
-                    }}>
-                      删除
-                    </Button>
-                  </Space>
-                </Card>
-              </List.Item>
-            )}
-          />
-        </div>
-
-        <div style={{ width: 360 }}>
-          <Title level={3} style={{ color: '#fff', marginBottom: 16 }}>角色详情</Title>
-          {selectedChar ? (
-            <Card style={{ background: '#16213e' }}>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <Avatar size={80} icon={<UserOutlined />} style={{ background: '#667eea', marginBottom: 12 }} />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff' }}>
-                    {selectedChar.name}
-                  </Text>
-                  <Tag color={roleColors[selectedChar.role]}>
-                    {roleLabels[selectedChar.role]}
-                  </Tag>
-                </div>
-                <Text type="secondary" style={{ marginTop: 4 }}>
-                  {genderLabels[selectedChar.gender]} · {selectedChar.age}岁
-                </Text>
+                    </Card>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
+                <UserOutlined style={{ fontSize: 64, marginBottom: 16 }} />
+                <p>暂无角色</p>
+                <p style={{ fontSize: 12 }}>点击右上角按钮创建角色</p>
               </div>
+            )}
+          </Card>
+        </Col>
 
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <HeartOutlined style={{ color: '#ff6b6b' }} />
-                    <Text type="secondary">性格</Text>
-                  </div>
-                  <Text style={{ color: '#fff' }}>{selectedChar.personality}</Text>
-                </div>
+        <Col span={8}>
+          <Card 
+            title="🎭 角色统计"
+            style={{ 
+              background: '#16213e',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>总角色数</Text>
+                <Badge 
+                  count={characters?.length || 0} 
+                  style={{ backgroundColor: '#667eea' }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>主角</Text>
+                <Badge 
+                  count={characters?.filter(c => c.role === 'protagonist').length || 0} 
+                  style={{ backgroundColor: '#ff4d4f' }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>配角</Text>
+                <Badge 
+                  count={characters?.filter(c => c.role === 'supporting').length || 0} 
+                  style={{ backgroundColor: '#1890ff' }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>反派</Text>
+                <Badge 
+                  count={characters?.filter(c => c.role === 'antagonist').length || 0} 
+                  style={{ backgroundColor: '#faad14' }}
+                />
+              </div>
+            </Space>
+          </Card>
 
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <FlagOutlined style={{ color: '#4ecdc4' }} />
-                    <Text type="secondary">目标</Text>
-                  </div>
-                  <Text style={{ color: '#fff' }}>{selectedChar.goals}</Text>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <FileTextOutlined style={{ color: '#ffe66d' }} />
-                    <Text type="secondary">背景</Text>
-                  </div>
-                  <Text style={{ color: '#fff' }}>{selectedChar.background}</Text>
-                </div>
-
-                <div>
-                  <Text type="secondary" style={{ marginBottom: 8 }}>人际关系</Text>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {selectedChar.relationships.map((rel, idx) => (
-                      <Tag key={idx}>{rel}</Tag>
-                    ))}
-                  </div>
-                </div>
-              </Space>
-            </Card>
-          ) : (
-            <div style={{ textAlign: 'center', padding: 60, color: '#666' }}>
-              <UserOutlined style={{ fontSize: 64, marginBottom: 16 }} />
-              <p>选择一个角色查看详情</p>
-            </div>
-          )}
-        </div>
-      </div>
+          <Card 
+            title="💡 写作提示"
+            style={{ 
+              marginTop: 16,
+              background: 'rgba(102, 126, 234, 0.1)',
+              border: '1px solid rgba(102, 126, 234, 0.3)'
+            }}
+          >
+            <Paragraph style={{ fontSize: 13, color: '#ccc' }}>
+              创建角色时，建议详细描述角色的性格、目标和背景故事，这将帮助 AI 更好地理解角色，生成更符合角色设定的对话和行为。
+            </Paragraph>
+          </Card>
+        </Col>
+      </Row>
 
       <Modal
-        title={editingChar ? '编辑角色' : '添加角色'}
-        visible={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
+        title={editingCharacter ? '编辑角色' : '创建角色'}
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
         footer={null}
-        width={500}
+        width={600}
       >
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+        >
           <Form.Item
             name="name"
-            label="姓名"
-            rules={[{ required: true, message: '请输入姓名' }]}
+            label="角色名称"
+            rules={[{ required: true, message: '请输入角色名称' }]}
           >
-            <Input placeholder="角色姓名" />
+            <Input placeholder="如：林辰" />
           </Form.Item>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="role" label="角色类型" initialValue="supporting">
-              <Select>
-                <Option value="protagonist">主角</Option>
-                <Option value="antagonist">反派</Option>
-                <Option value="supporting">配角</Option>
-              </Select>
-            </Form.Item>
-            <Form.Item name="gender" label="性别" initialValue="male">
-              <Select>
-                <Option value="male">男</Option>
-                <Option value="female">女</Option>
-                <Option value="other">其他</Option>
-              </Select>
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="role"
+                label="角色定位"
+                rules={[{ required: true, message: '请选择角色定位' }]}
+              >
+                <Select placeholder="选择定位">
+                  <Option value="protagonist">主角</Option>
+                  <Option value="antagonist">反派</Option>
+                  <Option value="supporting">配角</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="gender"
+                label="性别"
+                rules={[{ required: true, message: '请选择性别' }]}
+              >
+                <Select placeholder="选择性别">
+                  <Option value="male">男</Option>
+                  <Option value="female">女</Option>
+                  <Option value="other">其他</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="age"
+                label="年龄"
+              >
+                <Input type="number" placeholder="可选" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item name="age" label="年龄">
-            <Input type="number" placeholder="年龄" />
+          <Form.Item
+            name="personality"
+            label="性格特点"
+            rules={[{ required: true, message: '请描述性格特点' }]}
+          >
+            <Input placeholder="如：沉稳冷静，重情重义" />
           </Form.Item>
 
-          <Form.Item name="personality" label="性格" rules={[{ required: true }]}>
-            <Input.TextArea placeholder="描述角色性格特点" rows={3} />
+          <Form.Item
+            name="goals"
+            label="人生目标"
+          >
+            <TextArea 
+              rows={3} 
+              placeholder="每行一个目标" 
+            />
           </Form.Item>
 
-          <Form.Item name="goals" label="目标" rules={[{ required: true }]}>
-            <Input.TextArea placeholder="角色的人生目标或追求" rows={3} />
+          <Form.Item
+            name="background"
+            label="背景故事"
+          >
+            <TextArea 
+              rows={4} 
+              placeholder="描述角色的背景故事..." 
+            />
           </Form.Item>
 
-          <Form.Item name="background" label="背景" rules={[{ required: true }]}>
-            <Input.TextArea placeholder="角色背景故事" rows={3} />
+          <Form.Item
+            name="relationships"
+            label="关系人物"
+          >
+            <TextArea 
+              rows={2} 
+              placeholder="每行一个关系人物名称" 
+            />
           </Form.Item>
 
-          <Form.Item name="relationships" label="人际关系">
-            <Input.TextArea placeholder="每行一个关系，如：张三（朋友）" rows={3} />
+          <Form.Item>
+            <Space>
+              <Button onClick={() => setIsModalOpen(false)}>取消</Button>
+              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+                保存
+              </Button>
+            </Space>
           </Form.Item>
-
-          <Space style={{ marginTop: 16 }}>
-            <Button onClick={() => setIsModalVisible(false)}>取消</Button>
-            <Button type="primary" onClick={handleSave}>保存</Button>
-          </Space>
         </Form>
       </Modal>
     </div>
