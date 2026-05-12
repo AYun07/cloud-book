@@ -88,6 +88,14 @@ export declare class LLMManager {
      */
     addModel(config: LLMConfig): void;
     /**
+     * 根据模型配置调用API
+     */
+    private callModelAPI;
+    /**
+     * 流式调用模型API
+     */
+    private streamModelAPI;
+    /**
      * 添加模型配置（addModel别名）
      */
     addConfig(config: LLMConfig): void;

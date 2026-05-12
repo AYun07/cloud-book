@@ -260,23 +260,78 @@ export class LLMManager {
   addModel(config: LLMConfig) {
     this.modelConfigs.set(config.name, config);
     
-    const baseProvider = this.providers.get(config.provider) || this.providers.get('custom');
-    if (baseProvider) {
-      const wrappedProvider: LLMProvider = {
-        name: config.name,
-        provider: config.provider as ModelProvider,
-        generate: async (prompt, options) => {
-          return baseProvider.generate(prompt, options);
-        },
-        stream: baseProvider.stream ? async (prompt, options, onChunk) => {
-          await baseProvider.stream!(prompt, options, onChunk);
-        } : undefined
-      };
-      this.providers.set(config.name, wrappedProvider);
-    }
+    const wrappedProvider: LLMProvider = {
+      name: config.name,
+      provider: config.provider as ModelProvider,
+      generate: async (prompt, options) => {
+        return this.callModelAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        await this.streamModelAPI(config, prompt, options, onChunk);
+      }
+    };
+    this.providers.set(config.name, wrappedProvider);
     
     if (!this.defaultProvider) {
       this.defaultProvider = config.name;
+    }
+  }
+
+  /**
+   * 根据模型配置调用API
+   */
+  private async callModelAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const providerType = config.provider as ModelProvider;
+    
+    switch (providerType) {
+      case 'openai':
+      case 'deepseek':
+      case 'custom':
+        return this.callOpenAICompatibleAPI(config, prompt, options);
+      case 'anthropic':
+        return this.callAnthropicAPI(config, prompt, options);
+      case 'gemini': {
+        const modelInfo = this.getModelInfo(config.model);
+        const isStreaming = modelInfo?.streamingMode === 'true' && options?.stream !== false;
+        return this.callGeminiAPI(config, prompt, options, isStreaming);
+      }
+      case 'ollama':
+        return this.callOllamaAPI(config, prompt, options);
+      case 'koboldcpp':
+        return this.callKoboldAPI(config, prompt, options);
+      default:
+        return this.callOpenAICompatibleAPI(config, prompt, options);
+    }
+  }
+
+  /**
+   * 流式调用模型API
+   */
+  private async streamModelAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const providerType = config.provider as ModelProvider;
+    
+    switch (providerType) {
+      case 'openai':
+      case 'deepseek':
+      case 'custom':
+        await this.streamOpenAICompatibleAPI(config, prompt, { ...options, stream: true }, onChunk);
+        break;
+      case 'gemini':
+        await this.streamGeminiAPI(config, prompt, options, onChunk);
+        break;
+      default:
+        // 对于不支持流式的provider，回退到非流式
+        const result = await this.callModelAPI(config, prompt, options);
+        onChunk(result.text);
     }
   }
 
