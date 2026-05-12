@@ -25,6 +25,7 @@ export declare class NovelParser {
     private onProgress?;
     constructor(config?: ParserConfig);
     setProgressCallback(callback: (progress: ParserProgress) => void): void;
+    countWords(text: string): number;
     parseString(content: string): Promise<ParseResult>;
     parseFile(filePath: string): Promise<ParseResult>;
     private splitChapters;

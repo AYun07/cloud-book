@@ -1139,3 +1139,41 @@ export interface WritingOptions {
   autoHumanize?: boolean;
   parallelCount?: number;
 }
+
+export interface CreativeHubConfig {
+  contextWindow?: number;
+  similarityThreshold?: number;
+  maxDocuments?: number;
+  embeddingModel?: string;
+}
+
+export interface CreativeSession {
+  sessionId: string;
+  projectId: string;
+  documents: CreativeDocument[];
+  createdAt: Date;
+  lastAccessed: Date;
+  queryHistory: Array<{ query: string; timestamp: Date }>;
+  contextWindow: number;
+}
+
+export interface CreativeDocument {
+  id: string;
+  sessionId: string;
+  content: string;
+  metadata?: {
+    source?: string;
+    tags?: string[];
+    addedAt?: string;
+    author?: string;
+    title?: string;
+    [key: string]: any;
+  };
+  embedding?: number[];
+}
+
+export interface SearchResult {
+  document: CreativeDocument;
+  relevanceScore: number;
+  matchedSegments: string[];
+}

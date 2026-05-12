@@ -51,6 +51,16 @@ export class NovelParser {
     this.onProgress = callback;
   }
 
+  countWords(text: string): number {
+    if (!text) return 0;
+    
+    const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+    const otherChars = text.replace(/[\u4e00-\u9fa5a-zA-Z\s\d\p{P}]/gu, '').length;
+    
+    return chineseChars + englishWords + Math.floor(otherChars / 2);
+  }
+
   async parseString(content: string): Promise<ParseResult> {
     if (!content) {
       throw new Error('Content cannot be empty');
