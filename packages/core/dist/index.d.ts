@@ -7,6 +7,8 @@ export { default as LLMManager, LLMProvider, LLMResponse, GenerationOptions, SUP
 export { createModelConfigs, createModelRoutes, getDefaultLLMConfig, MODEL_CAPABILITIES, API_CONFIG_INFO, ModelCapability, MODEL_NAMES } from './config/model-config';
 export { FEATURE_LLM_REQUIREMENTS, getLLMRequiredFeatures, getNonLLMFeatures, LLM_USAGE_SUMMARY } from './config/feature-analysis';
 export { MODULE_REVIEW_RESULT } from './config/module-review';
+export { IMAGE_GEN_PROVIDERS, DEFAULT_IMAGE_CONFIG, generateImage, buildCoverPrompt } from './config/image-gen-config';
+export { VECTOR_CONFIG, OFFLINE_CONFIG, ALL_PROVIDER_CONFIGS, getProviderConfig } from './config/vector-offline-config';
 export { default as AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { default as TruthFileManager } from './modules/TruthFiles/TruthFileManager';
 export { default as WritingPipeline } from './modules/WritingEngine/WritingPipeline';
