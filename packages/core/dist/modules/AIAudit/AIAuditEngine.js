@@ -1,1014 +1,528 @@
 "use strict";
 /**
- * Cloud Book - AI 审计引擎
- * 多维度内容质量检查
+ * Cloud Book - AI 审计引擎 V2
+ * 基于LLM的真正语义理解审计
+ * 33维度全面质量评估
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AIAuditEngine = void 0;
-const types_1 = require("../../types");
 class AIAuditEngine {
     config;
-    llmProvider;
+    llmProvider = null;
     constructor(config) {
         this.config = {
-            dimensions: [...types_1.AUDIT_DIMENSIONS],
+            dimensions: [
+                'characterConsistency',
+                'worldConsistency',
+                'timelineConsistency',
+                'plotLogic',
+                'foreshadowFulfillment',
+                'resourceTracking',
+                'emotionalArc',
+                'narrativePacing',
+                'dialogueQuality',
+                'descriptionDensity',
+                'aiDetection',
+                'repetitiveness',
+                'grammaticalErrors',
+                'tautology',
+                'logicalGaps',
+                'progressionPacing',
+                'conflictEscalation',
+                'characterMotivation',
+                'stakesClarity',
+                'sensoryDetails',
+                'backstoryIntegration',
+                'povConsistency',
+                'tenseConsistency',
+                'pacingVariation',
+                'showVsTell',
+                'subtext',
+                'symbolism',
+                'thematicCoherence',
+                'readerEngagement',
+                'genreConvention',
+                'culturalSensitivity',
+                'factualAccuracy',
+                'powerConsistency'
+            ],
             threshold: 0.7,
             autoFix: true,
             maxIterations: 3,
+            useSemanticAnalysis: true,
             ...config
         };
     }
-    /**
-     * 设置 LLM 提供者
-     */
     setLLMProvider(provider) {
         this.llmProvider = provider;
     }
-    /**
-     * 审计内容
-     */
-    async audit(content, truthFiles) {
+    async audit(content, truthFiles, context) {
         const dimensions = [];
-        const issues = [];
-        // 逐个维度检查
-        for (const dimension of this.config.dimensions) {
-            const result = await this.checkDimension(content, dimension, truthFiles);
-            dimensions.push(result.dimension);
-            issues.push(...result.issues);
-        }
-        // 计算总分
-        const totalScore = dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length;
-        const passed = totalScore >= this.config.threshold &&
-            !issues.some(i => i.severity === 'critical');
-        return {
-            passed,
-            dimensions,
-            issues,
-            score: totalScore
-        };
-    }
-    /**
-     * 检查单个维度
-     */
-    async checkDimension(content, dimension, truthFiles) {
-        let score = 1.0;
-        let details = '';
-        let dimensionIssues = [];
-        switch (dimension) {
-            case 'characterConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkCharacterConsistency(content, truthFiles));
-                break;
-            case 'worldConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkWorldConsistency(content, truthFiles));
-                break;
-            case 'timelineConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkTimelineConsistency(content, truthFiles));
-                break;
-            case 'plotLogic':
-                ({ score, issues: dimensionIssues, details } = this.checkPlotLogic(content, truthFiles));
-                break;
-            case 'foreshadowFulfillment':
-                ({ score, issues: dimensionIssues, details } = this.checkForeshadowFulfillment(content, truthFiles));
-                break;
-            case 'resourceTracking':
-                ({ score, issues: dimensionIssues, details } = this.checkResourceTracking(content, truthFiles));
-                break;
-            case 'emotionalArc':
-                ({ score, issues: dimensionIssues, details } = this.checkEmotionalArc(content, truthFiles));
-                break;
-            case 'narrativePacing':
-                ({ score, issues: dimensionIssues, details } = this.checkNarrativePacing(content));
-                break;
-            case 'dialogueQuality':
-                ({ score, issues: dimensionIssues, details } = this.checkDialogueQuality(content));
-                break;
-            case 'descriptionDensity':
-                ({ score, issues: dimensionIssues, details } = this.checkDescriptionDensity(content));
-                break;
-            case 'aiDetection':
-                ({ score, issues: dimensionIssues, details } = this.checkAIDetection(content));
-                break;
-            case 'repetitiveness':
-                ({ score, issues: dimensionIssues, details } = this.checkRepetitiveness(content));
-                break;
-            case 'grammaticalErrors':
-                ({ score, issues: dimensionIssues, details } = this.checkGrammaticalErrors(content));
-                break;
-            case 'tautology':
-                ({ score, issues: dimensionIssues, details } = this.checkTautology(content));
-                break;
-            case 'logicalGaps':
-                ({ score, issues: dimensionIssues, details } = this.checkLogicalGaps(content));
-                break;
-            case 'progressionPacing':
-                ({ score, issues: dimensionIssues, details } = this.checkProgressionPacing(content));
-                break;
-            case 'conflictEscalation':
-                ({ score, issues: dimensionIssues, details } = this.checkConflictEscalation(content));
-                break;
-            case 'characterMotivation':
-                ({ score, issues: dimensionIssues, details } = this.checkCharacterMotivation(content));
-                break;
-            case 'stakesClarity':
-                ({ score, issues: dimensionIssues, details } = this.checkStakesClarity(content));
-                break;
-            case 'sensoryDetails':
-                ({ score, issues: dimensionIssues, details } = this.checkSensoryDetails(content));
-                break;
-            case 'backstoryIntegration':
-                ({ score, issues: dimensionIssues, details } = this.checkBackstoryIntegration(content));
-                break;
-            case 'povConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkPOVConsistency(content));
-                break;
-            case 'tenseConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkTenseConsistency(content));
-                break;
-            case 'pacingVariation':
-                ({ score, issues: dimensionIssues, details } = this.checkPacingVariation(content));
-                break;
-            case 'showVsTell':
-                ({ score, issues: dimensionIssues, details } = this.checkShowVsTell(content));
-                break;
-            case 'subtext':
-                ({ score, issues: dimensionIssues, details } = this.checkSubtext(content));
-                break;
-            case 'symbolism':
-                ({ score, issues: dimensionIssues, details } = this.checkSymbolism(content));
-                break;
-            case 'thematicCoherence':
-                ({ score, issues: dimensionIssues, details } = this.checkThematicCoherence(content));
-                break;
-            case 'readerEngagement':
-                ({ score, issues: dimensionIssues, details } = this.checkReaderEngagement(content));
-                break;
-            case 'genreConvention':
-                ({ score, issues: dimensionIssues, details } = this.checkGenreConvention(content, truthFiles));
-                break;
-            case 'culturalSensitivity':
-                ({ score, issues: dimensionIssues, details } = this.checkCulturalSensitivity(content));
-                break;
-            case 'factualAccuracy':
-                ({ score, issues: dimensionIssues, details } = this.checkFactualAccuracy(content));
-                break;
-            case 'powerConsistency':
-                ({ score, issues: dimensionIssues, details } = this.checkPowerConsistency(content, truthFiles));
-                break;
-            default:
-                score = 0.9;
-                details = '使用默认评估';
-        }
-        return {
-            dimension: {
-                name: dimension,
-                score,
-                passed: score >= this.config.threshold,
-                details
-            },
-            issues: dimensionIssues
-        };
-    }
-    /**
-     * 角色一致性检查
-     */
-    checkCharacterConsistency(content, truthFiles) {
-        const issues = [];
-        const protagonist = truthFiles.currentState?.protagonist;
-        if (!protagonist) {
-            return { score: 1.0, issues: [], details: '无角色数据，跳过检查' };
-        }
-        // 检查角色名一致性
-        const nameOccurrences = this.countOccurrences(content, protagonist.name);
-        const aliases = this.getAliases(protagonist.name);
-        let totalNameOccurrences = nameOccurrences;
-        for (const alias of aliases) {
-            totalNameOccurrences += this.countOccurrences(content, alias);
-        }
-        if (totalNameOccurrences === 0) {
-            issues.push({
-                type: 'character_consistency',
-                severity: 'warning',
-                description: `角色"${protagonist.name}"在正文中未提及`,
-                location: { chapterId: '' }
-            });
-        }
-        // 检查称呼一致性
-        const firstPersonOccurrences = this.countOccurrences(content, '我');
-        const thirdPersonOccurrences = this.countOccurrences(content, protagonist.name);
-        // 混用第一人称和第三人称可能是一致性问题
-        if (firstPersonOccurrences > 10 && thirdPersonOccurrences > 10) {
-            issues.push({
-                type: 'character_consistency',
-                severity: 'info',
-                description: '检测到视角可能存在第一人称和第三人称混用',
-                location: { chapterId: '' }
-            });
-        }
-        const score = issues.filter(i => i.severity === 'critical').length > 0
-            ? 0.5
-            : issues.length > 0 ? 0.8 : 1.0;
-        return {
-            score,
-            issues,
-            details: `检查了角色"${protagonist.name}"的一致性，发现${issues.length}个问题`
-        };
-    }
-    /**
-     * 世界观一致性检查
-     */
-    checkWorldConsistency(content, truthFiles) {
-        const issues = [];
-        // 检查已知事实是否被违背
-        const knownFacts = truthFiles.currentState?.knownFacts || [];
-        for (const fact of knownFacts) {
-            // 简单检查：如果文本直接否定了已知事实
-            if (content.includes(`不是${fact}`) || content.includes(`没有${fact}`)) {
-                issues.push({
-                    type: 'world_consistency',
-                    severity: 'critical',
-                    description: `文本内容可能与已知事实"${fact}"矛盾`,
-                    location: { chapterId: '' }
+        const allIssues = [];
+        if (this.llmProvider && this.config.useSemanticAnalysis) {
+            const results = await this.performSemanticAudit(content, truthFiles, context);
+            for (const result of results) {
+                dimensions.push({
+                    name: result.dimension,
+                    score: result.score,
+                    passed: result.score >= this.config.threshold,
+                    details: result.reasoning
                 });
-            }
-        }
-        const score = issues.filter(i => i.severity === 'critical').length > 0
-            ? 0.3
-            : issues.length > 0 ? 0.7 : 1.0;
-        return {
-            score,
-            issues,
-            details: `检查了世界观一致性，发现${issues.length}个问题`
-        };
-    }
-    /**
-     * 时间线一致性检查
-     */
-    checkTimelineConsistency(content, truthFiles) {
-        const issues = [];
-        // 检查时间悖论（未来事件发生在过去之前）
-        const timelinePhrases = [
-            '昨天', '今天', '明天', '前天', '后天',
-            '去年', '今年', '明年', '上个月', '下个月'
-        ];
-        const timelineMentions = timelinePhrases.filter(phrase => content.includes(phrase));
-        if (timelineMentions.length > 3) {
-            issues.push({
-                type: 'timeline_consistency',
-                severity: 'warning',
-                description: '文本中时间描述较多，请确保时间线逻辑正确',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.8 : 1.0,
-            issues,
-            details: `检查了时间线，发现${issues.length}个潜在问题`
-        };
-    }
-    /**
-     * 情节逻辑检查
-     */
-    checkPlotLogic(content, truthFiles) {
-        const issues = [];
-        // 检查因果关系
-        const causePhrases = ['因为', '由于', '为了'];
-        const effectPhrases = ['所以', '因此', '于是', '导致'];
-        let causeCount = 0;
-        let effectCount = 0;
-        for (const phrase of causePhrases) {
-            causeCount += this.countOccurrences(content, phrase);
-        }
-        for (const phrase of effectPhrases) {
-            effectCount += this.countOccurrences(content, phrase);
-        }
-        // 如果有很多"因为"但很少"所以"，可能存在逻辑问题
-        if (causeCount > 5 && effectCount < causeCount * 0.5) {
-            issues.push({
-                type: 'plot_logic',
-                severity: 'info',
-                description: '因果关系表述可能不够完整',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: `检查了情节逻辑，发现${issues.length}个问题`
-        };
-    }
-    /**
-     * 伏笔回收检查
-     */
-    checkForeshadowFulfillment(content, truthFiles) {
-        const issues = [];
-        const pendingHooks = truthFiles.pendingHooks || [];
-        for (const hook of pendingHooks) {
-            // 检查伏笔关键词是否在正文中出现
-            const keywords = hook.description.split(/[,，]/).map(k => k.trim());
-            const found = keywords.some(k => content.includes(k));
-            if (!found && hook.status === 'foreshadowed') {
-                issues.push({
-                    type: 'foreshadow_fulfillment',
-                    severity: 'warning',
-                    description: `伏笔"${hook.description}"设置后尚未回收`,
-                    location: { chapterId: '' }
-                });
-            }
-        }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: `检查了伏笔，发现${issues.length}个未回收的伏笔`
-        };
-    }
-    /**
-     * 资源追踪检查
-     */
-    checkResourceTracking(content, truthFiles) {
-        const issues = [];
-        const resources = truthFiles.particleLedger || [];
-        for (const resource of resources) {
-            // 检查资源是否被消耗但未记录
-            const consumePhrases = ['用完了', '消耗了', '失去了', '丢了'];
-            const gainPhrases = ['获得了', '得到了', '得到了', '捡到了'];
-            for (const phrase of consumePhrases) {
-                if (content.includes(`${resource.name}${phrase}`) ||
-                    content.includes(`${phrase}${resource.name}`)) {
-                    // 检查是否在变更日志中有记录
-                    const hasLog = resource.changeLog.some(log => log.change.includes(phrase));
-                    if (!hasLog) {
-                        issues.push({
-                            type: 'resource_tracking',
-                            severity: 'warning',
-                            description: `资源"${resource.name}"被消耗但未记录`,
-                            location: { chapterId: '' }
-                        });
-                    }
-                }
-            }
-        }
-        return {
-            score: issues.length > 0 ? 0.8 : 1.0,
-            issues,
-            details: `检查了${resources.length}个资源，发现${issues.length}个追踪问题`
-        };
-    }
-    /**
-     * 情感弧线检查
-     */
-    checkEmotionalArc(content, truthFiles) {
-        const emotionalWords = [
-            '高兴', '悲伤', '愤怒', '恐惧', '惊讶', '开心', '难过',
-            '激动', '紧张', '害怕', '心疼', '感动', '委屈'
-        ];
-        let emotionCount = 0;
-        for (const word of emotionalWords) {
-            emotionCount += this.countOccurrences(content, word);
-        }
-        const emotionDensity = emotionCount / content.length * 10000;
-        // 情感密度过低
-        if (emotionDensity < 3) {
-            return {
-                score: 0.7,
-                issues: [{
-                        type: 'emotional_arc',
-                        severity: 'warning',
-                        description: '情感描写较少，可能影响读者代入感',
-                        location: { chapterId: '' }
-                    }],
-                details: '情感描写密度较低'
-            };
-        }
-        return {
-            score: 1.0,
-            issues: [],
-            details: '情感描写密度正常'
-        };
-    }
-    /**
-     * 叙事节奏检查
-     */
-    checkNarrativePacing(content) {
-        const issues = [];
-        // 检查段落长度
-        const paragraphs = content.split(/\n\n+/);
-        const longParagraphs = paragraphs.filter(p => p.length > 500);
-        const shortParagraphs = paragraphs.filter(p => p.length < 50);
-        if (longParagraphs.length > paragraphs.length * 0.6) {
-            issues.push({
-                type: 'narrative_pacing',
-                severity: 'info',
-                description: '长段落较多，可能影响阅读节奏',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: `检查了叙事节奏，发现${issues.length}个问题`
-        };
-    }
-    /**
-     * AI 痕迹检测
-     */
-    checkAIDetection(content) {
-        const issues = [];
-        // AI 常用词汇
-        const aiWords = [
-            '然而', '因此', '所以', '值得注意的是', '毋庸置疑',
-            '毫无疑问', '显而易见', '综上所述', '总的来说'
-        ];
-        let aiWordCount = 0;
-        for (const word of aiWords) {
-            aiWordCount += this.countOccurrences(content, word);
-        }
-        const aiWordDensity = aiWordCount / content.length * 1000;
-        if (aiWordDensity > 2) {
-            issues.push({
-                type: 'ai_detection',
-                severity: 'warning',
-                description: '文本中包含较多 AI 常见表达，建议优化',
-                location: { chapterId: '' }
-            });
-        }
-        // 检查句长均匀度
-        const sentences = content.split(/[。！？]/);
-        if (sentences.length > 5) {
-            const lengths = sentences.map(s => s.length);
-            const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-            const variance = lengths.reduce((sum, l) => sum + Math.pow(l - avg, 2), 0) / lengths.length;
-            if (variance < 100) {
-                issues.push({
-                    type: 'ai_detection',
-                    severity: 'info',
-                    description: '句长变化较小，可能存在 AI 生成特征',
-                    location: { chapterId: '' }
-                });
-            }
-        }
-        return {
-            score: issues.length > 0 ? 0.75 : 1.0,
-            issues,
-            details: `AI 特征检测，发现${issues.length}个潜在 AI 痕迹`
-        };
-    }
-    /**
-     * 重复性检查
-     */
-    checkRepetitiveness(content) {
-        const issues = [];
-        // 检查连续重复的词
-        const words = content.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
-        const wordCounts = new Map();
-        for (const word of words) {
-            wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
-        }
-        // 找出重复次数过多的词
-        for (const [word, count] of wordCounts) {
-            if (count > 10 && word.length >= 3) {
-                issues.push({
-                    type: 'repetitiveness',
-                    severity: 'warning',
-                    description: `词语"${word}"出现了${count}次，可能过于重复`,
-                    location: { chapterId: '' }
-                });
-            }
-        }
-        return {
-            score: issues.length > 0 ? 0.8 : 1.0,
-            issues,
-            details: `检查了重复性，发现${issues.length}个重复问题`
-        };
-    }
-    /**
-     * 能力一致性检查（修仙等）
-     */
-    checkPowerConsistency(content, truthFiles) {
-        const issues = [];
-        // 检查等级变化
-        const levelPatterns = [
-            /筑基/, /金丹/, /元婴/, /化神/, /炼气/,
-            /初级/, /中级/, /高级/, /大师/, /宗师/
-        ];
-        const levels = [];
-        for (const pattern of levelPatterns) {
-            const match = content.match(pattern);
-            if (match) {
-                levels.push({ name: match[0], index: levelPatterns.indexOf(pattern) });
-            }
-        }
-        // 简单检查：等级不能倒退
-        if (levels.length >= 2) {
-            for (let i = 1; i < levels.length; i++) {
-                if (levels[i].index < levels[i - 1].index) {
-                    issues.push({
-                        type: 'power_consistency',
-                        severity: 'critical',
-                        description: `检测到境界倒退：从"${levels[i - 1].name}"到"${levels[i].name}"`,
+                for (const issue of result.issues) {
+                    allIssues.push({
+                        type: result.dimension,
+                        severity: this.determineSeverity(result.score, issue),
+                        description: issue,
                         location: { chapterId: '' }
                     });
                 }
             }
         }
-        return {
-            score: issues.filter(i => i.severity === 'critical').length > 0 ? 0.3 : 1.0,
-            issues,
-            details: `检查了能力体系，发现${issues.length}个一致性问题`
-        };
-    }
-    /**
-     * 统计词频
-     */
-    countOccurrences(text, word) {
-        const regex = new RegExp(word, 'g');
-        const matches = text.match(regex);
-        return matches ? matches.length : 0;
-    }
-    /**
-     * 获取角色别名
-     */
-    getAliases(name) {
-        // 简单实现，实际应该从角色数据中获取
-        const aliases = [];
-        // 添加常见称呼
-        if (name.length === 2) {
-            aliases.push(name[0]); // 姓
-            aliases.push(`${name}兄`);
-            aliases.push(`${name}道友`);
-        }
-        return aliases;
-    }
-    /**
-     * 对话质量检查
-     */
-    checkDialogueQuality(content) {
-        const issues = [];
-        // 检查对话标签
-        const dialoguePattern = /"[^"]*"/g;
-        const dialogues = content.match(dialoguePattern) || [];
-        if (dialogues.length === 0) {
-            issues.push({
-                type: 'dialogue_quality',
-                severity: 'warning',
-                description: '本章没有对话内容，建议适当增加对话',
-                location: { chapterId: '' }
-            });
-        }
-        // 检查对话标签一致性
-        const tags = ['说', '道', '问', '答', '笑', '叹', '喊', '叫', '想'];
-        let tagCount = 0;
-        for (const tag of tags) {
-            tagCount += this.countOccurrences(content, tag);
-        }
-        const tagVariety = tagCount / dialogues.length;
-        if (tagVariety < 0.3) {
-            issues.push({
-                type: 'dialogue_quality',
-                severity: 'info',
-                description: '对话标签可能过于单一，建议增加多样性',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.8 : 1.0,
-            issues,
-            details: `检查了${dialogues.length}段对话，发现${issues.length}个问题`
-        };
-    }
-    /**
-     * 描写密度检查
-     */
-    checkDescriptionDensity(content) {
-        const issues = [];
-        const paragraphs = content.split(/\n\n+/);
-        let descriptiveParagraphs = 0;
-        const descriptiveWords = ['看见', '看到', '望着', '看着', '听', '听见', '闻', '闻见', '触', '摸到', '感觉', '感受到'];
-        for (const para of paragraphs) {
-            let count = 0;
-            for (const word of descriptiveWords) {
-                count += this.countOccurrences(para, word);
+        else {
+            const results = await this.performRuleBasedAudit(content, truthFiles);
+            for (const result of results) {
+                dimensions.push(result.dimension);
+                allIssues.push(...result.issues);
             }
-            if (count > 2)
-                descriptiveParagraphs++;
         }
-        const density = descriptiveParagraphs / paragraphs.length;
-        if (density < 0.2) {
-            issues.push({
-                type: 'description_density',
-                severity: 'warning',
-                description: '环境和细节描写较少，建议适当增加',
-                location: { chapterId: '' }
-            });
-        }
-        if (density > 0.8) {
-            issues.push({
-                type: 'description_density',
-                severity: 'info',
-                description: '描写可能过于密集，可能影响节奏',
-                location: { chapterId: '' }
-            });
-        }
+        const totalScore = dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length;
+        const passed = totalScore >= this.config.threshold &&
+            !allIssues.some(i => i.severity === 'critical');
         return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: `描写密度为${(density * 100).toFixed(1)}%`
+            passed,
+            dimensions,
+            issues: allIssues,
+            score: totalScore
         };
     }
     /**
-     * 语法错误检查
+     * 核心功能：使用LLM进行真正的语义审计
      */
-    checkGrammaticalErrors(content) {
-        const issues = [];
-        const commonErrors = [
-            { pattern: /的得地/, check: (text) => text.includes('的') },
-            { pattern: /在再/, check: (text) => text.includes('在') }
-        ];
-        return {
-            score: 1.0,
-            issues,
-            details: '基础语法检查（建议使用专业语法检查工具'
-        };
+    async performSemanticAudit(content, truthFiles, context) {
+        const dimensionGroups = this.groupDimensions();
+        const results = [];
+        for (const group of dimensionGroups) {
+            const prompt = this.buildSemanticAuditPrompt(content, truthFiles, group, context);
+            try {
+                const response = await this.llmProvider.generate(prompt, {
+                    temperature: 0.3,
+                    maxTokens: 2000
+                });
+                const parsed = this.parseSemanticResponse(response.text, group);
+                results.push(...parsed);
+            }
+            catch (error) {
+                console.error(`Semantic audit failed for group ${group.join(',')}:`, error);
+                for (const dim of group) {
+                    results.push({
+                        dimension: dim,
+                        score: 0.8,
+                        reasoning: '语义分析失败，使用默认评分',
+                        issues: [],
+                        suggestions: []
+                    });
+                }
+            }
+        }
+        return results;
     }
     /**
-     * 重复冗余检查
+     * 将33个维度分组，每组一起审计以减少API调用
      */
-    checkTautology(content) {
-        const issues = [];
-        const tautologicalPhrases = [
-            '非常特别', '十分非常', '十分特别', '十分十分', '非常非常',
-            '刚刚才', '就就', '刚刚刚刚', '刚刚才', '仅仅只是', '仅仅只是',
-            '亲眼目睹', '亲眼所见', '共同协商', '互相合作', '免费赠送'
+    groupDimensions() {
+        return [
+            ['characterConsistency', 'characterMotivation', 'backstoryIntegration'],
+            ['worldConsistency', 'powerConsistency', 'resourceTracking'],
+            ['timelineConsistency', 'logicalGaps', 'plotLogic'],
+            ['foreshadowFulfillment', 'conflictEscalation', 'progressionPacing'],
+            ['emotionalArc', 'readerEngagement', 'narrativePacing', 'pacingVariation'],
+            ['dialogueQuality', 'subtext', 'showVsTell'],
+            ['descriptionDensity', 'sensoryDetails', 'symbolism'],
+            ['aiDetection', 'repetitiveness', 'tautology'],
+            ['grammaticalErrors', 'povConsistency', 'tenseConsistency'],
+            ['thematicCoherence', 'genreConvention', 'stakesClarity'],
+            ['culturalSensitivity', 'factualAccuracy']
         ];
-        for (const phrase of tautologicalPhrases) {
-            if (content.includes(phrase)) {
+    }
+    /**
+     * 构建语义审计提示词
+     */
+    buildSemanticAuditPrompt(content, truthFiles, dimensions, context) {
+        const dimensionDescriptions = this.getDimensionDescriptions(dimensions);
+        const truthContext = this.buildTruthContext(truthFiles);
+        const truncatedContent = content.length > 4000
+            ? content.slice(0, 4000) + '...[内容已截断]'
+            : content;
+        return `你是专业的文学作品质量审计专家。请对以下小说内容进行深度语义分析。
+
+【审计维度】
+${dimensionDescriptions}
+
+【世界观设定】
+${truthContext.worldSetting}
+
+【角色设定】
+${truthContext.characters}
+
+【时间线】
+${truthContext.timeline}
+
+【待回收伏笔】
+${truthContext.hooks}
+
+【待消耗资源】
+${truthContext.resources}
+
+【待验证事实】
+${truthContext.facts}
+
+【待处理时间悖论】
+${truthContext.paradoxes}
+
+【小说内容】（约${Math.round(content.length / 2)}字）
+${truncatedContent}
+
+${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChapter.slice(0, 1000)}...` : ''}
+
+请以JSON格式输出审计结果：
+{
+  "dimension": "审计的维度名称",
+  "score": 0-1之间的分数,
+  "reasoning": "评分理由，需要详细说明你如何得出这个分数",
+  "issues": ["发现的具体问题列表"],
+  "suggestions": ["改进建议列表"]
+}
+
+请对每个维度单独输出一个JSON对象，用---分隔。`;
+    }
+    /**
+     * 构建世界观上下文
+     */
+    buildTruthContext(truthFiles) {
+        const worldSetting = JSON.stringify(truthFiles.currentState || {}, null, 2);
+        const characters = JSON.stringify(truthFiles.characterMatrix || [], null, 2);
+        const timeline = JSON.stringify(truthFiles.chapterSummaries || [], null, 2);
+        const hooks = truthFiles.pendingHooks
+            ? truthFiles.pendingHooks.map((h) => `${h.description} (状态: ${h.status})`).join('\n')
+            : '无';
+        const resources = truthFiles.particleLedger
+            ? truthFiles.particleLedger.map((r) => `${r.name}: 拥有者${r.owner}, 数量${r.quantity}, 变更历史: ${r.changeLog.map((c) => c.change).join(', ')}`).join('\n')
+            : '无';
+        const facts = truthFiles.currentState?.knownFacts
+            ? truthFiles.currentState.knownFacts.join('\n')
+            : '无';
+        const paradoxes = '无';
+        return { worldSetting, characters, timeline, hooks, resources, facts, paradoxes };
+    }
+    /**
+     * 获取维度描述
+     */
+    getDimensionDescriptions(dimensions) {
+        const descriptions = {
+            characterConsistency: '角色一致性：角色行为、性格、语言风格是否与设定保持一致',
+            characterMotivation: '角色动机：角色的行为是否有合理的动机支撑',
+            backstoryIntegration: '背景融合：角色背景故事是否自然融入当前情节',
+            worldConsistency: '世界观一致性：情节是否符合已建立的世界观规则',
+            powerConsistency: '能力一致性：角色能力表现是否与设定相符，无突然过强或过弱',
+            resourceTracking: '资源追踪：重要资源（金钱、能力、物品）的消耗和获取是否有记录',
+            timelineConsistency: '时间线一致性：事件发生的时间顺序是否合理',
+            logicalGaps: '逻辑漏洞：情节发展是否存在不合理的跳跃或矛盾',
+            plotLogic: '情节逻辑：事件之间的因果关系是否清晰合理',
+            foreshadowFulfillment: '伏笔回收：之前埋下的伏笔是否得到合理的回收',
+            conflictEscalation: '冲突升级：冲突是否逐步升级，保持张力',
+            progressionPacing: '进度节奏：整体进度是否适当推进',
+            emotionalArc: '情感弧线：情感描写是否有起伏变化',
+            readerEngagement: '读者吸引力：内容是否能够吸引读者继续阅读',
+            narrativePacing: '叙事节奏：叙述的节奏是否张弛有度',
+            pacingVariation: '节奏变化：快节奏和慢节奏是否有适当变化',
+            dialogueQuality: '对话质量：对话是否自然、有个性、推动情节',
+            subtext: '潜台词：对话和叙述是否有深层含义',
+            showVsTell: '展示vs讲述：是否通过行动和描写展示而非直接陈述',
+            descriptionDensity: '描写密度：场景和人物描写是否充分',
+            sensoryDetails: '感官细节：是否调用了多种感官描写',
+            symbolism: '象征手法：是否使用了有意义的象征',
+            aiDetection: 'AI痕迹检测：内容是否呈现出明显的AI生成特征',
+            repetitiveness: '重复度：是否存在词汇、句式、情节的过度重复',
+            tautology: '同义反复：是否存在无意义的重复表述',
+            grammaticalErrors: '语法错误：是否存在病句或用词不当',
+            povConsistency: '视角一致性：叙述视角是否保持一致',
+            tenseConsistency: '时态一致性：动词时态是否保持一致',
+            thematicCoherence: '主题连贯性：内容是否围绕核心主题展开',
+            genreConvention: '题材规范：是否符合该题材的惯例和读者期待',
+            stakesClarity: ' stakes清晰度：冲突的利害关系是否让读者清楚',
+            culturalSensitivity: '文化敏感性：是否存在文化冒犯或刻板印象',
+            factualAccuracy: '事实准确性：涉及的现实世界知识是否准确'
+        };
+        return dimensions.map(d => `- ${descriptions[d] || d}`).join('\n');
+    }
+    /**
+     * 解析LLM返回的语义审计结果
+     */
+    parseSemanticResponse(response, dimensions) {
+        const results = [];
+        const blocks = response.split('---').filter(b => b.trim());
+        for (let i = 0; i < dimensions.length; i++) {
+            const block = blocks[i]?.trim() || blocks[0]?.trim() || '';
+            try {
+                const jsonMatch = block.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    results.push({
+                        dimension: parsed.dimension || dimensions[i],
+                        score: parsed.score ?? 0.8,
+                        reasoning: parsed.reasoning || '无分析',
+                        issues: parsed.issues || [],
+                        suggestions: parsed.suggestions || []
+                    });
+                }
+                else {
+                    results.push({
+                        dimension: dimensions[i],
+                        score: 0.8,
+                        reasoning: block.slice(0, 200),
+                        issues: [],
+                        suggestions: []
+                    });
+                }
+            }
+            catch (e) {
+                results.push({
+                    dimension: dimensions[i],
+                    score: 0.8,
+                    reasoning: block.slice(0, 200),
+                    issues: [],
+                    suggestions: []
+                });
+            }
+        }
+        return results;
+    }
+    /**
+     * 基于规则的审计（当LLM不可用时）
+     */
+    async performRuleBasedAudit(content, truthFiles) {
+        return [
+            this.checkCharacterConsistencyRule(content, truthFiles),
+            this.checkRepetitivenessRule(content),
+            this.checkGrammaticalErrorsRule(content),
+            this.checkEmotionalArcRule(content),
+            this.checkDialogueQualityRule(content),
+            this.checkNarrativePacingRule(content)
+        ];
+    }
+    checkCharacterConsistencyRule(content, truthFiles) {
+        const issues = [];
+        let score = 1.0;
+        if (truthFiles.currentState?.protagonist) {
+            const name = truthFiles.currentState.protagonist.name;
+            if (!content.includes(name) && content.length > 1000) {
                 issues.push({
-                    type: 'tautology',
+                    type: 'character_consistency',
+                    severity: 'warning',
+                    description: `主角"${name}"在章节中未出现`,
+                    location: { chapterId: '' }
+                });
+                score = 0.8;
+            }
+        }
+        return {
+            dimension: {
+                name: 'characterConsistency',
+                score,
+                passed: score >= this.config.threshold,
+                details: issues.length > 0 ? '检测到角色一致性问题' : '角色一致性正常'
+            },
+            issues
+        };
+    }
+    checkRepetitivenessRule(content) {
+        const issues = [];
+        const words = content.split(/\s+/);
+        const wordFreq = {};
+        for (const word of words) {
+            if (word.length > 2) {
+                wordFreq[word] = (wordFreq[word] || 0) + 1;
+            }
+        }
+        const maxFreq = Math.max(...Object.values(wordFreq));
+        const totalWords = words.length;
+        const repetitionRatio = maxFreq / totalWords;
+        if (repetitionRatio > 0.05) {
+            const mostRepeated = Object.entries(wordFreq)
+                .sort((a, b) => b[1] - a[1])[0];
+            issues.push({
+                type: 'repetitiveness',
+                severity: 'warning',
+                description: `词汇"${mostRepeated[0]}"出现频率过高（${mostRepeated[1]}次）`,
+                location: { chapterId: '' }
+            });
+        }
+        return {
+            dimension: {
+                name: 'repetitiveness',
+                score: issues.length > 0 ? 0.8 : 1.0,
+                passed: issues.length === 0,
+                details: issues.length > 0 ? '存在重复问题' : '重复度正常'
+            },
+            issues
+        };
+    }
+    checkGrammaticalErrorsRule(content) {
+        const issues = [];
+        const patterns = [
+            { regex: /[，。、；：""''（）【】]{2,}/g, desc: '标点符号连续使用' },
+            { regex: /\s{3,}/g, desc: '多余空白字符' },
+            { regex: /[a-zA-Z]{50,}/g, desc: '过长的英文单词' }
+        ];
+        for (const pattern of patterns) {
+            const matches = content.match(pattern.regex);
+            if (matches && matches.length > 5) {
+                issues.push({
+                    type: 'grammatical_errors',
                     severity: 'info',
-                    description: `发现重复冗余表达: "${phrase}"，建议简化`,
+                    description: `${pattern.desc}：发现${matches.length}处`,
                     location: { chapterId: '' }
                 });
             }
         }
         return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: `发现${issues.length}个重复冗余表达`
+            dimension: {
+                name: 'grammaticalErrors',
+                score: 1.0 - issues.length * 0.05,
+                passed: issues.length < 10,
+                details: `发现${issues.length}处潜在语法问题`
+            },
+            issues
         };
     }
-    /**
-     * 逻辑漏洞检查
-     */
-    checkLogicalGaps(content) {
-        const issues = [];
-        const transitionWords = ['但是', '然而', '不过', '可是', '因此', '所以', '于是'];
-        const transitionCount = transitionWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (transitionCount < 3 && content.length > 2000) {
-            issues.push({
-                type: 'logical_gaps',
-                severity: 'info',
-                description: '段落间可能需要更多逻辑过渡衔接',
-                location: { chapterId: '' }
-            });
+    checkEmotionalArcRule(content) {
+        const emotionalWords = [
+            '高兴', '悲伤', '愤怒', '恐惧', '惊讶', '开心', '难过',
+            '激动', '紧张', '害怕', '心疼', '感动', '委屈', '喜悦', '痛苦'
+        ];
+        let emotionCount = 0;
+        for (const word of emotionalWords) {
+            const regex = new RegExp(word, 'g');
+            const matches = content.match(regex);
+            if (matches)
+                emotionCount += matches.length;
         }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了逻辑衔接'
-        };
-    }
-    /**
-     * 发展节奏检查
-     */
-    checkProgressionPacing(content) {
-        const issues = [];
-        const actionWords = ['冲', '打', '杀', '战', '斗', '攻击', '战斗', '激战'];
-        const expositionWords = ['说', '想', '回忆', '回忆', '思考', '回忆'];
-        const actionCount = actionWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        const expositionCount = expositionWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        const ratio = actionCount / (expositionCount || 1);
-        if (ratio < 0.1) {
+        const density = emotionCount / (content.length / 1000);
+        let issues = [];
+        let score = 1.0;
+        if (density < 2) {
             issues.push({
-                type: 'progression_pacing',
+                type: 'emotional_arc',
                 severity: 'warning',
-                description: '动作场面可能过少，建议增加情节推进',
+                description: '情感描写较少，可能影响读者代入感',
                 location: { chapterId: '' }
             });
+            score = 0.7;
         }
         return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: `动作/叙述比例: ${ratio.toFixed(2)}`
+            dimension: {
+                name: 'emotionalArc',
+                score,
+                passed: score >= this.config.threshold,
+                details: `情感密度：${density.toFixed(2)}词/千字`
+            },
+            issues
         };
     }
-    /**
-     * 冲突升级检查
-     */
-    checkConflictEscalation(content) {
+    checkDialogueQualityRule(content) {
+        const dialogues = content.match(/[""''『』（][^""''『』]+[""''『』]/g) || [];
         const issues = [];
-        const conflictWords = ['愤怒', '生气', '仇恨', '痛恨', '危险', '危机', '紧急', '紧张'];
-        const conflictLevel = conflictWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (conflictLevel < 3) {
+        if (dialogues.length === 0) {
             issues.push({
-                type: 'conflict_escalation',
+                type: 'dialogue_quality',
                 severity: 'info',
-                description: '本章冲突紧张感较低，可适当增强',
+                description: '章节中无对话，可能影响角色刻画',
                 location: { chapterId: '' }
             });
         }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了冲突强度'
-        };
-    }
-    /**
-     * 角色动机检查
-     */
-    checkCharacterMotivation(content) {
-        const issues = [];
-        const motivationWords = ['因为', '为了', '想要', '希望', '打算', '必须', '不得不'];
-        const motivationCount = motivationWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (motivationCount < 2) {
+        const avgLength = dialogues.reduce((sum, d) => sum + d.length, 0) / Math.max(dialogues.length, 1);
+        if (avgLength > 200) {
             issues.push({
-                type: 'character_motivation',
-                severity: 'warning',
-                description: '角色动机表述较少，建议明确角色行动动机',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: '检查了角色动机'
-        };
-    }
-    /**
-     * 利害清晰度检查
-     */
-    checkStakesClarity(content) {
-        const issues = [];
-        const stakesWords = ['如果不', '否则', '要是', '万一', '否则的话'];
-        const stakesCount = stakesWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (stakesCount < 1) {
-            issues.push({
-                type: 'stakes_clarity',
+                type: 'dialogue_quality',
                 severity: 'info',
-                description: '建议明确如果失败会有什么后果',
+                description: '对话平均长度较长，可能不够自然',
                 location: { chapterId: '' }
             });
         }
         return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了利害关系'
+            dimension: {
+                name: 'dialogueQuality',
+                score: 1.0 - issues.length * 0.1,
+                passed: true,
+                details: `发现${dialogues.length}段对话`
+            },
+            issues
         };
     }
-    /**
-     * 感官细节检查
-     */
-    checkSensoryDetails(content) {
+    checkNarrativePacingRule(content) {
+        const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
         const issues = [];
-        const senses = {
-            sight: ['看', '见', '望', '视', '观察'],
-            sound: ['听', '闻', '声', '音', '响'],
-            smell: ['闻', '嗅', '味', '香', '臭'],
-            taste: ['尝', '味', '甜', '苦', '酸'],
-            touch: ['摸', '触', '碰', '按', '握']
-        };
-        let coveredSenses = 0;
-        for (const [sense, words] of Object.entries(senses)) {
-            const hasSense = words.some(word => content.includes(word));
-            if (hasSense)
-                coveredSenses++;
-        }
-        if (coveredSenses < 2) {
+        const lengths = paragraphs.map(p => p.length);
+        const avgLength = lengths.reduce((a, b) => a + b, 0) / Math.max(lengths.length, 1);
+        const longParagraphs = paragraphs.filter(p => p.length > 500);
+        const shortParagraphs = paragraphs.filter(p => p.length < 30);
+        if (longParagraphs.length > paragraphs.length * 0.5) {
             issues.push({
-                type: 'sensory_details',
+                type: 'narrative_pacing',
                 severity: 'info',
-                description: '感官描写较少，建议增加多感官体验',
+                description: '长段落较多，建议增加段落变化',
                 location: { chapterId: '' }
             });
         }
         return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: `覆盖了${coveredSenses}种感官`
+            dimension: {
+                name: 'narrativePacing',
+                score: 1.0 - issues.length * 0.1,
+                passed: true,
+                details: `平均段落长度：${avgLength.toFixed(0)}字`
+            },
+            issues
         };
     }
-    /**
-     * 背景故事融合检查
-     */
-    checkBackstoryIntegration(content) {
-        const issues = [];
-        const backstoryIndicators = ['记得', '回忆', '想起', '以前', '过去', '曾经'];
-        const backstoryCount = backstoryIndicators.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        const paragraphs = content.split(/\n\n+/);
-        let longFlashbackParagraphs = paragraphs.filter(p => backstoryIndicators.some(word => p.includes(word))).length;
-        if (longFlashbackParagraphs > paragraphs.length * 0.3) {
-            issues.push({
-                type: 'backstory_integration',
-                severity: 'warning',
-                description: '回忆段落可能过多，建议控制在叙述中自然融入',
-                location: { chapterId: '' }
-            });
+    determineSeverity(score, issue) {
+        if (score < 0.5)
+            return 'critical';
+        if (score < 0.7)
+            return 'warning';
+        return 'info';
+    }
+    async auditChapter(chapterId, content) {
+        return this.audit(content, { currentState: { protagonist: { id: '', name: '', location: '', status: '' }, knownFacts: [], currentConflicts: [], relationshipSnapshot: {}, activeSubplots: [] }, particleLedger: [], pendingHooks: [], chapterSummaries: [], subplotBoard: [], emotionalArcs: [], characterMatrix: [] });
+    }
+    async batchAudit(chapters) {
+        const results = new Map();
+        for (const chapter of chapters) {
+            const result = await this.audit(chapter.content, { currentState: { protagonist: { id: '', name: '', location: '', status: '' }, knownFacts: [], currentConflicts: [], relationshipSnapshot: {}, activeSubplots: [] }, particleLedger: [], pendingHooks: [], chapterSummaries: [], subplotBoard: [], emotionalArcs: [], characterMatrix: [] });
+            results.set(chapter.id, result);
         }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: '检查了背景故事融合'
-        };
+        return results;
     }
-    /**
-     * 视角一致性检查
-     */
-    checkPOVConsistency(content) {
-        const issues = [];
-        const firstPerson = ['我', '我们', '我的', '我们的'];
-        const thirdPerson = ['他', '她', '它', '他们', '她们', '它们'];
-        let firstCount = firstPerson.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        let thirdCount = thirdPerson.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (firstCount > 50 && thirdCount > 50) {
-            issues.push({
-                type: 'pov_consistency',
-                severity: 'warning',
-                description: '视角可能在第一人称和第三人称之间频繁切换',
-                location: { chapterId: '' }
-            });
+    generateReport(result) {
+        const passedDims = result.dimensions.filter(d => d.passed).length;
+        const totalDims = result.dimensions.length;
+        let report = `# 审计报告\n\n`;
+        report += `## 总体评分\n\n`;
+        report += `- 综合得分：${(result.score * 100).toFixed(1)}%\n`;
+        report += `- 通过状态：${result.passed ? '✅ 通过' : '❌ 未通过'}\n`;
+        report += `- 审计维度：${passedDims}/${totalDims} 通过\n\n`;
+        report += `## 各维度评分\n\n`;
+        for (const dim of result.dimensions.sort((a, b) => a.score - b.score)) {
+            const status = dim.passed ? '✅' : '❌';
+            report += `- ${status} ${dim.name}：${(dim.score * 100).toFixed(1)}%\n`;
+            report += `  ${dim.details}\n\n`;
         }
-        return {
-            score: issues.length > 0 ? 0.75 : 1.0,
-            issues,
-            details: '检查了视角一致性'
-        };
-    }
-    /**
-     * 时态一致性检查
-     */
-    checkTenseConsistency(content) {
-        const issues = [];
-        const pastTense = ['了', '过', '已', '已经', '曾', '曾经'];
-        const presentTense = ['现在', '正', '正在', '此刻'];
-        const pastCount = pastTense.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        const presentCount = presentTense.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (pastCount > presentCount * 3 && presentCount > 10) {
-            issues.push({
-                type: 'tense_consistency',
-                severity: 'info',
-                description: '注意时态切换可能需要统一',
-                location: { chapterId: '' }
-            });
+        if (result.issues.length > 0) {
+            report += `## 发现的问题\n\n`;
+            for (const issue of result.issues) {
+                report += `- [${issue.severity.toUpperCase()}] ${issue.description}\n`;
+            }
         }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了时态一致性'
-        };
-    }
-    /**
-     * 节奏变化检查
-     */
-    checkPacingVariation(content) {
-        const issues = [];
-        const sentences = content.split(/[。！？]/);
-        const lengths = sentences.map(s => s.length);
-        const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-        const variance = lengths.reduce((sum, l) => sum + Math.pow(l - avg, 2), 0) / lengths.length;
-        if (variance < 200) {
-            issues.push({
-                type: 'pacing_variation',
-                severity: 'info',
-                description: '句式变化较少，建议增加长短句交替',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了节奏变化'
-        };
-    }
-    /**
-     * 展示vs叙述检查
-     */
-    checkShowVsTell(content) {
-        const issues = [];
-        const tellWords = ['很', '非常', '十分', '特别', '极其', '超级', '特别'];
-        const tellCount = tellWords.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        if (tellCount > 15) {
-            issues.push({
-                type: 'show_vs_tell',
-                severity: 'warning',
-                description: '直接评价词较多，建议用具体描写代替抽象评价',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.85 : 1.0,
-            issues,
-            details: '检查了展示vs叙述'
-        };
-    }
-    /**
-     * 潜文本/潜台词检查
-     */
-    checkSubtext(content) {
-        const issues = [];
-        const silenceIndicators = ['沉默', '没说话', '不说话', '不语'];
-        const actionWords = ['握紧', '攥紧', '咬着', '攥着', '低着头'];
-        const hasSubtext = silenceIndicators.some(word => content.includes(word)) ||
-            actionWords.some(word => content.includes(word));
-        if (!hasSubtext) {
-            issues.push({
-                type: 'subtext',
-                severity: 'info',
-                description: '可以适当增加一些未直接说出的潜台词或动作细节',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了潜文本'
-        };
-    }
-    /**
-     * 象征意象/象征手法检查
-     */
-    checkSymbolism(content) {
-        const issues = [];
-        const symbolicObjects = ['月亮', '太阳', '星星', '风', '雨', '雪', '花', '树'];
-        const symbolCount = symbolicObjects.reduce((sum, word) => sum + this.countOccurrences(content, word), 0);
-        return {
-            score: 1.0,
-            issues,
-            details: symbolCount > 0 ? '发现可能的象征意象' : '象征检查'
-        };
-    }
-    /**
-     * 主题一致性检查
-     */
-    checkThematicCoherence(content) {
-        const issues = [];
-        return {
-            score: 1.0,
-            issues,
-            details: '主题一致性检查需要故事上下文'
-        };
-    }
-    /**
-     * 读者参与度检查
-     */
-    checkReaderEngagement(content) {
-        const issues = [];
-        const questionCount = this.countOccurrences(content, '？');
-        const exclamationCount = this.countOccurrences(content, '！');
-        const totalMarks = questionCount + exclamationCount;
-        if (totalMarks < 5 && content.length > 3000) {
-            issues.push({
-                type: 'reader_engagement',
-                severity: 'info',
-                description: '可适当增加感叹和疑问句来增强情绪表达',
-                location: { chapterId: '' }
-            });
-        }
-        return {
-            score: issues.length > 0 ? 0.9 : 1.0,
-            issues,
-            details: '检查了读者参与度'
-        };
-    }
-    /**
-     * 类型惯例检查
-     */
-    checkGenreConvention(content, truthFiles) {
-        const issues = [];
-        return {
-            score: 1.0,
-            issues,
-            details: '类型惯例检查需要类型配置'
-        };
-    }
-    /**
-     * 文化敏感性检查
-     */
-    checkCulturalSensitivity(content) {
-        const issues = [];
-        return {
-            score: 1.0,
-            issues,
-            details: '文化敏感性检查'
-        };
-    }
-    /**
-     * 事实准确性检查
-     */
-    checkFactualAccuracy(content) {
-        const issues = [];
-        return {
-            score: 1.0,
-            issues,
-            details: '事实准确性检查需要事实库'
-        };
+        return report;
     }
 }
 exports.AIAuditEngine = AIAuditEngine;

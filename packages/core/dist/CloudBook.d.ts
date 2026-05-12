@@ -3,10 +3,9 @@
  * 完全原创，整合所有创作功能
  */
 import { NovelProject, Chapter, TruthFiles, LLMConfig, ModelRoute, AuditConfig, AntiDetectionConfig, Genre } from './types';
-import { ParseResult } from './modules/NovelParser/NovelParser';
+import type { ParseResult } from './types';
 import { DetectionResult } from './modules/AntiDetection/AntiDetectionEngine';
 import { DirectorConfig } from './modules/AutoDirector/AutoDirector';
-import { RAGDocument } from './modules/CreativeHub/CreativeHub';
 import { AgentResponse } from './modules/AgentSystem/AgentSystem';
 import { ScheduledTask, Notification } from './modules/DaemonService/DaemonService';
 import { StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
@@ -139,27 +138,26 @@ export declare class CloudBook {
     generateDirections(project: Partial<NovelProject>, count?: number): Promise<import("./types").StoryDirection[]>;
     createProjectPlan(direction: any, config?: DirectorConfig): Promise<import("./types").AutoDirectorResult>;
     generateChapterPlan(direction: any, totalChapters?: number): Promise<import("./types").ChapterPlan[]>;
-    createCreativeSession(projectId: string): Promise<import("./types").CreativeHubSession>;
-    sendCreativeMessage(sessionId: string, content: string): Promise<import("./types").HubMessage>;
+    createCreativeSession(projectId: string): Promise<{
+        sessionId: string;
+    }>;
+    sendCreativeMessage(sessionId: string, content: string): Promise<string>;
     addToRAG(projectId: string, document: {
         content: string;
         type: string;
         sourceId?: string;
-    }): Promise<RAGDocument>;
+    }): Promise<import("./modules/CreativeHub/CreativeHub").Document>;
     searchRAG(projectId: string, query: string): Promise<import("./modules/CreativeHub/CreativeHub").SearchResult[]>;
     createCard(projectId: string, type: string, title: string, content: Record<string, any>, parentId?: string): Promise<import("./types").Card>;
     getCards(projectId: string, type?: string): Promise<import("./types").Card[]>;
     searchCards(projectId: string, query: string): Promise<import("./types").Card[]>;
-    addCharacterToGraph(projectId: string, character: any): Promise<import("./types").GraphNode>;
-    addLocationToGraph(projectId: string, location: any): Promise<import("./types").GraphNode>;
-    addFactionToGraph(projectId: string, faction: any): Promise<import("./types").GraphNode>;
-    addRelation(projectId: string, source: string, target: string, type: string): Promise<import("./types").GraphRelation>;
-    findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraph/KnowledgeGraphManager").PathResult>;
-    getCharacterNetwork(projectId: string, characterId: string, depth?: number): Promise<{
-        characters: import("./types").GraphNode[];
-        relations: import("./types").GraphRelation[];
-    }>;
-    exportGraph(projectId: string): Promise<import("./types").KnowledgeGraph>;
+    addCharacterToGraph(projectId: string, character: any): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode>;
+    addLocationToGraph(projectId: string, location: any): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode>;
+    addFactionToGraph(projectId: string, faction: any): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode>;
+    addRelation(projectId: string, source: string, target: string, type: string): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGRelationship>;
+    findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGPath>;
+    getCharacterNetwork(projectId: string, characterId: string, depth?: number): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode[]>;
+    exportGraph(projectId: string): Promise<string>;
     getAgents(): import("./types").Agent[];
     executeArchitectTask(project: NovelProject, task: 'world_building' | 'character_design' | 'plot_planning' | 'outline_generation', params?: Record<string, any>): Promise<AgentResponse>;
     executeWriterTask(project: NovelProject, chapterNumber: number, options?: {

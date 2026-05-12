@@ -1,170 +1,75 @@
 /**
- * Cloud Book - AI 审计引擎
- * 多维度内容质量检查
+ * Cloud Book - AI 审计引擎 V2
+ * 基于LLM的真正语义理解审计
+ * 33维度全面质量评估
  */
 import { AuditConfig, AuditResult, TruthFiles } from '../../types';
+export interface LLMProvider {
+    generate(prompt: string, options?: any): Promise<{
+        text: string;
+        usage?: any;
+    }>;
+    complete(prompt: string, options?: any): Promise<string>;
+}
 export interface AIAuditEngineConfig extends AuditConfig {
     dimensions: string[];
     threshold: number;
     autoFix: boolean;
     maxIterations: number;
+    useSemanticAnalysis: boolean;
+    modelName?: string;
 }
 export declare class AIAuditEngine {
     private config;
     private llmProvider;
     constructor(config?: Partial<AIAuditEngineConfig>);
+    setLLMProvider(provider: LLMProvider): void;
+    audit(content: string, truthFiles: TruthFiles, context?: {
+        previousChapter?: string;
+        chapterNumber?: number;
+        genre?: string;
+    }): Promise<AuditResult>;
     /**
-     * 设置 LLM 提供者
+     * 核心功能：使用LLM进行真正的语义审计
      */
-    setLLMProvider(provider: any): void;
+    private performSemanticAudit;
     /**
-     * 审计内容
+     * 将33个维度分组，每组一起审计以减少API调用
      */
-    audit(content: string, truthFiles: TruthFiles): Promise<AuditResult>;
+    private groupDimensions;
     /**
-     * 检查单个维度
+     * 构建语义审计提示词
      */
-    private checkDimension;
+    private buildSemanticAuditPrompt;
     /**
-     * 角色一致性检查
+     * 构建世界观上下文
      */
-    private checkCharacterConsistency;
+    private buildTruthContext;
     /**
-     * 世界观一致性检查
+     * 获取维度描述
      */
-    private checkWorldConsistency;
+    private getDimensionDescriptions;
     /**
-     * 时间线一致性检查
+     * 解析LLM返回的语义审计结果
      */
-    private checkTimelineConsistency;
+    private parseSemanticResponse;
     /**
-     * 情节逻辑检查
+     * 基于规则的审计（当LLM不可用时）
      */
-    private checkPlotLogic;
-    /**
-     * 伏笔回收检查
-     */
-    private checkForeshadowFulfillment;
-    /**
-     * 资源追踪检查
-     */
-    private checkResourceTracking;
-    /**
-     * 情感弧线检查
-     */
-    private checkEmotionalArc;
-    /**
-     * 叙事节奏检查
-     */
-    private checkNarrativePacing;
-    /**
-     * AI 痕迹检测
-     */
-    private checkAIDetection;
-    /**
-     * 重复性检查
-     */
-    private checkRepetitiveness;
-    /**
-     * 能力一致性检查（修仙等）
-     */
-    private checkPowerConsistency;
-    /**
-     * 统计词频
-     */
-    private countOccurrences;
-    /**
-     * 获取角色别名
-     */
-    private getAliases;
-    /**
-     * 对话质量检查
-     */
-    private checkDialogueQuality;
-    /**
-     * 描写密度检查
-     */
-    private checkDescriptionDensity;
-    /**
-     * 语法错误检查
-     */
-    private checkGrammaticalErrors;
-    /**
-     * 重复冗余检查
-     */
-    private checkTautology;
-    /**
-     * 逻辑漏洞检查
-     */
-    private checkLogicalGaps;
-    /**
-     * 发展节奏检查
-     */
-    private checkProgressionPacing;
-    /**
-     * 冲突升级检查
-     */
-    private checkConflictEscalation;
-    /**
-     * 角色动机检查
-     */
-    private checkCharacterMotivation;
-    /**
-     * 利害清晰度检查
-     */
-    private checkStakesClarity;
-    /**
-     * 感官细节检查
-     */
-    private checkSensoryDetails;
-    /**
-     * 背景故事融合检查
-     */
-    private checkBackstoryIntegration;
-    /**
-     * 视角一致性检查
-     */
-    private checkPOVConsistency;
-    /**
-     * 时态一致性检查
-     */
-    private checkTenseConsistency;
-    /**
-     * 节奏变化检查
-     */
-    private checkPacingVariation;
-    /**
-     * 展示vs叙述检查
-     */
-    private checkShowVsTell;
-    /**
-     * 潜文本/潜台词检查
-     */
-    private checkSubtext;
-    /**
-     * 象征意象/象征手法检查
-     */
-    private checkSymbolism;
-    /**
-     * 主题一致性检查
-     */
-    private checkThematicCoherence;
-    /**
-     * 读者参与度检查
-     */
-    private checkReaderEngagement;
-    /**
-     * 类型惯例检查
-     */
-    private checkGenreConvention;
-    /**
-     * 文化敏感性检查
-     */
-    private checkCulturalSensitivity;
-    /**
-     * 事实准确性检查
-     */
-    private checkFactualAccuracy;
+    private performRuleBasedAudit;
+    private checkCharacterConsistencyRule;
+    private checkRepetitivenessRule;
+    private checkGrammaticalErrorsRule;
+    private checkEmotionalArcRule;
+    private checkDialogueQualityRule;
+    private checkNarrativePacingRule;
+    private determineSeverity;
+    auditChapter(chapterId: string, content: string): Promise<AuditResult>;
+    batchAudit(chapters: Array<{
+        id: string;
+        content: string;
+    }>): Promise<Map<string, AuditResult>>;
+    generateReport(result: AuditResult): string;
 }
 export default AIAuditEngine;
 //# sourceMappingURL=AIAuditEngine.d.ts.map

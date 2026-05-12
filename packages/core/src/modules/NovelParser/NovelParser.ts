@@ -1,10 +1,9 @@
 /**
  * Cloud Book - 高性能小说解析器
  * 支持千万字级文学作品解析
- * 包含流式处理、分块处理、智能分章
  */
 
-import { ParseResult, Chapter, Character, WorldSetting } from '../../types';
+import { ParseResult, ParsedChapter, ExtractedCharacter, ExtractedWorldSetting, StyleFingerprint } from '../../types';
 
 export interface ParserConfig {
   enableStreaming?: boolean;
@@ -35,8 +34,8 @@ export class NovelParser {
       enableSmartChaptering: config?.enableSmartChaptering !== false,
       extractCharacters: config?.extractCharacters !== false,
       extractSetting: config?.extractSetting !== false,
-      chunkSize: config?.chunkSize || 1024 * 1024, // 1MB chunks
-      maxMemoryLimit: config?.maxMemoryLimit || 100 * 1024 * 1024, // 100MB
+      chunkSize: config?.chunkSize || 1024 * 1024,
+      maxMemoryLimit: config?.maxMemoryLimit || 100 * 1024 * 1024,
       ...config
     };
     this.progress = {
@@ -60,22 +59,17 @@ export class NovelParser {
     const chapters = this.splitChapters(content);
     this.updateProgress('analyzing', '分析章节结构...');
     const characters = this.extractCharacters(content);
-    const setting = this.extractWorldSetting(content);
+    const worldSettings = this.extractWorldSetting(content);
     this.updateProgress('complete', '解析完成');
 
     return {
       title: this.extractTitle(content),
       chapters,
       characters,
-      setting,
+      worldSettings,
+      writingPatterns: [],
       styleFingerprint: this.analyzeStyle(content),
-      metadata: {
-        totalWords: content.length,
-        totalChapters: chapters.length,
-        totalCharacters: characters.length,
-        language: this.detectLanguage(content),
-        genre: this.detectGenre(content)
-      }
+      estimatedWordCount: content.length
     };
   }
 
@@ -88,44 +82,8 @@ export class NovelParser {
     return this.parseString(content);
   }
 
-  async parseStream(
-    reader: NodeJS.ReadableStream,
-    onData?: (chunk: string) => void
-  ): Promise<ParseResult> {
-    let fullContent = '';
-    let buffer = '';
-
-    return new Promise((resolve, reject) => {
-      reader.on('data', (chunk) => {
-        const chunkStr = chunk.toString('utf-8');
-        buffer += chunkStr;
-        if (buffer.length >= this.config.chunkSize) {
-          if (onData) {
-            onData(buffer);
-          }
-          fullContent += buffer;
-          buffer = '';
-          this.progress.totalBytes = Buffer.byteLength(fullContent, 'utf-8');
-          this.updateProgress('parsing', `已解析 ${(this.progress.totalBytes / 1024 / 1024).toFixed(2)} MB`);
-        }
-      });
-
-      reader.on('end', () => {
-        if (buffer.length > 0) {
-          fullContent += buffer;
-        }
-        this.parseString(fullContent).then(resolve).catch(reject);
-      });
-
-      reader.on('error', (err) => {
-        this.progress.error = err.message;
-        reject(err);
-      });
-    });
-  }
-
-  private splitChapters(content: string): Chapter[] {
-    const chapters: Chapter[] = [];
+  private splitChapters(content: string): ParsedChapter[] {
+    const chapters: ParsedChapter[] = [];
     const chapterPatterns = [
       /^第[零一二三四五六七八九十百千万\d]+章/mg,
       /^第[零一二三四五六七八九十百千万\d]+节/mg,
@@ -157,183 +115,208 @@ export class NovelParser {
         if (i > 0 && current.index - previousIndex < 50) {
           continue;
         }
-        if (i > 0) {
-          const chapterContent = content.slice(allMatches[i - 1].index, current.index);
-          if (chapterContent.trim().length > 100) {
-            chapters.push({
-              id: `chapter-${chapters.length}`,
-              number: chapters.length,
-              title: this.cleanTitle(allMatches[i - 1].match),
-              content: chapterContent.trim(),
-              status: 'draft',
-              wordCount: chapterContent.length,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            });
-          }
+
+        const nextIndex = i < allMatches.length - 1 
+          ? allMatches[i + 1].index 
+          : content.length;
+
+        const chapterContent = content.slice(previousIndex, nextIndex).trim();
+        if (chapterContent.length > 10) {
+          chapters.push({
+            index: chapters.length,
+            title: current.match.trim(),
+            content: chapterContent,
+            wordCount: chapterContent.length,
+            characters: [],
+            scenes: []
+          });
         }
         previousIndex = current.index;
       }
+    }
 
-      if (allMatches.length > 0) {
-        const lastContent = content.slice(allMatches[allMatches.length - 1].index);
-        if (lastContent.trim().length > 100) {
-          chapters.push({
-            id: `chapter-${chapters.length}`,
-            number: chapters.length,
-            title: this.cleanTitle(allMatches[allMatches.length - 1].match),
-            content: lastContent.trim(),
-            status: 'draft',
-            wordCount: lastContent.length,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
-        }
-      }
-    } else {
+    if (chapters.length === 0) {
       chapters.push({
-        id: 'chapter-0',
-        number: 0,
-        title: '第一章',
+        index: 0,
+        title: '第1章',
         content: content.trim(),
-        status: 'draft',
         wordCount: content.length,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        characters: [],
+        scenes: []
       });
     }
 
-    this.progress.totalChapters = chapters.length;
     return chapters;
   }
 
-  private cleanTitle(match: string): string {
-    return match.trim();
-  }
+  private extractCharacters(content: string): ExtractedCharacter[] {
+    const characters: ExtractedCharacter[] = [];
+    const patterns = [
+      /([\u4e00-\u9fa5]{2,4})的/g,
+      /名为([\u4e00-\u9fa5]{2,4})/g,
+      /([\u4e00-\u9fa5]{2,4})说道/g,
+      /([\u4e00-\u9fa5]{2,4})想/g,
+      /([\u4e00-\u9fa5]{2,4})看着/g,
+      /([\u4e00-\u9fa5]{2,4})笑/g,
+      /([\u4e00-\u9fa5]{2,4})皱眉/g,
+      /([\u4e00-\u9fa5]{2,4})沉吟/g
+    ];
 
-  private extractCharacters(content: string): Character[] {
-    const characters: Character[] = [];
-    const names = new Set<string>();
-    const chineseName = /[\u4e00-\u9fa5]{2,4}/g;
-    let match;
-    while ((match = chineseName.exec(content)) !== null) {
-      names.add(match[0].trim());
-    }
+    const names: Set<string> = new Set();
 
-    let index = 0;
-    for (const name of names) {
-      if (name.length >= 2 && name.length <= 4 && !['说道', '了', '的', '是', '在', '有'].includes(name)) {
-        characters.push({
-          id: `char-${index}`,
-          name,
-          description: '',
-          traits: [],
-          relationships: {}
-        });
-        index++;
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1]) {
+          names.add(match[1]);
+        }
       }
     }
 
-    this.progress.totalCharacters = characters.length;
+    const commonWords = ['他', '她', '它', '他们', '她们', '它们', '自己', '大家', '众人', '有人', '某人', '什么', '如何', '为何', '因为', '所以', '但是', '然而', '虽然', '如果', '可以', '应该', '可能', '已经', '正在', '将要', '曾经', '从来', '总是', '偶尔', '经常', '有时候', '每次', '每天', '每年', '现在', '过去', '将来', '今天', '明天', '昨天', '这里', '那里', '哪里', '这么', '那么', '多么', '非常', '十分', '特别', '尤其', '更加', '稍微', '几乎', '完全', '根本', '简直', '似乎', '好像', '仿佛', '犹如', '如同', '比如', '例如', '据说', '听说', '看来', '总之', '其实', '果然', '竟然', '居然', '偏偏', '反而', '反倒', '索性', '干脆', '简直', '实在', '确实', '的确', '真的', '一定', '必定', '必然', '必须', '应该', '应当', '需要', '想要', '希望', '愿意', '能够', '可以', '会', '要', '得', '能', '可', '敢', '肯'];
+
+    for (const name of names) {
+      if (!commonWords.includes(name) && name.length >= 2) {
+        characters.push({
+          name,
+          aliases: [],
+          description: '',
+          appearances: [],
+          relationships: []
+        });
+      }
+    }
+
     return characters;
   }
 
-  private extractWorldSetting(content: string): WorldSetting {
+  private extractWorldSetting(content: string): ExtractedWorldSetting {
+    const locations: string[] = [];
+    const factions: string[] = [];
+    const items: string[] = [];
+    const timeline: { event: string; chapter?: number }[] = [];
+
+    const locationPatterns = [
+      /在([\u4e00-\u9fa5]{2,8})里/g,
+      /来到([\u4e00-\u9fa5]{2,8})/g,
+      /前往([\u4e00-\u9fa5]{2,8})/g,
+      /进入([\u4e00-\u9fa5]{2,8})/g
+    ];
+
+    for (const pattern of locationPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1] && !locations.includes(match[1])) {
+          locations.push(match[1]);
+        }
+      }
+    }
+
+    const factionPatterns = [
+      /([\u4e00-\u9fa5]{2,8})宗/g,
+      /([\u4e00-\u9fa5]{2,8})派/g,
+      /([\u4e00-\u9fa5]{2,8})教/g,
+      /([\u4e00-\u9fa5]{2,8})门/g,
+      /([\u4e00-\u9fa5]{2,8})帮/g
+    ];
+
+    for (const pattern of factionPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1] && !factions.includes(match[1])) {
+          factions.push(match[1]);
+        }
+      }
+    }
+
     return {
-      locations: [],
-      magicSystem: '',
-      history: '',
-      rules: [],
-      timeline: []
+      powerSystem: '',
+      locations,
+      factions,
+      items,
+      timeline
+    };
+  }
+
+  private analyzeStyle(content: string): StyleFingerprint {
+    const sentences = content.split(/[。！？]/).filter(s => s.trim().length > 0);
+    const totalLength = sentences.reduce((sum, s) => sum + s.length, 0);
+    const avgLength = sentences.length > 0 ? totalLength / sentences.length : 0;
+    
+    const words = content.split(/\s+/);
+    const uniqueWords = new Set(words).size;
+    const richness = words.length > 0 ? uniqueWords / words.length : 0;
+
+    const dialoguePattern = /[""''『』（][^""''『』]+[""''『』]/g;
+    const dialogues = content.match(dialoguePattern) || [];
+    const dialogueRatio = sentences.length > 0 ? dialogues.length / sentences.length : 0;
+
+    return {
+      sentenceLengthDistribution: [],
+      wordFrequency: {},
+      punctuationPattern: '',
+      descriptionDensity: 0,
+      dialogueRatio,
+      narrativeVoice: 'third_person',
+      tense: 'past',
+      emotionalWords: [],
+      signaturePhrases: [],
+      tabooWords: []
     };
   }
 
   private extractTitle(content: string): string {
-    const firstLine = content.split('\n')[0].trim();
-    if (firstLine.length < 100 && firstLine.length > 0) {
-      return firstLine;
+    const firstLines = content.split('\n').slice(0, 5);
+    for (const line of firstLines) {
+      const trimmed = line.trim();
+      if (trimmed.length > 2 && trimmed.length < 50 && !trimmed.includes('第')) {
+        return trimmed;
+      }
     }
-    return '未命名作品';
-  }
-
-  private analyzeStyle(content: string) {
-    const avgSentenceLength = this.calculateAvgSentenceLength(content);
-    const sentenceVariance = this.calculateSentenceVariance(content);
-    return {
-      avgSentenceLength,
-      sentenceVariance,
-      vocabularyRichness: this.calculateVocabularyRichness(content),
-      dialogueRatio: this.calculateDialogueRatio(content)
-    };
-  }
-
-  private calculateAvgSentenceLength(content: string): number {
-    const sentences = content.split(/[。！？.!?]/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0) return 0;
-    return sentences.reduce((sum, s) => sum + s.trim().length, 0) / sentences.length;
-  }
-
-  private calculateSentenceVariance(content: string): number {
-    const sentences = content.split(/[。！？.!?]/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0) return 0;
-    const avg = this.calculateAvgSentenceLength(content);
-    const variance = sentences.reduce((sum, s) => sum + Math.pow(s.trim().length - avg, 2), 0) / sentences.length;
-    return variance;
-  }
-
-  private calculateVocabularyRichness(content: string): number {
-    const chars = content.split('').filter(c => c.trim().length > 0);
-    const uniqueChars = new Set(chars);
-    return uniqueChars.size / Math.max(chars.length, 1);
-  }
-
-  private calculateDialogueRatio(content: string): number {
-    const dialogueMatches = content.match(/["「『][^」』"]+["」』]/g) || [];
-    const dialogueLength = dialogueMatches.reduce((sum, m) => sum + m.length, 0);
-    return dialogueLength / Math.max(content.length, 1);
+    return '未知标题';
   }
 
   private detectLanguage(content: string): string {
-    const chineseCount = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
-    const englishCount = (content.match(/[a-zA-Z]/g) || []).length;
-    return chineseCount > englishCount ? 'zh' : 'en';
+    const chineseChars = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishChars = (content.match(/[a-zA-Z]/g) || []).length;
+    
+    if (chineseChars > englishChars * 2) return 'zh';
+    if (englishChars > chineseChars * 2) return 'en';
+    return 'mixed';
   }
 
   private detectGenre(content: string): string {
-    const genreKeywords: Record<string, string[]> = {
-      xianxia: ['修仙', '仙', '灵气', '修真'],
-      fantasy: ['魔法', '精灵', '魔兽', '龙族'],
-      urban: ['都市', '校园', '总裁', '豪门'],
-      romance: ['爱情', '恋爱', '感情'],
-      mystery: ['悬疑', '推理', '破案'],
-      scifi: ['未来', '星际', '宇宙', '科技'],
-      horror: ['恐怖', '惊悚', '鬼'],
-      historical: ['穿越', '古代', '历史']
-    };
+    const fantasyKeywords = ['修炼', '功法', '境界', '宗门', '修真', '魔法', '斗气', '武魂'];
+    const romanceKeywords = ['爱情', '喜欢', '爱', '恋人', '甜蜜', '心动'];
+    const mysteryKeywords = ['神秘', '谜团', '真相', '破案', '凶手', '悬疑'];
+    const scifiKeywords = ['星际', '飞船', 'AI', '未来', '科技', '机器人'];
 
-    let bestMatch = 'other';
-    let bestScore = 0;
+    let scores: Record<string, number> = { fantasy: 0, romance: 0, mystery: 0, scifi: 0 };
 
-    for (const [genre, keywords] of Object.entries(genreKeywords)) {
-      let score = 0;
-      for (const keyword of keywords) {
-        const count = (content.match(new RegExp(keyword, 'g')) || []).length;
-        score += count;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = genre;
-      }
+    for (const keyword of fantasyKeywords) {
+      if (content.includes(keyword)) scores.fantasy++;
+    }
+    for (const keyword of romanceKeywords) {
+      if (content.includes(keyword)) scores.romance++;
+    }
+    for (const keyword of mysteryKeywords) {
+      if (content.includes(keyword)) scores.mystery++;
+    }
+    for (const keyword of scifiKeywords) {
+      if (content.includes(keyword)) scores.scifi++;
     }
 
-    return bestMatch;
+    const maxScore = Math.max(...Object.values(scores));
+    if (maxScore === 0) return 'general';
+    
+    return Object.keys(scores).find(k => scores[k] === maxScore) || 'general';
   }
 
   private updateProgress(status: ParserProgress['status'], phase: string) {
     this.progress.status = status;
     this.progress.currentPhase = phase;
     if (this.onProgress) {
-      this.onProgress(this.progress);
+      this.onProgress({ ...this.progress });
     }
   }
 }

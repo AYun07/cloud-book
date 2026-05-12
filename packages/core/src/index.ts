@@ -1,8 +1,3 @@
-/**
- * Cloud Book - 核心导出
- * 全能AI小说创作引擎
- */
-
 export { CloudBook, CloudBookConfig, WritingOptions } from './CloudBook';
 
 export * from './types';
@@ -21,7 +16,7 @@ export { MemoryManager } from './modules/Memory/MemoryManager';
 export { AutoDirector } from './modules/AutoDirector/AutoDirector';
 export { CreativeHub } from './modules/CreativeHub/CreativeHub';
 export { CardManager } from './modules/Card/CardManager';
-export { KnowledgeGraphManager } from './modules/KnowledgeGraph/KnowledgeGraphManager';
+export { KnowledgeGraphManager } from './modules/KnowledgeGraphManager/KnowledgeGraphManager';
 export { AgentSystem, AgentTask, AgentResponse } from './modules/AgentSystem/AgentSystem';
 export { DaemonService } from './modules/DaemonService/DaemonService';
 export { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';

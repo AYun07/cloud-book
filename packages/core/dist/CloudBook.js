@@ -36,9 +36,12 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CloudBook = void 0;
-const NovelParser_1 = require("./modules/NovelParser/NovelParser");
+const NovelParser_1 = __importDefault(require("./modules/NovelParser/NovelParser"));
 const ImitationEngine_1 = require("./modules/ImitationEngine/ImitationEngine");
 const AntiDetectionEngine_1 = require("./modules/AntiDetection/AntiDetectionEngine");
 const LLMManager_1 = require("./modules/LLMProvider/LLMManager");
@@ -49,9 +52,9 @@ const ContextManager_1 = require("./modules/ContextManager/ContextManager");
 const WorldInfoManager_1 = require("./modules/WorldInfo/WorldInfoManager");
 const MemoryManager_1 = require("./modules/Memory/MemoryManager");
 const AutoDirector_1 = require("./modules/AutoDirector/AutoDirector");
-const CreativeHub_1 = require("./modules/CreativeHub/CreativeHub");
+const CreativeHub_1 = __importDefault(require("./modules/CreativeHub/CreativeHub"));
 const CardManager_1 = require("./modules/Card/CardManager");
-const KnowledgeGraphManager_1 = require("./modules/KnowledgeGraph/KnowledgeGraphManager");
+const KnowledgeGraphManager_1 = __importDefault(require("./modules/KnowledgeGraphManager/KnowledgeGraphManager"));
 const AgentSystem_1 = require("./modules/AgentSystem/AgentSystem");
 const DaemonService_1 = require("./modules/DaemonService/DaemonService");
 const SevenStepMethodology_1 = require("./modules/SevenStepMethodology/SevenStepMethodology");
@@ -124,11 +127,9 @@ class CloudBook {
             this.llmManager.addConfig(llmConfig);
         }
         this.llmManager.setRoutes(config.modelRoutes);
-        this.parser = new NovelParser_1.NovelParser({
-            encoding: 'utf-8',
+        this.parser = new NovelParser_1.default({
             extractCharacters: true,
-            extractWorldSettings: true,
-            analyzeStyle: true
+            extractSetting: true
         });
         this.auditEngine = new AIAuditEngine_1.AIAuditEngine(config.auditConfig);
         this.antiDetectionEngine = new AntiDetectionEngine_1.AntiDetectionEngine(config.antiDetectionConfig);
@@ -138,9 +139,10 @@ class CloudBook {
         this.worldInfoManager = new WorldInfoManager_1.WorldInfoManager(config.storagePath + '/worldinfo');
         this.memoryManager = new MemoryManager_1.MemoryManager(config.storagePath + '/memory');
         this.autoDirector = new AutoDirector_1.AutoDirector(this.llmManager);
-        this.creativeHub = new CreativeHub_1.CreativeHub(this.llmManager, config.storagePath + '/creativehub');
+        this.creativeHub = new CreativeHub_1.default({ provider: 'openai' });
+        this.creativeHub.setLLMProvider(this.llmManager);
         this.cardManager = new CardManager_1.CardManager(config.storagePath + '/cards');
-        this.knowledgeGraphManager = new KnowledgeGraphManager_1.KnowledgeGraphManager(config.storagePath + '/knowledgegraph');
+        this.knowledgeGraphManager = new KnowledgeGraphManager_1.default();
         this.agentSystem = new AgentSystem_1.AgentSystem(this.llmManager, this.auditEngine);
         this.sevenStepMethodology = new SevenStepMethodology_1.SevenStepMethodology(this.llmManager);
         this.genreConfigManager = new GenreConfigManager_1.GenreConfigManager();
@@ -285,15 +287,13 @@ class CloudBook {
         await this.worldInfoManager.initialize(project.id);
         await this.memoryManager.initialize(project.id);
         await this.cardManager.initialize(project.id);
-        await this.knowledgeGraphManager.initialize(project.id);
         await this.truthFileManager.initialize(project.id);
-        await this.creativeHub.createSession(project.id);
         await this.sevenStepMethodology.initializeProject(project.id);
         project.genreConfig = await this.genreConfigManager.createProjectConfig(genre);
         return project;
     }
     async importNovel(filePath) {
-        return this.parser.parse(filePath);
+        return this.parser.parseString(filePath);
     }
     async listProjects() {
         return this.localStorage.listProjects();
@@ -335,9 +335,7 @@ class CloudBook {
         await this.worldInfoManager.initialize(project.id);
         await this.memoryManager.initialize(project.id);
         await this.cardManager.initialize(project.id);
-        await this.knowledgeGraphManager.initialize(project.id);
         await this.truthFileManager.initialize(project.id);
-        await this.creativeHub.createSession(project.id);
         return project;
     }
     async deleteProject(projectId) {
@@ -382,7 +380,6 @@ class CloudBook {
         await this.worldInfoManager.initialize(project.id);
         await this.memoryManager.initialize(project.id);
         await this.cardManager.initialize(project.id);
-        await this.knowledgeGraphManager.initialize(project.id);
         await this.truthFileManager.initialize(project.id);
         await this.sevenStepMethodology.initializeProject(project.id);
         return project;
@@ -430,19 +427,18 @@ class CloudBook {
     // Creative Hub (AI-Novel-Writing-Assistant)
     // ============================================
     async createCreativeSession(projectId) {
-        return this.creativeHub.createSession(projectId);
+        return { sessionId: projectId };
     }
     async sendCreativeMessage(sessionId, content) {
-        return this.creativeHub.sendMessage(sessionId, content);
+        return this.llmManager.complete(content);
     }
     async addToRAG(projectId, document) {
-        return this.creativeHub.addRAGDocument(projectId, {
-            content: document.content,
-            metadata: { type: document.type, sourceId: document.sourceId, createdAt: new Date() }
+        return this.creativeHub.addDocument(document.content, {
+            type: document.type, sourceId: document.sourceId, createdAt: new Date()
         });
     }
     async searchRAG(projectId, query) {
-        return this.creativeHub.searchRAG(projectId, query);
+        return this.creativeHub.search(query);
     }
     // ============================================
     // Card Manager (NovelForge)
@@ -463,25 +459,25 @@ class CloudBook {
     // Knowledge Graph (NovelForge/Neo4j)
     // ============================================
     async addCharacterToGraph(projectId, character) {
-        return this.knowledgeGraphManager.addCharacterNode(projectId, character);
+        return this.knowledgeGraphManager.addNode('character', projectId, character);
     }
     async addLocationToGraph(projectId, location) {
-        return this.knowledgeGraphManager.addLocationNode(projectId, location);
+        return this.knowledgeGraphManager.addNode('location', projectId, location);
     }
     async addFactionToGraph(projectId, faction) {
-        return this.knowledgeGraphManager.addFactionNode(projectId, faction);
+        return this.knowledgeGraphManager.addNode('faction', projectId, faction);
     }
     async addRelation(projectId, source, target, type) {
-        return this.knowledgeGraphManager.addRelation(projectId, source, target, type);
+        return this.knowledgeGraphManager.addRelationship(source, target, type);
     }
     async findPath(projectId, from, to) {
-        return this.knowledgeGraphManager.findPath(projectId, from, to);
+        return this.knowledgeGraphManager.findShortestPath(from, to);
     }
     async getCharacterNetwork(projectId, characterId, depth) {
-        return this.knowledgeGraphManager.getCharacterNetwork(projectId, characterId, depth || 2);
+        return this.knowledgeGraphManager.traverseBFS(characterId, { maxDepth: depth || 2 });
     }
     async exportGraph(projectId) {
-        return this.knowledgeGraphManager.exportGraph(projectId);
+        return this.knowledgeGraphManager.exportToJSON();
     }
     // ============================================
     // Agent System (InkOS)

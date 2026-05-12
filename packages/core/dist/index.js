@@ -1,8 +1,4 @@
 "use strict";
-/**
- * Cloud Book - 核心导出
- * 全能AI小说创作引擎
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -48,7 +44,7 @@ var CreativeHub_1 = require("./modules/CreativeHub/CreativeHub");
 Object.defineProperty(exports, "CreativeHub", { enumerable: true, get: function () { return CreativeHub_1.CreativeHub; } });
 var CardManager_1 = require("./modules/Card/CardManager");
 Object.defineProperty(exports, "CardManager", { enumerable: true, get: function () { return CardManager_1.CardManager; } });
-var KnowledgeGraphManager_1 = require("./modules/KnowledgeGraph/KnowledgeGraphManager");
+var KnowledgeGraphManager_1 = require("./modules/KnowledgeGraphManager/KnowledgeGraphManager");
 Object.defineProperty(exports, "KnowledgeGraphManager", { enumerable: true, get: function () { return KnowledgeGraphManager_1.KnowledgeGraphManager; } });
 var AgentSystem_1 = require("./modules/AgentSystem/AgentSystem");
 Object.defineProperty(exports, "AgentSystem", { enumerable: true, get: function () { return AgentSystem_1.AgentSystem; } });

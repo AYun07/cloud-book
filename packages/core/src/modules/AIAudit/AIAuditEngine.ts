@@ -274,17 +274,11 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
     facts: string;
     paradoxes: string;
   } {
-    const worldSetting = truthFiles.worldSetting 
-      ? JSON.stringify(truthFiles.worldSetting, null, 2)
-      : '未设定';
+    const worldSetting = JSON.stringify(truthFiles.currentState || {}, null, 2);
 
-    const characters = truthFiles.characterSheet
-      ? JSON.stringify(truthFiles.characterSheet, null, 2)
-      : '未设定';
+    const characters = JSON.stringify(truthFiles.characterMatrix || [], null, 2);
 
-    const timeline = truthFiles.timeline
-      ? JSON.stringify(truthFiles.timeline, null, 2)
-      : '未设定';
+    const timeline = JSON.stringify(truthFiles.chapterSummaries || [], null, 2);
 
     const hooks = truthFiles.pendingHooks
       ? truthFiles.pendingHooks.map((h: any) => `${h.description} (状态: ${h.status})`).join('\n')
@@ -292,17 +286,15 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
 
     const resources = truthFiles.particleLedger
       ? truthFiles.particleLedger.map((r: any) => 
-          `${r.name}: 当前${r.currentValue}${r.unit}, 变更历史: ${r.changeLog.map((c: any) => c.change).join(', ')}`
+          `${r.name}: 拥有者${r.owner}, 数量${r.quantity}, 变更历史: ${r.changeLog.map((c: any) => c.change).join(', ')}`
         ).join('\n')
       : '无';
 
-    const facts = truthFiles.establishedFacts
-      ? truthFiles.establishedFacts.join('\n')
+    const facts = truthFiles.currentState?.knownFacts
+      ? truthFiles.currentState.knownFacts.join('\n')
       : '无';
 
-    const paradoxes = truthFiles.timeParadoxes
-      ? truthFiles.timeParadoxes.map((p: any) => `${p.description} - 解决方案: ${p.resolution || '待解决'}`).join('\n')
-      : '无';
+    const paradoxes = '无';
 
     return { worldSetting, characters, timeline, hooks, resources, facts, paradoxes };
   }
@@ -418,8 +410,8 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
     const issues: Issue[] = [];
     let score = 1.0;
 
-    if (truthFiles.characterSheet?.protagonist) {
-      const name = truthFiles.characterSheet.protagonist.name;
+    if (truthFiles.currentState?.protagonist) {
+      const name = truthFiles.currentState.protagonist.name;
       if (!content.includes(name) && content.length > 1000) {
         issues.push({
           type: 'character_consistency',
@@ -550,7 +542,7 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
   }
 
   private checkDialogueQualityRule(content: string): { dimension: AuditDimension; issues: Issue[] } {
-    const dialogues = content.match(/[""''『』（][^""''『』]+[""''『』]/g) || [];
+    const dialogues: string[] = content.match(/[""''『』（][^""''『』]+[""''『』]/g) || [];
     const issues: Issue[] = [];
     
     if (dialogues.length === 0) {
@@ -562,7 +554,7 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
       });
     }
 
-    const avgLength = dialogues.reduce((sum, d) => sum + d.length, 0) / Math.max(dialogues.length, 1);
+    const avgLength = dialogues.reduce((sum: number, d: string) => sum + d.length, 0) / Math.max(dialogues.length, 1);
     if (avgLength > 200) {
       issues.push({
         type: 'dialogue_quality',
@@ -619,14 +611,14 @@ ${context?.previousChapter ? `\n【前章内容摘要】\n${context.previousChap
   }
 
   async auditChapter(chapterId: string, content: string): Promise<AuditResult> {
-    return this.audit(content, {});
+    return this.audit(content, { currentState: { protagonist: { id: '', name: '', location: '', status: '' }, knownFacts: [], currentConflicts: [], relationshipSnapshot: {}, activeSubplots: [] }, particleLedger: [], pendingHooks: [], chapterSummaries: [], subplotBoard: [], emotionalArcs: [], characterMatrix: [] });
   }
 
   async batchAudit(chapters: Array<{ id: string; content: string }>): Promise<Map<string, AuditResult>> {
     const results = new Map<string, AuditResult>();
     
     for (const chapter of chapters) {
-      const result = await this.audit(chapter.content, {});
+      const result = await this.audit(chapter.content, { currentState: { protagonist: { id: '', name: '', location: '', status: '' }, knownFacts: [], currentConflicts: [], relationshipSnapshot: {}, activeSubplots: [] }, particleLedger: [], pendingHooks: [], chapterSummaries: [], subplotBoard: [], emotionalArcs: [], characterMatrix: [] });
       results.set(chapter.id, result);
     }
 

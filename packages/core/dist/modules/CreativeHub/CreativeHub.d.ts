@@ -1,121 +1,143 @@
 /**
- * 创意中心模块
- * RAG检索增强，支持多工具协作
+ * Cloud Book - RAG 知识库 V2
+ * 真正的向量检索系统
+ * 支持多种 embedding 模型和向量数据库
  */
-import { CreativeHubSession, HubMessage, HubTool, HubContext, Character } from '../../types';
-import { LLMManager } from '../LLMProvider/LLMManager';
-export interface RAGDocument {
-    id: string;
-    content: string;
-    metadata: {
-        type: 'character' | 'world' | 'plot' | 'chapter' | 'theme' | 'event';
-        sourceId?: string;
-        chapter?: number;
-        tags?: string[];
-        createdAt: Date;
-    };
-    embedding?: number[];
-}
-export interface SearchResult {
-    document: RAGDocument;
-    score: number;
-    highlights: string[];
+export interface EmbeddingConfig {
+    provider: 'openai' | 'local' | 'custom';
+    apiKey?: string;
+    endpoint?: string;
+    model?: string;
+    dimension?: number;
 }
 export interface ChunkConfig {
     chunkSize: number;
-    chunkOverlap: number;
-    minChunkLength: number;
+    overlap: number;
+    separators?: string[];
+}
+export interface Document {
+    id: string;
+    content: string;
+    metadata?: Record<string, any>;
+    embedding?: number[];
+}
+export interface SearchResult {
+    document: Document;
+    score: number;
+    highlights: string[];
+}
+export interface VectorStoreConfig {
+    type: 'memory' | 'pinecone' | 'qdrant' | 'milvus' | 'weaviate';
+    endpoint?: string;
+    apiKey?: string;
+    indexName?: string;
 }
 export declare class CreativeHub {
-    private sessions;
-    private ragDocuments;
-    private llmManager;
-    private storagePath;
+    private embeddingConfig;
     private chunkConfig;
-    constructor(llmManager: LLMManager, storagePath?: string);
+    private vectorStoreConfig;
+    private documents;
+    private index;
+    private llmProvider;
+    constructor(embeddingConfig?: Partial<EmbeddingConfig>, chunkConfig?: Partial<ChunkConfig>, vectorStoreConfig?: Partial<VectorStoreConfig>);
+    setLLMProvider(provider: any): void;
     /**
-     * 添加文档并自动分块
+     * 添加文档到知识库
      */
-    addDocumentWithChunking(projectId: string, document: Omit<RAGDocument, 'id' | 'embedding'>): Promise<RAGDocument[]>;
+    addDocument(content: string, metadata?: Record<string, any>): Promise<Document>;
+    /**
+     * 批量添加文档
+     */
+    addDocuments(documents: Array<{
+        content: string;
+        metadata?: Record<string, any>;
+    }>): Promise<Document[]>;
+    /**
+     * 语义搜索
+     */
+    search(query: string, topK?: number, filter?: Record<string, any>): Promise<SearchResult[]>;
+    /**
+     * 混合搜索（关键词 + 语义）
+     */
+    hybridSearch(query: string, topK?: number, alpha?: number): Promise<SearchResult[]>;
+    /**
+     * RAG 检索增强生成
+     */
+    retrieveAndGenerate(query: string, systemPrompt: string, options?: {
+        topK?: number;
+        maxContextLength?: number;
+        temperature?: number;
+    }): Promise<{
+        answer: string;
+        sources: SearchResult[];
+    }>;
+    /**
+     * 生成文本嵌入
+     */
+    generateEmbedding(text: string): Promise<number[]>;
+    /**
+     * 调用 OpenAI Embedding API
+     */
+    private callOpenAIEmbedding;
+    /**
+     * 调用本地 Embedding 服务（如 Ollama）
+     */
+    private callLocalEmbedding;
+    /**
+     * 调用自定义 Embedding API
+     */
+    private callCustomEmbedding;
+    /**
+     * 模拟 Embedding（当 API 不可用时）
+     */
+    private simulateEmbedding;
+    private hashString;
+    private seededRandom;
     /**
      * 文本分块
      */
-    private chunkText;
-    /**
-     * 句子分割
-     */
-    private splitIntoSentences;
-    /**
-     * 生成文本嵌入（模拟向量）
-     */
-    generateEmbedding(text: string): Promise<number[]>;
+    private splitIntoChunks;
     /**
      * 计算余弦相似度
      */
     private cosineSimilarity;
     /**
-     * 增强的RAG搜索
+     * 计算关键词分数
      */
-    enhancedSearch(projectId: string, query: string, options?: {
-        topK?: number;
-        filters?: {
-            types?: RAGDocument['metadata']['type'][];
-            tags?: string[];
-            chapterRange?: {
-                min?: number;
-                max?: number;
-            };
-        };
-        useHybridSearch?: boolean;
-        rerank?: boolean;
-    }): Promise<SearchResult[]>;
+    private calculateKeywordScores;
     /**
-     * 计算文本相关度分数
+     * 提取高亮片段
      */
-    private calculateTextScore;
-    /**
-     * 结果重排序
-     */
-    private rerankResults;
-    /**
-     * 批量添加文档
-     */
-    batchAddDocuments(projectId: string, documents: Omit<RAGDocument, 'id'>[]): Promise<{
-        success: number;
-        failed: number;
-        errors: string[];
-    }>;
-    /**
-     * 语义搜索
-     */
-    semanticSearch(projectId: string, query: string, intent?: 'character' | 'plot' | 'world' | 'theme'): Promise<SearchResult[]>;
-    /**
-     * 获取项目知识库统计
-     */
-    getKnowledgeStats(projectId: string): Promise<{
-        totalDocuments: number;
-        byType: Record<string, number>;
-        byChapter: Record<number, number>;
-        avgChunkLength: number;
-        lastUpdated: Date | null;
-    }>;
-    createSession(projectId: string): Promise<CreativeHubSession>;
-    sendMessage(sessionId: string, content: string, role?: HubMessage['role']): Promise<HubMessage>;
-    addTool(sessionId: string, tool: HubTool): Promise<void>;
-    executeTool(sessionId: string, toolName: string, args: any): Promise<any>;
-    addRAGDocument(projectId: string, document: Omit<RAGDocument, 'id'>): Promise<RAGDocument>;
-    addCharacterToRAG(projectId: string, character: Character): Promise<void>;
-    addWorldSettingToRAG(projectId: string, setting: any): Promise<void>;
-    searchRAG(projectId: string, query: string, topK?: number): Promise<SearchResult[]>;
-    buildContext(session: CreativeHubSession): Promise<string>;
-    updateContext(sessionId: string, updates: Partial<HubContext>): Promise<void>;
-    getSession(sessionId: string): Promise<CreativeHubSession | undefined>;
-    getProjectSessions(projectId: string): Promise<CreativeHubSession[]>;
-    private getDefaultTools;
     private extractHighlights;
-    private saveSession;
-    private saveRAGDocuments;
-    private generateId;
+    /**
+     * 过滤文档
+     */
+    private filterDocuments;
+    /**
+     * 删除文档
+     */
+    deleteDocument(id: string): Promise<void>;
+    /**
+     * 获取统计信息
+     */
+    getStats(): {
+        totalDocuments: number;
+        totalChunks: number;
+        avgChunkLength: number;
+        embeddingDimension: number;
+    };
+    /**
+     * 保存索引到文件
+     */
+    saveIndex(filePath: string): Promise<void>;
+    /**
+     * 从文件加载索引
+     */
+    loadIndex(filePath: string): Promise<void>;
+    /**
+     * 清空知识库
+     */
+    clear(): void;
 }
 export default CreativeHub;
 //# sourceMappingURL=CreativeHub.d.ts.map

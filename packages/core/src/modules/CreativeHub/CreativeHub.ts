@@ -4,7 +4,6 @@
  * 支持多种 embedding 模型和向量数据库
  */
 
-import axios from 'axios';
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'local' | 'custom';
@@ -260,21 +259,20 @@ ${context}
     const model = this.embeddingConfig.model || 'text-embedding-ada-002';
 
     try {
-      const response = await axios.post(
-        url,
-        {
-          input: text.slice(0, 8000),
-          model
-        },
-        {
+      const response = await fetch(url, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
-          }
-        }
-      );
+          },
+          body: JSON.stringify({
+            input: text.slice(0, 8000),
+            model
+          })
+        });
 
-      const embedding = response.data.data?.[0]?.embedding;
+      const data = await response.json() as { data?: Array<{ embedding?: number[] }> };
+      const embedding = data.data?.[0]?.embedding;
       if (!embedding) {
         throw new Error('No embedding returned');
       }
@@ -293,18 +291,17 @@ ${context}
     endpoint: string
   ): Promise<number[]> {
     try {
-      const response = await axios.post(
-        `${endpoint}/api/embeddings`,
-        {
-          model: this.embeddingConfig.model || 'nomic-embed-text',
-          prompt: text.slice(0, 8000)
-        },
-        {
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+      const response = await fetch(`${endpoint}/api/embeddings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: this.embeddingConfig.model || 'nomic-embed-text',
+            prompt: text.slice(0, 8000)
+          })
+        });
 
-      return response.data.embedding || this.simulateEmbedding(text);
+      const data = await response.json() as { embedding?: number[] };
+      return data.embedding || this.simulateEmbedding(text);
     } catch (error) {
       console.error('Local Embedding error:', error);
       return this.simulateEmbedding(text);
@@ -320,18 +317,17 @@ ${context}
     endpoint: string
   ): Promise<number[]> {
     try {
-      const response = await axios.post(
-        endpoint,
-        { text: text.slice(0, 8000) },
-        {
+      const response = await fetch(endpoint, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
-          }
-        }
-      );
+          },
+          body: JSON.stringify({ text: text.slice(0, 8000) })
+        });
 
-      return response.data.embedding || this.simulateEmbedding(text);
+      const data = await response.json() as { embedding?: number[] };
+      return data.embedding || this.simulateEmbedding(text);
     } catch (error) {
       console.error('Custom Embedding error:', error);
       return this.simulateEmbedding(text);
