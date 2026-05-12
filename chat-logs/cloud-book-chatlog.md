@@ -1231,3 +1231,70 @@ cloud-book/
 
 ## GitHub仓库
 - 仓库地址：https://github.com/AYun07/cloud-book
+
+---
+
+## 阶段1.5：ContextManager - 上下文管理器 ✅ 已完成
+
+### 已实现功能
+
+#### 1. 上下文构建
+
+| 方法 | 功能描述 |
+|------|---------|
+| `buildWritingContext()` | 构建完整写作上下文（6大模块） |
+| `buildMetaContext()` | 项目元信息（标题、题材、卖点、目标读者） |
+| `buildWorldContext()` | 世界设定（力量体系、地点、势力、规则） |
+| `buildCharacterContext()` | 角色信息（姓名、别名、性格、背景、目标、说话风格） |
+| `buildTruthContext()` | 真相文件（主角状态、冲突、关系、伏笔、物品） |
+| `buildPreviousContext()` | 前文摘要（最近3章摘要） |
+| `buildStyleContext()` | 风格要求（视角、时态、对话比例、描写密度、情感词、标志性表达） |
+
+#### 2. @DSL 上下文注入（10+种语法）
+
+| 语法 | 功能 |
+|------|------|
+| `@self` | 当前章节引用 |
+| `@character:xxx` | 角色引用 |
+| `@protagonist` | 主角引用 |
+| `@allChars` | 所有角色列表 |
+| `@location` | 当前位置引用 |
+| `@world` | 世界设定引用 |
+| `@chapter:N` | 指定章节引用 |
+| `@hooks` | 伏笔引用 |
+| `@relation:xxx` | 关系引用 |
+| `@timeline` | 时间线引用 |
+| `@items` | 物品引用 |
+| `@type:xxx` | 按类型获取 |
+| `[filter:xxx]` | 过滤表达式 |
+| `{if:condition}` | 条件表达式 |
+
+#### 3. DSL工具
+
+| 方法 | 功能 |
+|------|------|
+| `parseDSL()` | 解析DSL语法 |
+| `validateDSL()` | 验证DSL语法 |
+| `getDSLHelp()` | 获取DSL帮助信息 |
+
+### 编译状态
+- ✅ TypeScript编译通过
+- ✅ 无错误
+
+### 下一步
+- 阶段1.6：LLMProvider - 多模型LLM管理器
+
+---
+
+## 同步记录（2026年5月12日）
+
+### 用户消息：
+> "继续1.5，记得同步更新"
+
+### 我的回应：
+阶段1.5 ContextManager已完成！上下文管理器完整实现（6大模块上下文构建、10+种@DSL语法、DSL验证工具），支持@self/@character/@location/@world/@chapter/@hooks/@relation/@timeline/@items等完整语法，编译成功！
+
+---
+
+## GitHub仓库
+- 仓库地址：https://github.com/AYun07/cloud-book
