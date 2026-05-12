@@ -1,23 +1,34 @@
 /**
- * Cloud Book - 模型配置与路由系统
- * 2026年5月12日 20:40
- * 根据模型能力分配最佳任务
+ * Cloud Book - 完整模型配置
+ * 2026年5月12日 21:00
+ * 四个模型正确配置
  */
 import { LLMConfig, ModelRoute } from '../types';
-export interface ModelCapability {
-    name: string;
-    streamingMode: 'true' | 'false' | 'auto';
+export declare const MODEL_NAMES: {
+    readonly DEEPSEEK_V4_FLASH: "deepseek-v4-flash";
+    readonly GEMINI_25_TRUE: "gemini-2.5-flash[真流]";
+    readonly GEMINI_3_FALSE: "gemini-3-flash-preview[假流]";
+    readonly GEMINI_3_TRUE: "gemini-3-flash-preview[真流]";
+};
+export type ModelName = typeof MODEL_NAMES[keyof typeof MODEL_NAMES];
+export declare const MODEL_CAPABILITIES: Record<ModelName, {
+    streamingMode: 'true' | 'false';
     bestFor: string[];
     strengths: string[];
     weaknesses: string[];
-}
-export declare const MODEL_CAPABILITIES: Record<string, ModelCapability>;
+}>;
 export declare function createModelConfigs(): LLMConfig[];
 export declare function createModelRoutes(): ModelRoute[];
-export declare function getDefaultLLMConfig(): LLMConfig;
 export declare const API_CONFIG_INFO: {
     endpoint: string;
     apiKey: string;
-    status: string;
+    status: "ready";
+};
+export declare function getDefaultLLMConfig(): LLMConfig;
+export type ModelCapability = {
+    streamingMode: 'true' | 'false';
+    bestFor: string[];
+    strengths: string[];
+    weaknesses: string[];
 };
 //# sourceMappingURL=model-config.d.ts.map

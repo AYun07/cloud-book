@@ -1,11 +1,11 @@
 "use strict";
 /**
- * Cloud Book - 模型配置与路由系统
- * 2026年5月12日 20:40
- * 根据模型能力分配最佳任务
+ * Cloud Book - 完整模型配置
+ * 2026年5月12日 21:00
+ * 四个模型正确配置
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.API_CONFIG_INFO = exports.MODEL_CAPABILITIES = void 0;
+exports.API_CONFIG_INFO = exports.MODEL_CAPABILITIES = exports.MODEL_NAMES = void 0;
 exports.createModelConfigs = createModelConfigs;
 exports.createModelRoutes = createModelRoutes;
 exports.getDefaultLLMConfig = getDefaultLLMConfig;
@@ -13,9 +13,14 @@ const API_CONFIG = {
     baseURL: 'https://gemini.beijixingxing.com/v1',
     apiKey: 'sk-RNxvNNojSg03dxkNsXsky2JolITLq1Ob3ELC2Y49LNFQikkn'
 };
+exports.MODEL_NAMES = {
+    DEEPSEEK_V4_FLASH: 'deepseek-v4-flash',
+    GEMINI_25_TRUE: 'gemini-2.5-flash[真流]',
+    GEMINI_3_FALSE: 'gemini-3-flash-preview[假流]',
+    GEMINI_3_TRUE: 'gemini-3-flash-preview[真流]'
+};
 exports.MODEL_CAPABILITIES = {
-    'deepseek-v4-flash': {
-        name: 'deepseek-v4-flash',
+    [exports.MODEL_NAMES.DEEPSEEK_V4_FLASH]: {
         streamingMode: 'true',
         bestFor: [
             '小说章节生成',
@@ -28,20 +33,38 @@ exports.MODEL_CAPABILITIES = {
             '中文理解能力强',
             '生成速度快',
             '成本效益高',
-            '支持流式输出'
+            '支持真流式输出'
         ],
         weaknesses: [
             '创意偶尔保守'
         ]
     },
-    'gemini-3-flash-preview[假流]': {
-        name: 'gemini-3-flash-preview[假流]',
+    [exports.MODEL_NAMES.GEMINI_25_TRUE]: {
+        streamingMode: 'true',
+        bestFor: [
+            '实时内容审计',
+            '快速质量检测',
+            '交互式写作辅助',
+            '实时反馈'
+        ],
+        strengths: [
+            '真流式输出',
+            '响应速度快',
+            '多语言支持好',
+            '实时交互体验'
+        ],
+        weaknesses: [
+            '长文本可能截断'
+        ]
+    },
+    [exports.MODEL_NAMES.GEMINI_3_FALSE]: {
         streamingMode: 'false',
         bestFor: [
             '精确内容审计',
             '深度风格分析',
             '复杂逻辑推理',
-            '精确评分'
+            '精确评分',
+            '批量处理'
         ],
         strengths: [
             '输出稳定完整',
@@ -53,8 +76,7 @@ exports.MODEL_CAPABILITIES = {
             '无流式输出'
         ]
     },
-    'gemini-3-flash-preview[真流]': {
-        name: 'gemini-3-flash-preview[真流]',
+    [exports.MODEL_NAMES.GEMINI_3_TRUE]: {
         streamingMode: 'true',
         bestFor: [
             '实时创意生成',
@@ -71,29 +93,13 @@ exports.MODEL_CAPABILITIES = {
         weaknesses: [
             '相对较新，可能不稳定'
         ]
-    },
-    'gemini-2.5-flash': {
-        name: 'gemini-2.5-flash',
-        streamingMode: 'true',
-        bestFor: [
-            '快速响应',
-            '轻量级任务',
-            '备选模型'
-        ],
-        strengths: [
-            '响应速度快',
-            '资源消耗低'
-        ],
-        weaknesses: [
-            '功能相对基础'
-        ]
     }
 };
 function createModelConfigs() {
     return [
         {
             provider: 'deepseek',
-            name: 'deepseek-v4-flash',
+            name: exports.MODEL_NAMES.DEEPSEEK_V4_FLASH,
             baseURL: API_CONFIG.baseURL,
             apiKey: API_CONFIG.apiKey,
             model: 'deepseek-v4-flash',
@@ -102,7 +108,16 @@ function createModelConfigs() {
         },
         {
             provider: 'gemini',
-            name: 'gemini-3-flash-preview[假流]',
+            name: exports.MODEL_NAMES.GEMINI_25_TRUE,
+            baseURL: API_CONFIG.baseURL,
+            apiKey: API_CONFIG.apiKey,
+            model: 'gemini-2.5-flash',
+            temperature: 0.7,
+            maxTokens: 4096
+        },
+        {
+            provider: 'gemini',
+            name: exports.MODEL_NAMES.GEMINI_3_FALSE,
             baseURL: API_CONFIG.baseURL,
             apiKey: API_CONFIG.apiKey,
             model: 'gemini-3-flash-preview',
@@ -111,20 +126,11 @@ function createModelConfigs() {
         },
         {
             provider: 'gemini',
-            name: 'gemini-3-flash-preview[真流]',
+            name: exports.MODEL_NAMES.GEMINI_3_TRUE,
             baseURL: API_CONFIG.baseURL,
             apiKey: API_CONFIG.apiKey,
             model: 'gemini-3-flash-preview',
             temperature: 0.75,
-            maxTokens: 4096
-        },
-        {
-            provider: 'gemini',
-            name: 'gemini-2.5-flash',
-            baseURL: API_CONFIG.baseURL,
-            apiKey: API_CONFIG.apiKey,
-            model: 'gemini-2.5-flash',
-            temperature: 0.7,
             maxTokens: 4096
         }
     ];
@@ -135,7 +141,7 @@ function createModelRoutes() {
             task: 'writing',
             llmConfig: {
                 provider: 'deepseek',
-                name: 'deepseek-v4-flash',
+                name: exports.MODEL_NAMES.DEEPSEEK_V4_FLASH,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'deepseek-v4-flash',
@@ -147,7 +153,7 @@ function createModelRoutes() {
             task: 'revision',
             llmConfig: {
                 provider: 'gemini',
-                name: 'gemini-3-flash-preview[真流]',
+                name: exports.MODEL_NAMES.GEMINI_3_TRUE,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'gemini-3-flash-preview',
@@ -159,7 +165,7 @@ function createModelRoutes() {
             task: 'audit',
             llmConfig: {
                 provider: 'gemini',
-                name: 'gemini-3-flash-preview[假流]',
+                name: exports.MODEL_NAMES.GEMINI_3_FALSE,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'gemini-3-flash-preview',
@@ -171,7 +177,7 @@ function createModelRoutes() {
             task: 'style',
             llmConfig: {
                 provider: 'gemini',
-                name: 'gemini-2.5-flash',
+                name: exports.MODEL_NAMES.GEMINI_25_TRUE,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'gemini-2.5-flash',
@@ -183,7 +189,7 @@ function createModelRoutes() {
             task: 'analysis',
             llmConfig: {
                 provider: 'deepseek',
-                name: 'deepseek-v4-flash',
+                name: exports.MODEL_NAMES.DEEPSEEK_V4_FLASH,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'deepseek-v4-flash',
@@ -195,7 +201,7 @@ function createModelRoutes() {
             task: 'planning',
             llmConfig: {
                 provider: 'deepseek',
-                name: 'deepseek-v4-flash',
+                name: exports.MODEL_NAMES.DEEPSEEK_V4_FLASH,
                 baseURL: API_CONFIG.baseURL,
                 apiKey: API_CONFIG.apiKey,
                 model: 'deepseek-v4-flash',
@@ -205,20 +211,12 @@ function createModelRoutes() {
         }
     ];
 }
-function getDefaultLLMConfig() {
-    return {
-        provider: 'deepseek',
-        name: 'deepseek-v4-flash',
-        baseURL: API_CONFIG.baseURL,
-        apiKey: API_CONFIG.apiKey,
-        model: 'deepseek-v4-flash',
-        temperature: 0.75,
-        maxTokens: 4096
-    };
-}
 exports.API_CONFIG_INFO = {
     endpoint: API_CONFIG.baseURL,
-    apiKey: API_CONFIG.apiKey.substring(0, 10) + '...',
+    apiKey: API_CONFIG.apiKey,
     status: 'ready'
 };
+function getDefaultLLMConfig() {
+    return createModelConfigs()[0];
+}
 //# sourceMappingURL=model-config.js.map
