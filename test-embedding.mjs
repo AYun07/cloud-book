@@ -6,7 +6,7 @@
 const API_CONFIG = {
   baseURL: 'https://gemini.beijixingxing.com/v1',
   apiKey: 'sk-RNxvNNojSg03dxkNsXsky2JolITLq1Ob3ELC2Y49LNFQikkn',
-  model: 'bge-m3'
+  model: 'bge-m3[嵌入]'
 };
 
 async function testEmbedding() {

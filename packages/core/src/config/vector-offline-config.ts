@@ -27,7 +27,7 @@ export interface OfflineConfig {
 export const VECTOR_CONFIG: VectorConfig = {
   provider: 'llm-simulated',
   dimensions: 1536,
-  model: 'deepseek-v4-flash'
+  model: 'bge-m3[嵌入]'
 };
 
 export const OFFLINE_CONFIG: OfflineConfig = {
