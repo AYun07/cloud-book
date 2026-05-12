@@ -41,3 +41,7 @@ export { LocalStorage, StorageConfig, ProjectData } from './modules/LocalStorage
 export { GoalManager, WritingGoal, GoalStreak, GoalStats } from './modules/GoalManager/GoalManager';
 export { CostTracker, CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
 export { SnowflakeMethodology, SnowflakeStep, SnowflakeProject } from './modules/SnowflakeMethodology/SnowflakeMethodology';
+export { ExportManager, ExportFormat, ExportConfig } from './modules/ExportManager/ExportManager';
+export { ImportManager, ImportFormat } from './modules/ImportManager/ImportManager';
+export { KeyboardShortcuts, Shortcut, ShortcutCategory } from './modules/KeyboardShortcuts/KeyboardShortcuts';
+export { WebScraper, ScrapedContent, ScraperConfig } from './modules/WebScraper/WebScraper';

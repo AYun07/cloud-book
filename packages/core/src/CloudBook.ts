@@ -44,6 +44,13 @@ import { NetworkManager } from './modules/NetworkManager/NetworkManager';
 import { CacheManager, MultiLevelCache } from './modules/CacheManager/CacheManager';
 import { VersionHistoryManager } from './modules/VersionHistory/VersionHistoryManager';
 import { LocalStorage, ProjectData, ChapterData, CardData } from './modules/LocalStorage/LocalStorage';
+import { ExportManager, ExportFormat, ExportConfig } from './modules/ExportManager/ExportManager';
+import { ImportManager, ImportFormat } from './modules/ImportManager/ImportManager';
+import { KeyboardShortcuts, Shortcut, ShortcutCategory } from './modules/KeyboardShortcuts/KeyboardShortcuts';
+import { GoalManager, WritingGoal, GoalStats, GoalStreak } from './modules/GoalManager/GoalManager';
+import { CostTracker, CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
+import { SnowflakeMethodology, SnowflakeStep, SnowflakeProject } from './modules/SnowflakeMethodology/SnowflakeMethodology';
+import { WebScraper, ScrapedContent, ScraperConfig } from './modules/WebScraper/WebScraper';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -112,6 +119,15 @@ export class CloudBook {
   private cacheManager: CacheManager;
   private versionHistoryManager: VersionHistoryManager;
   private localStorage: LocalStorage;
+  
+  // 新增模块
+  private exportManager: ExportManager;
+  private importManager: ImportManager;
+  private keyboardShortcuts: KeyboardShortcuts;
+  private goalManager: GoalManager;
+  private costTracker: CostTracker;
+  private snowflakeMethodology: SnowflakeMethodology;
+  private webScraper: WebScraper;
 
   private currentProject?: NovelProject;
   private projects: Map<string, NovelProject> = new Map();
@@ -162,6 +178,15 @@ export class CloudBook {
     this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
     this.versionHistoryManager = new VersionHistoryManager(config.storagePath + '/versioning');
     this.localStorage = new LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
+    
+    // 初始化新增模块
+    this.exportManager = new ExportManager();
+    this.importManager = new ImportManager();
+    this.keyboardShortcuts = new KeyboardShortcuts();
+    this.goalManager = new GoalManager(config.storagePath + '/goals');
+    this.costTracker = new CostTracker(config.storagePath + '/costs');
+    this.snowflakeMethodology = new SnowflakeMethodology(this.llmManager);
+    this.webScraper = new WebScraper();
 
     if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
       this.initializeOfflineMode(config.localAPIConfig);
@@ -1097,6 +1122,169 @@ export class CloudBook {
     const chineseChars = (content.match(/[\u4e00-\u9fa5]/g) || []).length;
     const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
     return chineseChars + englishWords;
+  }
+
+  // ============================================
+  // Export Manager - 导出功能
+  // ============================================
+
+  async exportProjectFull(
+    projectId: string,
+    format: ExportFormat,
+    config?: ExportConfig
+  ): Promise<string> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    return this.exportManager.exportProject(project, format, config);
+  }
+
+  async exportChapter(
+    projectId: string,
+    chapterId: string,
+    format: ExportFormat
+  ): Promise<string> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    const chapter = project.chapters?.find(c => c.id === chapterId);
+    if (!chapter) throw new Error('Chapter not found');
+    return this.exportManager.exportChapter(chapter, format);
+  }
+
+  getExportFormats(): ExportFormat[] {
+    return this.exportManager.getSupportedFormats();
+  }
+
+  // ============================================
+  // Import Manager - 导入功能
+  // ============================================
+
+  async importProjectFromFile(
+    filePath: string,
+    format?: ImportFormat
+  ): Promise<NovelProject> {
+    const imported = await this.importManager.importProject(filePath, format);
+    this.projects.set(imported.id, imported);
+    return imported;
+  }
+
+  async importChapterFromFile(
+    projectId: string,
+    filePath: string,
+    format?: ImportFormat
+  ): Promise<Chapter> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    const chapter = await this.importManager.importChapter(filePath, format);
+    project.chapters = project.chapters || [];
+    project.chapters.push(chapter);
+    return chapter;
+  }
+
+  detectImportFormat(filePath: string): ImportFormat {
+    return this.importManager.detectFormat(filePath);
+  }
+
+  // ============================================
+  // Keyboard Shortcuts - 快捷键
+  // ============================================
+
+  registerShortcut(shortcut: Shortcut): void {
+    this.keyboardShortcuts.register(shortcut);
+  }
+
+  getShortcuts(category?: ShortcutCategory): Shortcut[] {
+    if (category) {
+      return this.keyboardShortcuts.getByCategory(category);
+    }
+    return this.keyboardShortcuts.getAll();
+  }
+
+  executeShortcut(key: string, modifiers?: string[]): boolean {
+    return this.keyboardShortcuts.execute(key, modifiers);
+  }
+
+  // ============================================
+  // Goal Manager - 目标管理
+  // ============================================
+
+  setWritingGoal(goal: WritingGoal): void {
+    this.goalManager.setGoal(goal);
+  }
+
+  getCurrentGoal(): WritingGoal | null {
+    return this.goalManager.getCurrentGoal();
+  }
+
+  recordWriting(words: number, date?: Date): void {
+    this.goalManager.recordWriting(words, date);
+  }
+
+  getGoalStats(): GoalStats {
+    return this.goalManager.getStats();
+  }
+
+  getStreak(): GoalStreak {
+    return this.goalManager.getStreak();
+  }
+
+  // ============================================
+  // Cost Tracker - 费用追踪
+  // ============================================
+
+  recordCost(record: CostRecord): void {
+    this.costTracker.record(record);
+  }
+
+  getCostStats(): CostStats {
+    return this.costTracker.getStats();
+  }
+
+  setBudget(budget: CostBudget): void {
+    this.costTracker.setBudget(budget);
+  }
+
+  getBudget(): CostBudget | null {
+    return this.costTracker.getBudget();
+  }
+
+  // ============================================
+  // Snowflake Methodology - 雪花创作法
+  // ============================================
+
+  async executeSnowflakeStep(
+    projectId: string,
+    step: SnowflakeStep,
+    params?: Record<string, any>
+  ): Promise<SnowflakeProject> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    return this.snowflakeMethodology.executeStep(projectId, step, params);
+  }
+
+  getSnowflakeProgress(projectId: string): SnowflakeProject | null {
+    return this.snowflakeMethodology.getProgress(projectId);
+  }
+
+  // ============================================
+  // Web Scraper - 网页爬取
+  // ============================================
+
+  async scrapeUrl(url: string): Promise<ScrapedContent> {
+    return this.webScraper.scrape(url);
+  }
+
+  async scrapeNovelChapter(url: string): Promise<{
+    title: string;
+    content: string;
+    chapterNumber?: number;
+    nextChapterUrl?: string;
+    prevChapterUrl?: string;
+  }> {
+    return this.webScraper.scrapeNovelChapter(url);
+  }
+
+  async scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]> {
+    return this.webScraper.scrapeBatch(urls);
   }
 }
 
