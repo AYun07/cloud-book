@@ -18,7 +18,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.SpellChecker = exports.GrammarChecker = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = exports.GenreConfigManager = exports.SevenStepMethodology = exports.DaemonService = exports.AgentSystem = exports.KnowledgeGraphManager = exports.CardManager = exports.CreativeHub = exports.AutoDirector = exports.MemoryManager = exports.WorldInfoManager = exports.ContextManager = exports.WritingPipeline = exports.TruthFileManager = exports.AIAuditEngine = exports.LLMManager = exports.AntiDetectionEngine = exports.ImitationEngine = exports.NovelParser = exports.CloudBook = void 0;
+exports.SnowflakeMethodology = exports.CostTracker = exports.GoalManager = exports.LocalStorage = exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = exports.GenreConfigManager = exports.SevenStepMethodology = exports.DaemonService = exports.AgentSystem = exports.KnowledgeGraphManager = exports.CardManager = exports.CreativeHub = exports.AutoDirector = exports.MemoryManager = exports.WorldInfoManager = exports.ContextManager = exports.WritingPipeline = exports.TruthFileManager = exports.AIAuditEngine = exports.LLMManager = exports.AntiDetectionEngine = exports.ImitationEngine = exports.NovelParser = exports.CloudBook = void 0;
 var CloudBook_1 = require("./CloudBook");
 Object.defineProperty(exports, "CloudBook", { enumerable: true, get: function () { return CloudBook_1.CloudBook; } });
 __exportStar(require("./types"), exports);
@@ -66,10 +66,8 @@ var MindMapGenerator_1 = require("./modules/MindMapGenerator/MindMapGenerator");
 Object.defineProperty(exports, "MindMapGenerator", { enumerable: true, get: function () { return MindMapGenerator_1.MindMapGenerator; } });
 var TrendAnalyzer_1 = require("./modules/TrendAnalyzer/TrendAnalyzer");
 Object.defineProperty(exports, "TrendAnalyzer", { enumerable: true, get: function () { return TrendAnalyzer_1.TrendAnalyzer; } });
-var I18nManager_1 = require("./modules/I18n/I18nManager");
+var I18nManager_1 = require("./modules/I18nManager/I18nManager");
 Object.defineProperty(exports, "I18nManager", { enumerable: true, get: function () { return I18nManager_1.I18nManager; } });
-Object.defineProperty(exports, "GrammarChecker", { enumerable: true, get: function () { return I18nManager_1.GrammarChecker; } });
-Object.defineProperty(exports, "SpellChecker", { enumerable: true, get: function () { return I18nManager_1.SpellChecker; } });
 var GlobalLiteraryConfig_1 = require("./modules/GlobalLiterary/GlobalLiteraryConfig");
 Object.defineProperty(exports, "GlobalLiteraryConfig", { enumerable: true, get: function () { return GlobalLiteraryConfig_1.GlobalLiteraryConfig; } });
 var LocalAPIServer_1 = require("./modules/LocalAPI/LocalAPIServer");
@@ -82,4 +80,12 @@ Object.defineProperty(exports, "CacheManager", { enumerable: true, get: function
 Object.defineProperty(exports, "MultiLevelCache", { enumerable: true, get: function () { return CacheManager_1.MultiLevelCache; } });
 var VersionHistoryManager_1 = require("./modules/VersionHistory/VersionHistoryManager");
 Object.defineProperty(exports, "VersionHistoryManager", { enumerable: true, get: function () { return VersionHistoryManager_1.VersionHistoryManager; } });
+var LocalStorage_1 = require("./modules/LocalStorage/LocalStorage");
+Object.defineProperty(exports, "LocalStorage", { enumerable: true, get: function () { return LocalStorage_1.LocalStorage; } });
+var GoalManager_1 = require("./modules/GoalManager/GoalManager");
+Object.defineProperty(exports, "GoalManager", { enumerable: true, get: function () { return GoalManager_1.GoalManager; } });
+var CostTracker_1 = require("./modules/CostTracker/CostTracker");
+Object.defineProperty(exports, "CostTracker", { enumerable: true, get: function () { return CostTracker_1.CostTracker; } });
+var SnowflakeMethodology_1 = require("./modules/SnowflakeMethodology/SnowflakeMethodology");
+Object.defineProperty(exports, "SnowflakeMethodology", { enumerable: true, get: function () { return SnowflakeMethodology_1.SnowflakeMethodology; } });
 //# sourceMappingURL=index.js.map

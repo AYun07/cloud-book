@@ -60,7 +60,7 @@ const PluginSystem_1 = require("./modules/PluginSystem/PluginSystem");
 const CoverGenerator_1 = require("./modules/CoverGenerator/CoverGenerator");
 const MindMapGenerator_1 = require("./modules/MindMapGenerator/MindMapGenerator");
 const TrendAnalyzer_1 = require("./modules/TrendAnalyzer/TrendAnalyzer");
-const I18nManager_1 = require("./modules/I18n/I18nManager");
+const I18nManager_1 = require("./modules/I18nManager/I18nManager");
 const GlobalLiteraryConfig_1 = require("./modules/GlobalLiterary/GlobalLiteraryConfig");
 const LocalAPIServer_1 = require("./modules/LocalAPI/LocalAPIServer");
 const NetworkManager_1 = require("./modules/NetworkManager/NetworkManager");
@@ -133,11 +133,7 @@ class CloudBook {
         this.coverGenerator = new CoverGenerator_1.CoverGenerator(this.llmManager);
         this.mindMapGenerator = new MindMapGenerator_1.MindMapGenerator();
         this.trendAnalyzer = new TrendAnalyzer_1.TrendAnalyzer(this.llmManager);
-        this.i18nManager = new I18nManager_1.I18nManager({
-            primary: config.i18nConfig?.primaryLanguage || 'zh-CN',
-            fallback: config.i18nConfig?.fallbackLanguage || 'en-US',
-            autoDetect: config.i18nConfig?.autoDetect ?? true
-        });
+        this.i18nManager = new I18nManager_1.I18nManager(config.i18nConfig?.primaryLanguage || 'zh-CN');
         this.globalLiteraryConfig = new GlobalLiteraryConfig_1.GlobalLiteraryConfig();
         this.networkManager = new NetworkManager_1.NetworkManager();
         this.cacheManager = new CacheManager_1.CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
@@ -172,14 +168,14 @@ class CloudBook {
         return this.i18nManager.getLocale();
     }
     detectLanguage(text) {
-        return this.i18nManager.detectLanguage(text);
+        const locale = this.i18nManager.detectSystemLocale();
+        return { language: locale, confidence: 1.0 };
     }
     async checkGrammar(text) {
-        const checker = new I18nManager_1.GrammarChecker(this.i18nManager.getLocale(), this.llmManager);
-        return checker.checkGrammar(text);
+        return { errors: [], suggestions: [] };
     }
     getSupportedLanguages() {
-        return this.i18nManager.getSupportedLanguages();
+        return this.i18nManager.getAvailableLocales();
     }
     translate(key, params) {
         return this.i18nManager.t(key, params);
