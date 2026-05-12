@@ -1632,3 +1632,80 @@ cloud-book/
 
 ## GitHub仓库
 - 仓库地址：https://github.com/AYun07/cloud-book
+
+---
+
+## 阶段3.1：ImitationEngine - 仿写引擎 ✅ 已完成
+
+### 已实现功能
+
+#### 1. 仿写/二创/同人创作
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| 仿写 | 基于原作风格的智能仿写 | ✅ |
+| 二创 | 续写/前传/番外/平行世界 | ✅ |
+| 同人 | 保留原作角色+新增角色 | ✅ |
+| 风格迁移 | 内容风格转换 | ✅ |
+
+#### 2. 仿写配置
+
+| 配置项 | 说明 | 默认值 |
+|------|------|-------|
+| imitationLevel | 仿写程度（1-100） | 70 |
+| preserveCoreElements | 保留的核心元素 | - |
+| changeElements | 改变的元素 | - |
+| derivativeType | 二创类型（sequel/prequel/spin_off/alternate_universe） | - |
+| fanficSettings | 同人设置（原作角色/新角色/世界观） | - |
+
+#### 3. 核心方法
+
+| 方法 | 功能 | 状态 |
+|------|------|------|
+| extractSourceStyle() | 提取原作风格 | ✅ |
+| generateImitation() | 生成仿写内容 | ✅ |
+| generateDerivative() | 生成二创内容 | ✅ |
+| generateFanfic() | 生成同人内容 | ✅ |
+| batchImitate() | 批量仿写章节 | ✅ |
+| generateOutline() | 生成章节大纲 | ✅ |
+| transferStyle() | 风格迁移 | ✅ |
+
+#### 4. 二创类型
+
+| 类型 | 说明 |
+|------|------|
+| sequel | 续写原作之后的故事 |
+| prequel | 创作原作之前的前传 |
+| spin_off | 以配角的视角重新诠释 |
+| alternate_universe | 在不同世界线重新演绎 |
+
+#### 5. 同人设定
+
+| 设定 | 说明 |
+|------|------|
+| canon | 保持原作设定和世界观 |
+| alternate | 在原作基础上大幅度改编 |
+| modern_au | 将角色置于现代都市背景 |
+| crossover | 融合多个作品的角色和设定 |
+
+### 编译状态
+- ✅ TypeScript编译通过
+- ✅ 无错误
+
+### 下一步
+- 阶段3.2：CoverGenerator - 封面生成器
+
+---
+
+## 同步记录（2026年5月12日）
+
+### 用户消息：
+> "继续3，一定要记好了，这就是为什么我让你每轮对话结束都要同步更新聊天记录的原因，你太容易跑偏了"
+
+### 我的回应：
+✅ 阶段3.1 ImitationEngine已完成！仿写引擎完整实现（仿写/二创/同人/风格迁移），支持续写/前传/番外/平行世界，批量仿写章节，编译成功！注意同步更新聊天记录。
+
+---
+
+## GitHub仓库
+- 仓库地址：https://github.com/AYun07/cloud-book
