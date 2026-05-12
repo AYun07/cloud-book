@@ -11,6 +11,8 @@ export { FEATURE_LLM_REQUIREMENTS, getLLMRequiredFeatures, getNonLLMFeatures, LL
 export { MODULE_REVIEW_RESULT } from './config/module-review';
 export { IMAGE_GEN_PROVIDERS, DEFAULT_IMAGE_CONFIG, generateImage, buildCoverPrompt } from './config/image-gen-config';
 export { VECTOR_CONFIG, OFFLINE_CONFIG, ALL_PROVIDER_CONFIGS, getProviderConfig } from './config/vector-offline-config';
+export { BasicVectorizer, basicVectorizer } from './config/basic-vectorizer';
+export { OfflineModeManager, offlineModeManager, OfflineAuditor, OfflineConsistencyChecker, OFFLINE_CAPABILITIES } from './config/offline-mode';
 export { default as AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { default as TruthFileManager } from './modules/TruthFiles/TruthFileManager';
 export { default as WritingPipeline } from './modules/WritingEngine/WritingPipeline';
