@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Card, Typography, Space, Button, List, Tag, Progress, message, Badge, TextArea } from 'antd';
-import { SafetyCertificateOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, RefreshOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, Button, List, Tag, Progress, message, Badge } from 'antd';
+import { Input } from 'antd';
+import { SafetyCertificateOutlined, CheckCircleOutlined, ExclamationCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useCloudBook } from '../context/CloudBookContext';
 
 const { Title, Text, Paragraph } = Typography;
@@ -161,7 +162,7 @@ const AuditPage: React.FC = () => {
             border: '1px solid rgba(255,255,255,0.1)'
           }}
         >
-          <TextArea
+          <Input.TextArea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="输入要审计的章节内容..."

@@ -146,7 +146,7 @@ export const CloudBookProvider: React.FC<{ children: ReactNode }> = ({ children 
       // 配置 LLM
       if (cloudConfig.llmConfigs) {
         for (const llmConfig of cloudConfig.llmConfigs) {
-          llmManager.addProvider(llmConfig);
+          llmManager.addConfig(llmConfig);
         }
         if (cloudConfig.llmConfigs.length > 0) {
           llmManager.setDefault(cloudConfig.llmConfigs[0].name);
@@ -269,16 +269,14 @@ export const CloudBookProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
     };
     
-    // 保存到本地存储
-    const fs = require('fs');
-    const path = require('path');
-    const storagePath = path.join(process.cwd(), 'projects', `${project.id}.json`);
-    
+    // 保存到浏览器localStorage
     try {
-      fs.mkdirSync(path.dirname(storagePath), { recursive: true });
-      fs.writeFileSync(storagePath, JSON.stringify(project, null, 2));
+      const projectsStr = localStorage.getItem('cloudbook_projects') || '[]';
+      const projectsArr = JSON.parse(projectsStr);
+      projectsArr.push(project);
+      localStorage.setItem('cloudbook_projects', JSON.stringify(projectsArr));
     } catch (e) {
-      console.warn('Local storage not available:', e);
+      console.warn('LocalStorage not available:', e);
     }
     
     setProjects([...projects, project]);
@@ -307,16 +305,19 @@ export const CloudBookProvider: React.FC<{ children: ReactNode }> = ({ children 
       setCurrentProject(updatedProject);
     }
     
-    // 保存到本地
-    const fs = require('fs');
-    const path = require('path');
-    const storagePath = path.join(process.cwd(), 'projects', `${project.id}.json`);
-    
+    // 保存到浏览器localStorage
     try {
-      fs.mkdirSync(path.dirname(storagePath), { recursive: true });
-      fs.writeFileSync(storagePath, JSON.stringify(updatedProject, null, 2));
+      const projectsStr = localStorage.getItem('cloudbook_projects') || '[]';
+      const projectsArr: NovelProject[] = JSON.parse(projectsStr);
+      const index = projectsArr.findIndex(p => p.id === project.id);
+      if (index >= 0) {
+        projectsArr[index] = updatedProject;
+      } else {
+        projectsArr.push(updatedProject);
+      }
+      localStorage.setItem('cloudbook_projects', JSON.stringify(projectsArr));
     } catch (e) {
-      console.warn('Local storage not available:', e);
+      console.warn('LocalStorage not available:', e);
     }
   }, [projects, currentProject]);
 
@@ -327,46 +328,26 @@ export const CloudBookProvider: React.FC<{ children: ReactNode }> = ({ children 
       setCurrentProject(null);
     }
     
-    // 删除本地文件
-    const fs = require('fs');
-    const path = require('path');
-    const storagePath = path.join(process.cwd(), 'projects', `${projectId}.json`);
-    
+    // 从浏览器localStorage删除
     try {
-      fs.unlinkSync(storagePath);
+      const projectsStr = localStorage.getItem('cloudbook_projects') || '[]';
+      const projectsArr: NovelProject[] = JSON.parse(projectsStr);
+      const filtered = projectsArr.filter(p => p.id !== projectId);
+      localStorage.setItem('cloudbook_projects', JSON.stringify(filtered));
     } catch (e) {
-      console.warn('Local storage not available:', e);
+      console.warn('LocalStorage not available:', e);
     }
   }, [projects, currentProject]);
 
   const listProjects = useCallback(async (): Promise<NovelProject[]> => {
-    const fs = require('fs');
-    const path = require('path');
-    const projectsPath = path.join(process.cwd(), 'projects');
-    
     try {
-      if (!fs.existsSync(projectsPath)) {
-        return [];
-      }
-      
-      const files = fs.readdirSync(projectsPath).filter(f => f.endsWith('.json'));
-      const loadedProjects: NovelProject[] = [];
-      
-      for (const file of files) {
-        try {
-          const content = fs.readFileSync(path.join(projectsPath, file), 'utf-8');
-          const project = JSON.parse(content);
-          loadedProjects.push(project);
-        } catch (e) {
-          console.warn(`Failed to load project ${file}:`, e);
-        }
-      }
-      
+      const projectsStr = localStorage.getItem('cloudbook_projects') || '[]';
+      const loadedProjects: NovelProject[] = JSON.parse(projectsStr);
       return loadedProjects.sort((a, b) => 
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
     } catch (e) {
-      console.warn('Local storage not available:', e);
+      console.warn('LocalStorage not available:', e);
       return [];
     }
   }, []);

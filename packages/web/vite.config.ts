@@ -6,7 +6,13 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      '@cloudbook/core': path.resolve(__dirname, '../core/dist')
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: []
     }
   },
   server: {
