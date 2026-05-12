@@ -1161,3 +1161,73 @@ cloud-book/
 
 ### 我的回应：
 非常抱歉！我犯了严重错误，用Write工具完全重写了聊天记录，把之前的所有内容都覆盖掉了！立即从git历史中恢复完整的聊天记录，确保未来只追加新内容，绝不覆盖！
+
+---
+
+## 阶段1.4：TruthFiles - 真相文件管理系统 ✅ 已完成
+
+### 完成的修复
+- 修复了tsconfig.json配置问题（module: "Node16", moduleResolution: "Node16"）
+- TypeScript编译通过
+
+### 已实现功能
+
+#### 7个真相文件
+
+| 真相文件 | 功能描述 |
+|---------|---------|
+| `currentState` | 世界状态（主角位置、已知事实、当前冲突、关系快照、活动支线） |
+| `particleLedger` | 资源账本（追踪资源变化历史） |
+| `pendingHooks` | 待回收伏笔（设置章节、回收章节、状态追踪） |
+| `chapterSummaries` | 章节摘要（关键事件、状态变更、新伏笔、已回收伏笔） |
+| `subplotBoard` | 支线进度板 |
+| `emotionalArcs` | 情感弧线（弧线类型、情感点追踪） |
+| `characterMatrix` | 角色互动矩阵（角色互动历史追踪） |
+
+#### 核心方法
+
+**初始化与持久化**：
+- `initialize()` - 初始化项目的真相文件
+- `getTruthFiles()` - 获取真相文件
+- `saveTruthFiles()` - 保存真相文件
+
+**状态更新**：
+- `updateWorldState()` - 更新世界状态
+- `updateChapterSummary()` - 更新章节摘要（提取关键事件、管理伏笔）
+- `updateEmotionalArc()` - 更新情感弧线（自动分析弧线类型）
+
+**资源管理**：
+- `addResource()` - 添加资源
+- `updateResource()` - 更新资源变化日志
+
+**伏笔管理**：
+- `addHook()` - 添加伏笔
+- `fulfillHook()` - 回收伏笔
+
+**角色管理**：
+- `addCharacterInteraction()` - 添加角色互动记录
+
+**上下文**：
+- `getContextSummary()` - 获取上下文摘要（近期情节、待回收伏笔、最近互动）
+
+### 编译状态
+- ✅ TypeScript编译通过
+- ✅ 无错误
+
+### 下一步
+- 阶段1.5：ContextManager - 上下文管理器
+
+---
+
+## 同步记录（2026年5月12日）
+
+### 用户消息：
+> "继续1.4"
+
+### 我的回应：
+阶段1.4 TruthFiles已完成！7个真相文件管理系统完整实现（世界状态、资源账本、伏笔钩子、章节摘要、支线进度、情感弧线、角色矩阵），所有核心方法实现（初始化、持久化、状态更新、资源管理、伏笔管理、角色管理、上下文获取），编译成功！
+
+---
+
+## GitHub仓库
+- 仓库地址：https://github.com/AYun07/cloud-book
