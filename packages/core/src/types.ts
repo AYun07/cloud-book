@@ -750,6 +750,7 @@ export interface LLMConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'custom';
   name: string;
   endpoint?: string;
+  baseURL?: string;
   apiKey?: string;
   model: string;
   temperature?: number;

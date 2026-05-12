@@ -5,7 +5,7 @@ export * from './types';
 export { default as NovelParser } from './modules/NovelParser/NovelParser';
 export { default as ImitationEngine, ImitationConfig, GenerationContext } from './modules/ImitationEngine/ImitationEngine';
 export { default as AntiDetectionEngine, DetectionResult, StyleAnalysis } from './modules/AntiDetection/AntiDetectionEngine';
-export { LLMManager, LLMProvider, LLMResponse, GenerationOptions } from './modules/LLMProvider/LLMManager';
+export { default as LLMManager, LLMProvider, LLMResponse, GenerationOptions, SUPPORTED_MODELS, ModelInfo, StreamingMode, EmbeddingOptions, EmbeddingResponse } from './modules/LLMProvider/LLMManager';
 export { default as AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { default as TruthFileManager } from './modules/TruthFiles/TruthFileManager';
 export { default as WritingPipeline } from './modules/WritingEngine/WritingPipeline';
