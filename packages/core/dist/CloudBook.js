@@ -79,6 +79,7 @@ const SnowflakeMethodology_1 = require("./modules/SnowflakeMethodology/Snowflake
 const WebScraper_1 = require("./modules/WebScraper/WebScraper");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const model_config_1 = require("./config/model-config");
 class CloudBook {
     config;
     llmManager;
@@ -122,11 +123,13 @@ class CloudBook {
     projects = new Map();
     constructor(config) {
         this.config = config;
+        const llmConfigs = config.useDefaultModels ? (0, model_config_1.createModelConfigs)() : config.llmConfigs;
+        const modelRoutes = config.useDefaultModels ? (0, model_config_1.createModelRoutes)() : config.modelRoutes;
         this.llmManager = new LLMManager_1.LLMManager();
-        for (const llmConfig of config.llmConfigs) {
+        for (const llmConfig of llmConfigs) {
             this.llmManager.addConfig(llmConfig);
         }
-        this.llmManager.setRoutes(config.modelRoutes);
+        this.llmManager.setRoutes(modelRoutes);
         this.parser = new NovelParser_1.default({
             extractCharacters: true,
             extractSetting: true
@@ -992,6 +995,31 @@ class CloudBook {
     async scrapeBatchUrls(urls) {
         const results = await this.webScraper.scrapeBatch(urls);
         return results.filter(r => r.success && r.data).map(r => r.data);
+    }
+    // ============================================
+    // 模型配置查询
+    // ============================================
+    getAvailableModels() {
+        return this.llmManager.listModels().map(m => m.name);
+    }
+    getModelCapability(modelName) {
+        return model_config_1.MODEL_CAPABILITIES[modelName] || null;
+    }
+    getAllCapabilities() {
+        return model_config_1.MODEL_CAPABILITIES;
+    }
+    getDefaultModel() {
+        const defaultConfig = (0, model_config_1.getDefaultLLMConfig)();
+        return defaultConfig.name;
+    }
+    getAPIStatus() {
+        return {
+            endpoint: model_config_1.API_CONFIG_INFO.endpoint,
+            status: model_config_1.API_CONFIG_INFO.status
+        };
+    }
+    setDefaultModel(modelName) {
+        this.llmManager.setDefault(modelName);
     }
 }
 exports.CloudBook = CloudBook;

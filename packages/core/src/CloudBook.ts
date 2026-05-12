@@ -55,6 +55,7 @@ import { WebScraper, ScrapedContent, ScraperConfig } from './modules/WebScraper/
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { createModelConfigs, createModelRoutes, getDefaultLLMConfig, MODEL_CAPABILITIES, API_CONFIG_INFO } from './config/model-config';
 
 export interface CloudBookConfig {
   llmConfigs: LLMConfig[];
@@ -76,6 +77,7 @@ export interface CloudBookConfig {
     port?: number;
     apiKeys?: APIKeyConfig[];
   };
+  useDefaultModels?: boolean;
 }
 
 export interface WritingOptions {
@@ -136,11 +138,14 @@ export class CloudBook {
   constructor(config: CloudBookConfig) {
     this.config = config;
 
+    const llmConfigs = config.useDefaultModels ? createModelConfigs() : config.llmConfigs;
+    const modelRoutes = config.useDefaultModels ? createModelRoutes() : config.modelRoutes;
+
     this.llmManager = new LLMManager();
-    for (const llmConfig of config.llmConfigs) {
+    for (const llmConfig of llmConfigs) {
       this.llmManager.addConfig(llmConfig);
     }
-    this.llmManager.setRoutes(config.modelRoutes);
+    this.llmManager.setRoutes(modelRoutes);
 
     this.parser = new NovelParser({
       
@@ -1277,6 +1282,38 @@ export class CloudBook {
   async scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]> {
     const results = await this.webScraper.scrapeBatch(urls);
     return results.filter(r => r.success && r.data).map(r => r.data!);
+  }
+
+  // ============================================
+  // 模型配置查询
+  // ============================================
+
+  getAvailableModels(): string[] {
+    return this.llmManager.listModels().map(m => m.name);
+  }
+
+  getModelCapability(modelName: string): any {
+    return MODEL_CAPABILITIES[modelName] || null;
+  }
+
+  getAllCapabilities(): Record<string, any> {
+    return MODEL_CAPABILITIES;
+  }
+
+  getDefaultModel(): string {
+    const defaultConfig = getDefaultLLMConfig();
+    return defaultConfig.name;
+  }
+
+  getAPIStatus(): { endpoint: string; status: string } {
+    return {
+      endpoint: API_CONFIG_INFO.endpoint,
+      status: API_CONFIG_INFO.status
+    };
+  }
+
+  setDefaultModel(modelName: string): void {
+    this.llmManager.setDefault(modelName);
   }
 }
 

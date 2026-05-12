@@ -525,7 +525,7 @@ export interface NovelProject {
     updatedAt: Date;
 }
 export interface LLMConfig {
-    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'custom';
+    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'gemini' | 'custom';
     name: string;
     endpoint?: string;
     baseURL?: string;

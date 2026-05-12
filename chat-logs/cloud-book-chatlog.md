@@ -3041,5 +3041,94 @@ c82dfbd 深度集成完成：核心模块真实实现
 
 ---
 
+## 模型配置完善（2026年5月12日 20:50）
+
+### 用户消息：
+> "模型名称是：gemini-2.5-flash[真流]，正好这几个模型都能用对吧，然后不是有很多功能都需要配置大模型的对吧，你正好把这几个模型按照各自的能力和对应的功能进行配置，这是我个人的api，放心用，后面我可以把这个密钥断掉"
+
+### 我的回应：
+立即配置所有模型到对应功能！
+
+#### 1. 模型配置系统（2026-05-12 20:45）
+
+**已配置的4个模型：**
+
+| 模型名称 | 用途 | 流式 | 状态 |
+|---------|------|------|------|
+| deepseek-v4-flash | 写作(Writing) | ✅ | ✅ 可用 |
+| gemini-3-flash-preview[假流] | 审计(Audit) | ❌ | ✅ 可用 |
+| gemini-3-flash-preview[真流] | 润色(Revision) | ✅ | ✅ 可用 |
+| gemini-2.5-flash | 风格(Style)/备选 | ✅ | ⚠️ 待验证 |
+
+#### 2. 模型能力配置
+
+**任务路由映射：**
+```
+Writing → deepseek-v4-flash (中文强，速度快)
+Audit → gemini-3-flash-preview[假流] (精确，批量)
+Revision → gemini-3-flash-preview[真流] (流式润色)
+Style → gemini-2.5-flash (快速响应)
+Analysis → deepseek-v4-flash (深度分析)
+Planning → deepseek-v4-flash (创意规划)
+```
+
+#### 3. 模型配置参数
+
+**DeepSeek V4 Flash（主写作模型）：**
+```typescript
+{
+  provider: 'deepseek',
+  name: 'deepseek-v4-flash',
+  model: 'deepseek-v4-flash',
+  temperature: 0.75,
+  maxTokens: 4096
+}
+```
+
+**Gemini 3 Flash（审计专用）：**
+```typescript
+{
+  provider: 'gemini',
+  name: 'gemini-3-flash-preview[假流]',
+  model: 'gemini-3-flash-preview',
+  temperature: 0.6,
+  maxTokens: 4096
+}
+```
+
+#### 4. 新增配置方法
+
+```typescript
+// 查询可用模型
+cloudBook.getAvailableModels()
+
+// 查询模型能力
+cloudBook.getModelCapability('deepseek-v4-flash')
+
+// 查询API状态
+cloudBook.getAPIStatus()
+
+// 设置默认模型
+cloudBook.setDefaultModel('deepseek-v4-flash')
+```
+
+#### 5. 测试结果（2026-05-12 20:45）
+
+| 模型 | 基本可用 | 流式输出 |
+|------|---------|---------|
+| deepseek-v4-flash | ✅ | ✅ |
+| gemini-3-flash-preview[假流] | ✅ | ❌ |
+| gemini-3-flash-preview[真流] | ✅ | ✅ |
+| gemini-2.5-flash | ⚠️ 503 | - |
+
+#### 6. 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| config/model-config.ts | 模型配置与路由系统 |
+| test-model-config.mjs | 模型配置测试 |
+
+---
+
 ## GitHub仓库
 - 仓库地址：https://github.com/AYun07/cloud-book

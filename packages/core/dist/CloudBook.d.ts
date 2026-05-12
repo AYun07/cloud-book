@@ -42,6 +42,7 @@ export interface CloudBookConfig {
         port?: number;
         apiKeys?: APIKeyConfig[];
     };
+    useDefaultModels?: boolean;
 }
 export interface WritingOptions {
     targetWordCount?: number;
@@ -257,6 +258,15 @@ export declare class CloudBook {
         prevChapterUrl?: string;
     } | null>;
     scrapeBatchUrls(urls: string[]): Promise<ScrapedContent[]>;
+    getAvailableModels(): string[];
+    getModelCapability(modelName: string): any;
+    getAllCapabilities(): Record<string, any>;
+    getDefaultModel(): string;
+    getAPIStatus(): {
+        endpoint: string;
+        status: string;
+    };
+    setDefaultModel(modelName: string): void;
 }
 export default CloudBook;
 //# sourceMappingURL=CloudBook.d.ts.map

@@ -13,15 +13,7 @@ exports.SUPPORTED_MODELS = [
         streamingMode: 'true',
         supportsEmbedding: false,
         maxTokens: 8192,
-        description: 'DeepSeek V4 Flash (推荐)'
-    },
-    {
-        name: 'gemini-2.5-flash',
-        provider: 'gemini',
-        streamingMode: 'true',
-        supportsEmbedding: false,
-        maxTokens: 8192,
-        description: 'Gemini 2.5 Flash (真流)'
+        description: 'DeepSeek V4 Flash (推荐-写作)'
     },
     {
         name: 'gemini-3-flash-preview[假流]',
@@ -29,7 +21,7 @@ exports.SUPPORTED_MODELS = [
         streamingMode: 'false',
         supportsEmbedding: false,
         maxTokens: 8192,
-        description: 'Gemini 3 Flash Preview (假流)'
+        description: 'Gemini 3 Flash (审计/分析)'
     },
     {
         name: 'gemini-3-flash-preview[真流]',
@@ -37,7 +29,15 @@ exports.SUPPORTED_MODELS = [
         streamingMode: 'true',
         supportsEmbedding: false,
         maxTokens: 8192,
-        description: 'Gemini 3 Flash Preview (真流)'
+        description: 'Gemini 3 Flash (真流-润色)'
+    },
+    {
+        name: 'gemini-2.5-flash',
+        provider: 'gemini',
+        streamingMode: 'true',
+        supportsEmbedding: false,
+        maxTokens: 8192,
+        description: 'Gemini 2.5 Flash (备选)'
     }
 ];
 class LLMManager {
