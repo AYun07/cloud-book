@@ -33,6 +33,5 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Chat logs (may contain sensitive data)
-chat-logs/
+# Chat logs
 chat_history/
