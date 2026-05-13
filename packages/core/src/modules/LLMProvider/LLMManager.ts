@@ -5,6 +5,7 @@
  */
 
 import { LLMConfig, ModelRoute } from '../../types';
+import { CostTracker } from '../CostTracker/CostTracker';
 
 export type ModelProvider = 
   | 'openai' 
@@ -13,7 +14,6 @@ export type ModelProvider =
   | 'deepseek' 
   | 'ollama' 
   | 'koboldcpp' 
-  | 'lmstudio'
   | 'gemini'
   | 'custom';
 
@@ -142,11 +142,30 @@ export class LLMManager {
   private defaultProvider?: string;
   private modelConfigs: Map<string, LLMConfig> = new Map();
   private embeddingCache: Map<string, { embedding: number[]; timestamp: number }> = new Map();
-  private cacheTTL: number = 3600000; // 1 hour
+  private cacheTTL: number = 3600000;
   private logs: LogEntry[] = [];
+  private costTracker?: CostTracker;
+  private costTrackingEnabled: boolean = false;
   
   constructor() {
     this.registerBuiltinProviders();
+  }
+
+  setCostTracker(tracker: CostTracker): void {
+    this.costTracker = tracker;
+    this.costTrackingEnabled = true;
+  }
+
+  isCostTrackingEnabled(): boolean {
+    return this.costTrackingEnabled;
+  }
+
+  private recordCost(model: string, provider: string, inputTokens: number, outputTokens: number, operation: string): void {
+    if (this.costTracker && this.costTrackingEnabled) {
+      this.costTracker.recordCost(model, provider, inputTokens, outputTokens, operation).catch(err => {
+        this.log('error', 'LLMManager', 'Failed to record cost', { error: err.message });
+      });
+    }
   }
 
   private log(level: LogEntry['level'], component: string, message: string, metadata?: Record<string, any>) {
@@ -181,6 +200,15 @@ export class LLMManager {
   clearCache() {
     this.embeddingCache.clear();
     this.log('info', 'LLMManager', 'Embedding cache cleared');
+  }
+
+  private getConfigForProvider(providerType: ModelProvider): LLMConfig | undefined {
+    for (const [_, config] of this.modelConfigs) {
+      if (config.provider === providerType) {
+        return config;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -447,7 +475,20 @@ export class LLMManager {
     }
     
     this.log('debug', 'LLMManager', 'Generating text', { model: name, promptLength: prompt.length });
-    return provider.generate(prompt, options);
+    const response = await provider.generate(prompt, options);
+    
+    if (response.usage) {
+      const config = this.modelConfigs.get(name || '') || this.getConfigForProvider(provider.provider);
+      this.recordCost(
+        response.model || config?.model || name || 'unknown',
+        provider.provider,
+        response.usage.promptTokens,
+        response.usage.completionTokens,
+        'generate'
+      );
+    }
+    
+    return response;
   }
 
   /**
@@ -536,6 +577,17 @@ export class LLMManager {
           embedding: response.embedding,
           timestamp: Date.now()
         });
+        
+        if (response.usage) {
+          const config = this.modelConfigs.get(name || '') || this.getConfigForProvider('openai');
+          this.recordCost(
+            response.model || config?.model || name || 'text-embedding-3-small',
+            provider.provider,
+            response.usage.promptTokens,
+            0,
+            'embedding'
+          );
+        }
         
         return response.embedding;
       } catch (error) {

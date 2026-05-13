@@ -533,7 +533,7 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
       }
     }
     
-    const tasks: TaskItem[] = [];
+    let tasks: TaskItem[] = [];
     const lines = response.split('\n').filter((l: string) => l.trim());
     let currentSection = '';
     

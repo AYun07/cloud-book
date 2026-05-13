@@ -14,7 +14,8 @@
     "react-router-dom": "^6.21.0",
     "zustand": "^4.4.7",
     "antd": "^5.12.0",
-    "@ant-design/icons": "^5.2.6"
+    "@ant-design/icons": "^5.2.6",
+    "@cloud-book/core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",

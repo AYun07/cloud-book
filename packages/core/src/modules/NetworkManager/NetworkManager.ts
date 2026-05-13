@@ -1,6 +1,6 @@
 /**
  * 网络状态管理器
- * 监测网络状态，自动切换在线/离线模式
+ * 监测网络状态，支持在线/离线模式手动和自动切换
  */
 
 import { NetworkStatus, ConnectionMode } from '../../types';
@@ -9,14 +9,21 @@ export interface NetworkConfig {
   checkInterval: number;
   timeout: number;
   fallbackUrls: string[];
+  autoSwitch?: boolean;
+  switchDebounceMs?: number;
 }
+
+export type ModeSwitchCallback = (newMode: ConnectionMode, reason: 'network_recovered' | 'network_lost' | 'manual') => void;
 
 export class NetworkManager {
   private status: NetworkStatus;
   private config: NetworkConfig;
   private listeners: Set<(status: NetworkStatus) => void> = new Set();
+  private modeSwitchListeners: Set<ModeSwitchCallback> = new Set();
   private intervalId?: NodeJS.Timeout;
   private lastLatency?: number;
+  private switchDebounceTimer?: NodeJS.Timeout;
+  private wasOnline: boolean = true;
 
   constructor(config?: Partial<NetworkConfig>) {
     this.config = {
@@ -26,7 +33,9 @@ export class NetworkManager {
         'https://www.google.com',
         'https://www.baidu.com',
         'https://api.openai.com'
-      ]
+      ],
+      autoSwitch: config?.autoSwitch ?? true,
+      switchDebounceMs: config?.switchDebounceMs ?? 2000
     };
 
     this.status = {
@@ -35,6 +44,7 @@ export class NetworkManager {
       mode: 'online',
       fallbackAvailable: true
     };
+    this.wasOnline = true;
   }
 
   async initialize(): Promise<void> {
@@ -46,6 +56,10 @@ export class NetworkManager {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
+    }
+    if (this.switchDebounceTimer) {
+      clearTimeout(this.switchDebounceTimer);
+      this.switchDebounceTimer = undefined;
     }
   }
 
@@ -83,10 +97,46 @@ export class NetworkManager {
     }
 
     if (previousStatus.isOnline !== this.status.isOnline) {
-      this.notifyListeners();
+      this.handleNetworkStateChange(previousStatus.isOnline, this.status.isOnline);
     }
 
     return this.status.isOnline;
+  }
+
+  private handleNetworkStateChange(wasOnline: boolean, isNowOnline: boolean): void {
+    if (!this.config.autoSwitch || this.status.mode !== 'hybrid') {
+      this.notifyListeners();
+      return;
+    }
+
+    if (this.switchDebounceTimer) {
+      clearTimeout(this.switchDebounceTimer);
+    }
+
+    this.switchDebounceTimer = setTimeout(() => {
+      if (isNowOnline && !wasOnline) {
+        this.performModeSwitch('offline', 'online', 'network_recovered');
+      } else if (!isNowOnline && wasOnline) {
+        this.performModeSwitch('online', 'offline', 'network_lost');
+      }
+      this.notifyListeners();
+    }, this.config.switchDebounceMs);
+  }
+
+  private performModeSwitch(
+    fromMode: ConnectionMode,
+    toMode: ConnectionMode,
+    reason: 'network_recovered' | 'network_lost' | 'manual'
+  ): void {
+    this.status.mode = toMode;
+    
+    for (const listener of this.modeSwitchListeners) {
+      try {
+        listener(toMode, reason);
+      } catch (error) {
+        console.error('Mode switch listener error:', error);
+      }
+    }
   }
 
   private async pingUrl(url: string): Promise<{ success: boolean; latency?: number }> {
@@ -116,17 +166,32 @@ export class NetworkManager {
   }
 
   setMode(mode: ConnectionMode): void {
-    this.status.mode = mode;
-    this.notifyListeners();
+    const previousMode = this.status.mode;
+    if (previousMode !== mode) {
+      this.performModeSwitch(previousMode, mode, 'manual');
+    }
   }
 
   getMode(): ConnectionMode {
     return this.status.mode;
   }
 
+  setAutoSwitch(enabled: boolean): void {
+    this.config.autoSwitch = enabled;
+  }
+
+  isAutoSwitchEnabled(): boolean {
+    return this.config.autoSwitch ?? true;
+  }
+
   onStatusChange(listener: (status: NetworkStatus) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  onModeSwitch(listener: ModeSwitchCallback): () => void {
+    this.modeSwitchListeners.add(listener);
+    return () => this.modeSwitchListeners.delete(listener);
   }
 
   private notifyListeners(): void {
@@ -137,6 +202,26 @@ export class NetworkManager {
         console.error('Network status listener error:', error);
       }
     }
+  }
+
+  async switchToOnline(): Promise<void> {
+    if (this.status.mode === 'offline' || this.status.mode === 'hybrid') {
+      await this.checkConnection();
+      if (this.status.isOnline) {
+        this.setMode('online');
+      }
+    }
+  }
+
+  async switchToOffline(): Promise<void> {
+    if (this.status.mode === 'online' || this.status.mode === 'hybrid') {
+      this.setMode('offline');
+    }
+  }
+
+  async switchToHybrid(): Promise<void> {
+    this.setMode('hybrid');
+    await this.checkConnection();
   }
 
   async forceOffline(): Promise<void> {

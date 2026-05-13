@@ -13,7 +13,8 @@ import {
   List,
   message,
   Row,
-  Col
+  Col,
+  Badge
 } from 'antd';
 import {
   PlusOutlined,

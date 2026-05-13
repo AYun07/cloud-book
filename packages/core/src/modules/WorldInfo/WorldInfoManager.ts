@@ -39,14 +39,36 @@ export interface ContextVariable {
   type: 'string' | 'number' | 'boolean' | 'date' | 'list';
 }
 
+export interface GenerationOptions {
+  genre?: string;
+  theme?: string;
+  storySeed?: string;
+  depth?: number;
+  modelName?: string;
+}
+
+export interface GeneratedWorldContent {
+  overview: string;
+  elements: Array<{
+    name: string;
+    key: string;
+    content: string;
+    keywords: string[];
+    depth: number;
+    parentKey?: string;
+  }>;
+}
+
 export class WorldInfoManager {
   private worldInfos: Map<string, WorldInfo[]> = new Map();
   private relationships: Map<string, WorldInfoRelationship[]> = new Map();
   private templates: Map<string, WorldInfoTemplate[]> = new Map();
   private storagePath: string;
+  private llmManager?: any;
 
-  constructor(storagePath: string = './data/worldinfo') {
+  constructor(storagePath: string = './data/worldinfo', llmManager?: any) {
     this.storagePath = storagePath;
+    this.llmManager = llmManager;
     this.loadBuiltinTemplates();
   }
 
@@ -463,6 +485,142 @@ ${info.content.split('\n').map(line => `    ${line}`).join('\n')}
     }
 
     return prompt;
+  }
+
+  /**
+   * 使用 LLM 自动生成世界设定内容
+   */
+  async generateWorldContent(
+    projectId: string,
+    options: GenerationOptions
+  ): Promise<WorldInfo[]> {
+    const { genre = '奇幻', theme, storySeed, depth = 2, modelName } = options;
+
+    if (!this.llmManager) {
+      throw new Error('LLM Manager not configured. Please provide LLMManager instance.');
+    }
+
+    const prompt = this.buildGenerationPrompt(genre, theme, storySeed, depth);
+    const response = await this.llmManager.generate(prompt, modelName, {
+      temperature: 0.8,
+      maxTokens: 4096
+    });
+
+    return this.parseGeneratedContent(projectId, response.text, depth);
+  }
+
+  /**
+   * 构建生成提示词
+   */
+  private buildGenerationPrompt(
+    genre: string,
+    theme?: string,
+    storySeed?: string,
+    depth?: number
+  ): string {
+    const depthDescription = depth === 0
+      ? '仅生成世界观概览'
+      : depth === 1
+        ? '生成概览和主要设定（如主要种族、地理、政治等）'
+        : '生成概览、主要设定和细节设定（如具体地点、组织、物品等）';
+
+    return `你是一位资深的小说世界构建专家。请为以下题材的小说生成详细的世界观设定：
+
+题材类型：${genre}
+${theme ? `核心主题：${theme}` : ''}
+${storySeed ? `故事种子：${storySeed}` : ''}
+
+生成要求：
+1. ${depthDescription}
+2. 每个设定需要包含：名称、英文键名（用于代码引用）、描述内容、关键词（用于触发匹配）
+3. 设定之间应该有层级关系和逻辑关联
+4. 内容要具体、有细节，便于在写作时直接使用
+5. 关键词要能覆盖常见的写作场景
+
+请以JSON格式输出，结构如下：
+{
+  "overview": "世界观概览（100-200字）",
+  "elements": [
+    {
+      "name": "设定名称",
+      "key": "setting_key",
+      "content": "详细描述（200-500字）",
+      "keywords": ["关键词1", "关键词2", "关键词3"],
+      "depth": 0,
+      "parentKey": null
+    }
+  ]
+}
+
+注意：
+- depth 0 表示顶层概览，1 表示主要设定，2+ 表示详细设定
+- parentKey 填入父级设定的 key，顶层设定填 null
+- 确保 keywords 能被写作上下文触发匹配
+- 输出必须是合法的 JSON 格式`;
+  }
+
+  /**
+   * 解析 LLM 生成的内容
+   */
+  private async parseGeneratedContent(
+    projectId: string,
+    llmResponse: string,
+    maxDepth: number
+  ): Promise<WorldInfo[]> {
+    const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse LLM response as JSON');
+    }
+
+    const generated: GeneratedWorldContent = JSON.parse(jsonMatch[0]);
+    const createdInfos: WorldInfo[] = [];
+    const parentIdMap = new Map<string, string>();
+
+    if (generated.overview) {
+      const overview = await this.addWorldInfo(projectId, {
+        name: '世界观概览',
+        key: 'world_overview',
+        content: generated.overview,
+        keywords: ['世界', '世界观', '概览', '背景'],
+        depth: 0,
+        active: true
+      });
+      createdInfos.push(overview);
+      parentIdMap.set('world_overview', overview.id);
+    }
+
+    for (const element of generated.elements) {
+      if (element.depth > maxDepth) continue;
+
+      let parentId: string | undefined;
+      if (element.parentKey && parentIdMap.has(element.parentKey)) {
+        parentId = parentIdMap.get(element.parentKey);
+      }
+
+      const info = await this.addWorldInfo(projectId, {
+        name: element.name,
+        key: element.key,
+        content: element.content,
+        keywords: element.keywords,
+        depth: element.depth,
+        parentId,
+        active: true
+      });
+
+      createdInfos.push(info);
+      if (element.key) {
+        parentIdMap.set(element.key, info.id);
+      }
+    }
+
+    return createdInfos;
+  }
+
+  /**
+   * 设置 LLM Manager（用于后续配置）
+   */
+  setLLMManager(llmManager: any): void {
+    this.llmManager = llmManager;
   }
 
   /**

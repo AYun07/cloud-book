@@ -1,6 +1,13 @@
 /**
  * 费用追踪器
- * 追踪API调用成本，控制预算
+ * 追踪API调用成本，支持预算控制和成本预测
+ * 
+ * 功能：
+ * - 记录API调用成本
+ * - 支持日/周/月/总预算控制
+ * - 预算告警（达到80%阈值时触发）
+ * - 基于事件机制支持实时推送
+ * - 成本统计和预测
  */
 
 declare const localStorage: {
@@ -45,6 +52,10 @@ export interface CostAlert {
   type: 'daily' | 'weekly' | 'monthly' | 'total';
 }
 
+type CostEventType = 'costRecorded' | 'alert' | 'budgetChanged';
+
+type CostEventCallback = (data: CostRecord | CostAlert | CostBudget) => void;
+
 export class CostTracker {
   private records: CostRecord[] = [];
   private budgets: CostBudget = {};
@@ -57,6 +68,7 @@ export class CostTracker {
     'deepseek-chat': { input: 0.0001, output: 0.0001 },
     'deepseek-coder': { input: 0.0001, output: 0.0001 },
   };
+  private listeners: Map<CostEventType, Set<CostEventCallback>> = new Map();
 
   constructor(budgets?: CostBudget) {
     this.budgets = budgets || {};
@@ -69,6 +81,7 @@ export class CostTracker {
 
   setBudget(budget: CostBudget): void {
     this.budgets = budget;
+    this.emit('budgetChanged', budget);
   }
 
   getBudget(): CostBudget | null {
@@ -82,6 +95,33 @@ export class CostTracker {
 
   setModelCost(model: string, inputCost: number, outputCost: number): void {
     this.costPerToken[model] = { input: inputCost, output: outputCost };
+  }
+
+  on(event: CostEventType, callback: CostEventCallback): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(callback);
+  }
+
+  off(event: CostEventType, callback: CostEventCallback): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.delete(callback);
+    }
+  }
+
+  private emit(event: CostEventType, data: CostRecord | CostAlert | CostBudget): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      for (const listener of eventListeners) {
+        try {
+          listener(data);
+        } catch (e) {
+          console.error(`Error in cost event listener for ${event}:`, e);
+        }
+      }
+    }
   }
 
   async recordCost(
@@ -113,10 +153,12 @@ export class CostTracker {
 
     this.records.push(record);
     this.saveRecords();
+    this.emit('costRecorded', record);
 
     const alerts = this.checkAlerts();
     if (alerts.length > 0) {
       console.warn('Cost alert:', alerts);
+      this.emit('alert', alerts[0]);
     }
 
     return record;

@@ -50,7 +50,7 @@ import { ExportManager, ExportFormat, ExportConfig } from './modules/ExportManag
 import { ImportManager, ImportFormat } from './modules/ImportManager/ImportManager';
 import { KeyboardShortcuts, Shortcut, ShortcutCategory } from './modules/KeyboardShortcuts/KeyboardShortcuts';
 import { GoalManager, WritingGoal, GoalStats, GoalStreak } from './modules/GoalManager/GoalManager';
-import { CostTracker, CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
+import { CostTracker, CostRecord, CostBudget, CostStats, CostAlert } from './modules/CostTracker/CostTracker';
 import { SnowflakeMethodology, SnowflakeStep, SnowflakeProject } from './modules/SnowflakeMethodology/SnowflakeMethodology';
 import { WebScraper, ScrapedContent, ScraperConfig } from './modules/WebScraper/WebScraper';
 
@@ -79,6 +79,10 @@ export interface CloudBookConfig {
     apiKeys?: APIKeyConfig[];
   };
   useDefaultModels?: boolean;
+  costTracking?: {
+    enabled?: boolean;
+    budgets?: CostBudget;
+  };
 }
 
 export interface WritingOptions {
@@ -181,22 +185,45 @@ export class CloudBook {
 
     this.i18nManager = new I18nManager(config.i18nConfig?.primaryLanguage as any || 'zh-CN');
     this.globalLiteraryConfig = new GlobalLiteraryConfig();
-    this.networkManager = new NetworkManager();
+    this.networkManager = new NetworkManager({
+      autoSwitch: true,
+      switchDebounceMs: 2000
+    });
     this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
     this.versionHistoryManager = new VersionHistoryManager(config.storagePath + '/versioning');
     this.localStorage = new LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
     
-    // 初始化新增模块
+    this.networkManager.onModeSwitch((newMode, reason) => {
+      console.log(`[CloudBook] 模式切换: ${newMode}, 原因: ${reason}`);
+      if (reason === 'network_recovered' && newMode === 'online') {
+        console.log('[CloudBook] 网络已恢复，切换到在线模式');
+      } else if (reason === 'network_lost' && newMode === 'offline') {
+        console.log('[CloudBook] 网络已断开，切换到离线模式');
+      }
+    });
+    
     this.exportManager = new ExportManager();
     this.importManager = new ImportManager();
     this.keyboardShortcuts = new KeyboardShortcuts();
     this.goalManager = new GoalManager();
     this.costTracker = new CostTracker();
+    if (config.costTracking?.budgets) {
+      this.costTracker.setBudget(config.costTracking.budgets);
+    }
+    if (config.costTracking?.enabled !== false) {
+      this.llmManager.setCostTracker(this.costTracker);
+    }
     this.snowflakeMethodology = new SnowflakeMethodology(this.llmManager);
     this.webScraper = new WebScraper();
-
-    if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
+    
+    if (config.connectionMode === 'offline') {
+      this.networkManager.setMode('offline');
       this.initializeOfflineMode(config.localAPIConfig);
+    } else if (config.connectionMode === 'hybrid') {
+      this.networkManager.setMode('hybrid');
+      this.initializeOfflineMode(config.localAPIConfig);
+    } else {
+      this.networkManager.setMode('online');
     }
 
     if (config.daemonConfig?.enabled) {
@@ -508,6 +535,30 @@ export class CloudBook {
 
   onNetworkChange(callback: (status: any) => void): () => void {
     return this.networkManager.onStatusChange(callback);
+  }
+
+  async setConnectionMode(mode: 'online' | 'offline' | 'hybrid'): Promise<void> {
+    if (mode === 'online') {
+      await this.networkManager.switchToOnline();
+    } else if (mode === 'offline') {
+      await this.networkManager.switchToOffline();
+    } else {
+      await this.networkManager.switchToHybrid();
+    }
+  }
+
+  getConnectionMode(): 'online' | 'offline' | 'hybrid' {
+    return this.networkManager.getMode();
+  }
+
+  setAutoNetworkSwitch(enabled: boolean): void {
+    this.networkManager.setAutoSwitch(enabled);
+  }
+
+  onModeSwitch(callback: (mode: 'online' | 'offline' | 'hybrid', reason: string) => void): () => void {
+    return this.networkManager.onModeSwitch((newMode, reason) => {
+      callback(newMode, reason);
+    });
   }
 
   async getCacheStats(): Promise<any> {
@@ -1465,12 +1516,32 @@ export class CloudBook {
   // Cost Tracker - 费用追踪
   // ============================================
 
-  recordCost(record: CostRecord): void {
+  async recordCost(
+    model: string,
+    provider: string,
+    inputTokens: number,
+    outputTokens: number,
+    operation: string,
+    projectId?: string,
+    chapterId?: string
+  ): Promise<CostRecord> {
+    return this.costTracker.recordCost(model, provider, inputTokens, outputTokens, operation, projectId, chapterId);
+  }
+
+  recordCostFromRecord(record: CostRecord): void {
     this.costTracker.record(record);
   }
 
-  getCostStats(): CostStats {
-    return this.costTracker.getStats();
+  getCostStats(startDate?: Date, endDate?: Date, projectId?: string): CostStats {
+    return this.costTracker.getStats(startDate, endDate, projectId);
+  }
+
+  predictMonthlyCost(): number {
+    return this.costTracker.predictMonthlyCost();
+  }
+
+  checkAlerts(): CostAlert[] {
+    return this.costTracker.checkAlerts();
   }
 
   setBudget(budget: CostBudget): void {
@@ -1479,6 +1550,32 @@ export class CloudBook {
 
   getBudget(): CostBudget | null {
     return this.costTracker.getBudget();
+  }
+
+  estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+    return this.costTracker.estimateCost(model, inputTokens, outputTokens);
+  }
+
+  getCostRecords(limit?: number, offset?: number, filters?: {
+    projectId?: string;
+    model?: string;
+    operation?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): { records: CostRecord[]; total: number } {
+    return this.costTracker.getRecords(limit, offset, filters);
+  }
+
+  onCostEvent(event: 'costRecorded' | 'alert' | 'budgetChanged', callback: (data: CostRecord | CostAlert | CostBudget) => void): void {
+    this.costTracker.on(event, callback);
+  }
+
+  offCostEvent(event: 'costRecorded' | 'alert' | 'budgetChanged', callback: (data: CostRecord | CostAlert | CostBudget) => void): void {
+    this.costTracker.off(event, callback);
+  }
+
+  exportCostRecords(format: 'json' | 'csv' = 'json'): string {
+    return this.costTracker.exportRecords(format);
   }
 
   // ============================================

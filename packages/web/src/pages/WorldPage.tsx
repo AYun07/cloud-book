@@ -9,6 +9,7 @@ import {
   Typography,
   Tag,
   Tabs,
+  Select,
   message,
 } from 'antd';
 import {
@@ -23,6 +24,7 @@ import {
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
+const { Option } = Select;
 
 interface WorldSetting {
   id: string;
@@ -415,21 +417,19 @@ const WorldPage: React.FC = () => {
           {modalType === 'location' && (
             <>
               <Form.Item name="type" label="类型" initialValue="city">
-                <Form.Item name="type" label="类型" initialValue="city">
-                  <Select>
-                    <Select.Option value="city">城市</Select.Option>
-                    <Select.Option value="forest">森林</Select.Option>
-                    <Select.Option value="mountain">山脉</Select.Option>
-                    <Select.Option value="ocean">海洋</Select.Option>
-                    <Select.Option value="dungeon">秘境</Select.Option>
-                  </Select>
-                </Form.Item>
+                <Select>
+                  <Option value="city">城市</Option>
+                  <Option value="forest">森林</Option>
+                  <Option value="mountain">山脉</Option>
+                  <Option value="ocean">海洋</Option>
+                  <Option value="dungeon">秘境</Option>
+                </Select>
               </Form.Item>
               <Form.Item name="importance" label="重要性" initialValue="medium">
                 <Select>
-                  <Select.Option value="high">重要</Select.Option>
-                  <Select.Option value="medium">一般</Select.Option>
-                  <Select.Option value="low">次要</Select.Option>
+                  <Option value="high">重要</Option>
+                  <Option value="medium">一般</Option>
+                  <Option value="low">次要</Option>
                 </Select>
               </Form.Item>
             </>
@@ -439,10 +439,10 @@ const WorldPage: React.FC = () => {
             <>
               <Form.Item name="type" label="类型" initialValue="school">
                 <Select>
-                  <Select.Option value="cult">教派</Select.Option>
-                  <Select.Option value="family">家族</Select.Option>
-                  <Select.Option value="school">宗门</Select.Option>
-                  <Select.Option value="empire">帝国</Select.Option>
+                  <Option value="cult">教派</Option>
+                  <Option value="family">家族</Option>
+                  <Option value="school">宗门</Option>
+                  <Option value="empire">帝国</Option>
                 </Select>
               </Form.Item>
               <Form.Item name="leader" label="领袖" rules={[{ required: true }]}>

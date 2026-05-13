@@ -4,7 +4,55 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { CloudBook } from '@cloud-book/core';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+const defaultAntiDetectionConfig = {
+    enabled: true,
+    intensity: 5,
+    replaceAIWords: true,
+    varySentenceStructure: true,
+    addColloquialism: true,
+    enhanceEmotion: true,
+    addImperfection: true,
+    mixStyles: true
+};
+const defaultAuditConfig = { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 };
+function createCloudBookConfig(llmConfigs = []) {
+    return {
+        llmConfigs,
+        modelRoutes: [],
+        auditConfig: { ...defaultAuditConfig },
+        antiDetectionConfig: { ...defaultAntiDetectionConfig },
+        storagePath: './cloud-book-projects'
+    };
+}
 const program = new Command();
+function getConfigDir() {
+    return path.join(os.homedir(), '.cloud-book');
+}
+function getConfigFilePath() {
+    return path.join(getConfigDir(), 'config.json');
+}
+function loadConfig() {
+    const configPath = getConfigFilePath();
+    if (fs.existsSync(configPath)) {
+        try {
+            return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        }
+        catch {
+            return {};
+        }
+    }
+    return {};
+}
+function saveConfig(config) {
+    const configDir = getConfigDir();
+    const configPath = getConfigFilePath();
+    if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+    }
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
 program
     .name('cloud-book')
     .description('☁️ Cloud Book - AI驱动的下一代小说创作平台')
@@ -50,14 +98,7 @@ program
             ]
         }
     ]);
-    const config = {
-        llmConfigs: [],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: 5 },
-        storagePath: './cloud-book-projects'
-    };
-    const cloudBook = new CloudBook(config);
+    const cloudBook = new CloudBook(createCloudBookConfig());
     const genreMap = {
         'fantasy': 'fantasy',
         'xianxia': 'xianxia',
@@ -98,19 +139,13 @@ program
         console.log(chalk.red('❌ 请指定项目ID (--project) 或设置 CLOUDBOOK_PROJECT_ID 环境变量'));
         return;
     }
-    const config = {
-        llmConfigs: [{
-                name: 'default',
-                provider: 'openai',
-                model: 'gpt-4',
-                apiKey: process.env.OPENAI_API_KEY || ''
-            }],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: 5 },
-        storagePath: './cloud-book-projects'
+    const llmConfig = {
+        name: 'default',
+        provider: 'openai',
+        model: 'gpt-4',
+        apiKey: process.env.OPENAI_API_KEY || ''
     };
-    const cloudBook = new CloudBook(config);
+    const cloudBook = new CloudBook(createCloudBookConfig([llmConfig]));
     try {
         const writingOptions = {
             autoAudit: options.audit,
@@ -143,14 +178,7 @@ program
         console.log(chalk.red(`❌ 文件不存在: ${file}`));
         return;
     }
-    const config = {
-        llmConfigs: [],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: 5 },
-        storagePath: './cloud-book-projects'
-    };
-    const cloudBook = new CloudBook(config);
+    const cloudBook = new CloudBook(createCloudBookConfig());
     try {
         const result = await cloudBook.importNovel(file);
         console.log(chalk.green('\n✅ 文件分析完成!'));
@@ -178,21 +206,18 @@ program
         return;
     }
     const content = fs.readFileSync(file, 'utf-8');
-    const config = {
-        llmConfigs: [{
-                name: 'default',
-                provider: 'openai',
-                model: 'gpt-4',
-                apiKey: process.env.OPENAI_API_KEY || ''
-            }],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: parseFloat(options.score), autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: 5 },
-        storagePath: './cloud-book-projects'
+    const llmConfig = {
+        name: 'default',
+        provider: 'openai',
+        model: 'gpt-4',
+        apiKey: process.env.OPENAI_API_KEY || ''
     };
-    const cloudBook = new CloudBook(config);
+    const cloudBook = new CloudBook({
+        ...createCloudBookConfig([llmConfig]),
+        auditConfig: { ...defaultAuditConfig, threshold: parseFloat(options.score) }
+    });
     try {
-        const result = await cloudBook.auditChapter('temp', 'temp');
+        const result = await cloudBook.auditContent(content, { threshold: parseFloat(options.score) });
         console.log(chalk.green('\n✅ 审计完成!'));
         console.log(JSON.stringify(result, null, 2));
     }
@@ -212,19 +237,16 @@ program
         return;
     }
     const content = fs.readFileSync(file, 'utf-8');
-    const config = {
-        llmConfigs: [{
-                name: 'default',
-                provider: 'openai',
-                model: 'gpt-4',
-                apiKey: process.env.OPENAI_API_KEY || ''
-            }],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: parseInt(options.intensity) },
-        storagePath: './cloud-book-projects'
+    const llmConfig = {
+        name: 'default',
+        provider: 'openai',
+        model: 'gpt-4',
+        apiKey: process.env.OPENAI_API_KEY || ''
     };
-    const cloudBook = new CloudBook(config);
+    const cloudBook = new CloudBook({
+        ...createCloudBookConfig([llmConfig]),
+        antiDetectionConfig: { ...defaultAntiDetectionConfig, intensity: parseInt(options.intensity) }
+    });
     try {
         const result = await cloudBook.humanize(content);
         const outputFile = options.output || file.replace(/\.[^.]+$/, '') + '.humanized.txt';
@@ -278,46 +300,78 @@ program
             message: 'API Endpoint (留空使用默认):'
         }
     ]);
-    const config = {
-        llmConfigs: [{
-                name: answers.name,
-                provider: answers.provider,
-                model: answers.model,
-                apiKey: answers.apiKey,
-                endpoint: answers.endpoint || undefined
-            }],
-        modelRoutes: [],
-        auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-        antiDetectionConfig: { enabled: true, intensity: 5 },
-        storagePath: './cloud-book-projects'
+    const providerMap = {
+        'openai - OpenAI': 'openai',
+        'anthropic - Anthropic': 'anthropic',
+        'deepseek - DeepSeek': 'deepseek',
+        'ollama - Ollama (本地)': 'ollama',
+        'custom - 自定义': 'custom'
     };
-    console.log(chalk.green('\n✅ 模型配置已创建!'));
-    console.log(chalk.gray('请将以下内容添加到您的项目配置中:'));
-    console.log(JSON.stringify(config.llmConfigs[0], null, 2));
+    const newModelConfig = {
+        name: answers.name,
+        provider: providerMap[answers.provider] || answers.provider,
+        model: answers.model,
+        apiKey: answers.apiKey,
+        endpoint: answers.endpoint || undefined
+    };
+    const config = loadConfig();
+    if (!config.llmConfigs) {
+        config.llmConfigs = [];
+    }
+    const existingIndex = config.llmConfigs.findIndex((c) => c.name === newModelConfig.name);
+    if (existingIndex >= 0) {
+        config.llmConfigs[existingIndex] = newModelConfig;
+        console.log(chalk.yellow(`\n⚠️ 已存在同名配置，将进行更新`));
+    }
+    else {
+        config.llmConfigs.push(newModelConfig);
+    }
+    saveConfig(config);
+    console.log(chalk.green('\n✅ 模型配置已保存!'));
+    console.log(chalk.gray(`配置路径: ${getConfigFilePath()}`));
+    const testConfig = createCloudBookConfig([newModelConfig]);
+    try {
+        const cloudBook = new CloudBook(testConfig);
+        cloudBook.addModel(newModelConfig);
+        console.log(chalk.green('✅ 模型配置验证通过'));
+    }
+    catch (error) {
+        console.log(chalk.yellow(`⚠️ 配置已保存但验证失败: ${error.message}`));
+    }
 });
 program
     .command('lang')
     .description('设置语言')
     .action(async () => {
     console.log(chalk.blue('🌐 选择界面语言'));
+    const config = loadConfig();
+    const currentLang = config.language || 'zh-CN';
     const answers = await inquirer.prompt([
         {
             type: 'list',
             name: 'language',
             message: '选择语言:',
+            default: currentLang,
             choices: [
-                'zh-CN - 简体中文',
-                'zh-TW - 繁體中文',
-                'en-US - English',
-                'ja-JP - 日本語',
-                'ko-KR - 한국어',
-                'es-ES - Español',
-                'fr-FR - Français',
-                'de-DE - Deutsch'
+                { name: '简体中文 (zh-CN)', value: 'zh-CN' },
+                { name: '繁體中文 (zh-TW)', value: 'zh-TW' },
+                { name: 'English (en-US)', value: 'en-US' },
+                { name: '日本語 (ja-JP)', value: 'ja-JP' },
+                { name: '한국어 (ko-KR)', value: 'ko-KR' },
+                { name: 'Español (es-ES)', value: 'es-ES' },
+                { name: 'Français (fr-FR)', value: 'fr-FR' },
+                { name: 'Deutsch (de-DE)', value: 'de-DE' }
             ]
         }
     ]);
-    const langMap = {
+    config.language = answers.language;
+    saveConfig(config);
+    const cloudBook = new CloudBook({
+        ...createCloudBookConfig(),
+        i18nConfig: { primaryLanguage: answers.language }
+    });
+    cloudBook.setLanguage(answers.language);
+    const langMessages = {
         'zh-CN': '简体中文已设置',
         'zh-TW': '繁體中文已設置',
         'en-US': 'English language set',
@@ -327,7 +381,8 @@ program
         'fr-FR': 'Langue française définie',
         'de-DE': 'Sprache auf Deutsch eingestellt'
     };
-    console.log(chalk.green(`\n✅ ${langMap[answers.language]}`));
+    console.log(chalk.green(`\n✅ ${langMessages[answers.language] || '语言已设置'}`));
+    console.log(chalk.gray(`配置路径: ${getConfigFilePath()}`));
 });
 program.parse();
 //# sourceMappingURL=index.js.map

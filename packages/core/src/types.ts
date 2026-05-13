@@ -767,7 +767,7 @@ export interface NovelProject {
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'gemini' | 'custom';
+  provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom';
   name: string;
   endpoint?: string;
   baseURL?: string;

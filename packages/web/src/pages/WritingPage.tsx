@@ -98,8 +98,17 @@ const WritingPage: React.FC = () => {
     setAuditResult(null);
 
     try {
-      const result = await auditChapter(currentProject.id, {
-        content,
+      const tempChapter = {
+        id: `temp-${Date.now()}`,
+        title: `第${chapterNum}章`,
+        content: content,
+        wordCount: content.length,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      setCurrentChapter(tempChapter);
+
+      const result = await auditChapter(currentProject.id, tempChapter.id, {
         dimensions: autoAudit ? undefined : ['aiDetection', 'repetitiveness']
       });
 

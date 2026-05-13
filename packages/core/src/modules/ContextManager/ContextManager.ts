@@ -1,6 +1,7 @@
 /**
- * Cloud Book - 上下文管理器
- * 管理创作过程中的上下文注入
+ * Cloud Book - DSL 模板引擎
+ * 提供 @变量 语法进行上下文替换和模板插值
+ * 支持角色、位置、世界设定、章节、伏笔等引用
  */
 
 import { NovelProject, Chapter, Character, WorldSetting, StyleFingerprint, TruthFiles } from '../../types';

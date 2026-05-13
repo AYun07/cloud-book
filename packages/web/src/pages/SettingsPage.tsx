@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Typography, Form, Input, Select, Switch, Button, Divider, message, Space, Tag } from 'antd';
 import { GlobalOutlined, KeyOutlined, CloudOutlined, SafetyOutlined } from '@ant-design/icons';
+import { useCloudBook } from '../context/CloudBookContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -8,18 +9,64 @@ const { Password } = Input;
 
 const SettingsPage: React.FC = () => {
   const [form] = Form.useForm();
+  const { coreInstances, setAPIKey, configureLLM, currentProject } = useCloudBook();
   const [connectionMode, setConnectionMode] = useState<'online' | 'offline' | 'hybrid'>('online');
   const [enabledProviders, setEnabledProviders] = useState(['openai']);
+  const [testingConnection, setTestingConnection] = useState(false);
 
-  const handleSave = () => {
-    message.success('设置已保存');
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      
+      const apiKeys: Record<string, string> = {};
+      if (values.openaiKey) {
+        apiKeys['openai'] = values.openaiKey;
+      }
+      if (values.anthropicKey) {
+        apiKeys['anthropic'] = values.anthropicKey;
+      }
+      if (values.deepseekKey) {
+        apiKeys['deepseek'] = values.deepseekKey;
+      }
+      
+      for (const [provider, key] of Object.entries(apiKeys)) {
+        await setAPIKey(provider, key);
+      }
+      
+      if (coreInstances?.llmManager) {
+        coreInstances.llmManager.setDefaultProvider(values.defaultProvider || 'openai');
+      }
+      
+      message.success('设置已保存');
+    } catch (err) {
+      message.error('保存失败：' + (err instanceof Error ? err.message : '未知错误'));
+    }
   };
 
-  const handleTestConnection = () => {
-    message.loading('正在测试连接...');
-    setTimeout(() => {
-      message.success('连接测试成功!');
-    }, 1500);
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    const hide = message.loading('正在测试连接...', 0);
+    
+    try {
+      if (coreInstances?.llmManager) {
+        const isConnected = await coreInstances.llmManager.checkConnection?.() ?? 
+                           await coreInstances.auditEngine?.checkConnection?.() ??
+                           false;
+        
+        if (isConnected) {
+          message.success('连接测试成功!');
+        } else {
+          message.warning('连接可能存在问题，请检查 API Key');
+        }
+      } else {
+        message.warning('请先配置 API Key');
+      }
+    } catch (err) {
+      message.error('连接测试失败：' + (err instanceof Error ? err.message : '未知错误'));
+    } finally {
+      setTestingConnection(false);
+      hide();
+    }
   };
 
   const providers = [
@@ -83,10 +130,10 @@ const SettingsPage: React.FC = () => {
             {enabledProviders.includes('openai') && (
               <>
                 <Divider>OpenAI</Divider>
-                <Form.Item label="API Key">
+                <Form.Item name="openaiKey" label="API Key">
                   <Password placeholder="sk-..." />
                 </Form.Item>
-                <Form.Item label="模型">
+                <Form.Item name="openaiModel" label="模型">
                   <Select placeholder="选择模型" defaultValue="gpt-4">
                     {providers[0].models.map(m => (
                       <Option key={m} value={m}>{m}</Option>
@@ -99,10 +146,10 @@ const SettingsPage: React.FC = () => {
             {enabledProviders.includes('anthropic') && (
               <>
                 <Divider>Anthropic</Divider>
-                <Form.Item label="API Key">
+                <Form.Item name="anthropicKey" label="API Key">
                   <Password placeholder="sk-ant-..." />
                 </Form.Item>
-                <Form.Item label="模型">
+                <Form.Item name="anthropicModel" label="模型">
                   <Select placeholder="选择模型" defaultValue="claude-3-sonnet">
                     {providers[1].models.map(m => (
                       <Option key={m} value={m}>{m}</Option>
@@ -115,7 +162,7 @@ const SettingsPage: React.FC = () => {
             {enabledProviders.includes('deepseek') && (
               <>
                 <Divider>DeepSeek</Divider>
-                <Form.Item label="API Key">
+                <Form.Item name="deepseekKey" label="API Key">
                   <Password placeholder="DeepSeek API Key" />
                 </Form.Item>
               </>
@@ -124,10 +171,10 @@ const SettingsPage: React.FC = () => {
             {enabledProviders.includes('ollama') && (
               <>
                 <Divider>Ollama (本地)</Divider>
-                <Form.Item label="服务地址">
+                <Form.Item name="ollamaUrl" label="服务地址">
                   <Input placeholder="http://localhost:11434" defaultValue="http://localhost:11434" />
                 </Form.Item>
-                <Form.Item label="模型">
+                <Form.Item name="ollamaModel" label="模型">
                   <Select placeholder="选择模型">
                     {providers[3].models.map(m => (
                       <Option key={m} value={m}>{m}</Option>
@@ -137,7 +184,7 @@ const SettingsPage: React.FC = () => {
               </>
             )}
 
-            <Button icon={<CloudOutlined />} onClick={handleTestConnection}>
+            <Button icon={<CloudOutlined />} onClick={handleTestConnection} loading={testingConnection}>
               测试连接
             </Button>
           </Form>
