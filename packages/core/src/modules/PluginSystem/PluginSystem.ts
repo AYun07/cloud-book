@@ -1,9 +1,10 @@
 /**
  * Plugin System - 插件系统
- * 支持扩展命令和钩子
+ * 支持扩展命令、钩子以及 Lua 风格扩展
  */
 
 import { Plugin, PluginCommand, PluginHook } from '../../types';
+import { LuaInterpreter, LuaPlugin, LuaExecutionResult, LuaValue } from './LuaInterpreter';
 
 export interface PluginContext {
   projectId?: string;
@@ -29,14 +30,54 @@ export interface CommandResult {
   error?: string;
 }
 
+export interface LuaPluginInfo {
+  id: string;
+  name: string;
+  enabled: boolean;
+  registeredAt: Date;
+}
+
 export class PluginSystem {
   private plugins: Map<string, Plugin> = new Map();
   private commands: Map<string, PluginCommand> = new Map();
   private hooks: Map<string, PluginHook[]> = new Map();
   private storagePath: string;
+  private luaPlugins: Map<string, LuaPlugin> = new Map();
+  private luaInterpreters: Map<string, LuaInterpreter> = new Map();
+  private defaultLuaInterpreter: LuaInterpreter;
+  private luaBridgeFunctions: Map<string, (...args: any[]) => any> = new Map();
 
   constructor(storagePath: string = './data/plugins') {
     this.storagePath = storagePath;
+    this.defaultLuaInterpreter = new LuaInterpreter();
+    this.setupLuaBridge();
+  }
+
+  private setupLuaBridge(): void {
+    this.registerLuaBridgeFunction('log', (args: any[]) => {
+      const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      console.log('[Lua]', message);
+      return message;
+    });
+
+    this.registerLuaBridgeFunction('getContext', () => {
+      return {};
+    });
+
+    this.registerLuaBridgeFunction('setContext', (args: any[]) => {
+      const [key, value] = args;
+      return { key, value, success: true };
+    });
+
+    this.registerLuaBridgeFunction('executeCommand', (args: any[]) => {
+      const [commandName, params] = args;
+      return { commandName, params, success: true, simulated: true };
+    });
+
+    this.registerLuaBridgeFunction('triggerHook', (args: any[]) => {
+      const [hookName, data] = args;
+      return { hookName, data, success: true };
+    });
   }
 
   async register(plugin: Plugin): Promise<void> {
@@ -190,6 +231,220 @@ export class PluginSystem {
     } catch (error) {
       console.error('Failed to load plugin state:', error);
     }
+  }
+
+  public async loadLuaPlugin(pluginConfig: { id: string; name: string; script: string }): Promise<{ success: boolean; error?: string }> {
+    if (this.luaPlugins.has(pluginConfig.id)) {
+      return { success: false, error: `Lua plugin ${pluginConfig.id} is already loaded` };
+    }
+
+    try {
+      const interpreter = new LuaInterpreter();
+      this.setupLuaBridgeFunctions(interpreter);
+      
+      const result = interpreter.execute(pluginConfig.script);
+      
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      const luaPlugin: LuaPlugin = {
+        id: pluginConfig.id,
+        name: pluginConfig.name,
+        script: pluginConfig.script,
+        enabled: true
+      };
+
+      this.luaPlugins.set(pluginConfig.id, luaPlugin);
+      this.luaInterpreters.set(pluginConfig.id, interpreter);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private setupLuaBridgeFunctions(interpreter: LuaInterpreter): void {
+    this.luaBridgeFunctions.forEach((fn, name) => {
+      interpreter.setGlobal(name, {
+        type: 'function',
+        value: (args: LuaValue[]) => {
+          const jsArgs = args.map(a => this.luaValueToJs(a));
+          const result = fn(jsArgs);
+          return this.jsToLuaValue(result);
+        }
+      });
+    });
+  }
+
+  public executeLuaScript(script: string, pluginId?: string): LuaExecutionResult {
+    const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+    if (!interpreter) {
+      return { success: false, error: 'Lua interpreter not found' };
+    }
+
+    if (pluginId) {
+      this.setupLuaBridgeFunctions(interpreter);
+    }
+
+    return interpreter.execute(script);
+  }
+
+  public executeLuaFunction(pluginId: string, functionName: string, ...args: any[]): LuaExecutionResult {
+    const interpreter = this.luaInterpreters.get(pluginId);
+    if (!interpreter) {
+      return { success: false, error: `Lua plugin ${pluginId} not found` };
+    }
+
+    try {
+      const globalFn = interpreter.getGlobal(functionName);
+      if (!globalFn || globalFn.type !== 'function') {
+        return { success: false, error: `Function ${functionName} not found` };
+      }
+
+      const luaArgs = args.map(a => this.jsToLuaValue(a));
+      
+      if (typeof globalFn.value === 'function') {
+        const result = (globalFn.value as (args: LuaValue[]) => LuaValue)(luaArgs);
+        return { success: true, returnValue: result };
+      } else {
+        const func = globalFn.value as { params: string[]; body: any[]; closure: Map<string, LuaValue> };
+        const funcScope = new Map(func.closure);
+        for (let i = 0; i < func.params.length; i++) {
+          funcScope.set(func.params[i], luaArgs[i] || { type: 'nil', value: null });
+        }
+        let result: LuaValue = { type: 'nil', value: null };
+        for (const stmt of func.body) {
+          result = interpreter.executeStatement(stmt, funcScope);
+        }
+        return { success: true, returnValue: result };
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  public unloadLuaPlugin(pluginId: string): { success: boolean; error?: string } {
+    if (!this.luaPlugins.has(pluginId)) {
+      return { success: false, error: `Lua plugin ${pluginId} not found` };
+    }
+
+    this.luaPlugins.delete(pluginId);
+    this.luaInterpreters.delete(pluginId);
+
+    return { success: true };
+  }
+
+  public enableLuaPlugin(pluginId: string): { success: boolean; error?: string } {
+    const plugin = this.luaPlugins.get(pluginId);
+    if (!plugin) {
+      return { success: false, error: `Lua plugin ${pluginId} not found` };
+    }
+
+    plugin.enabled = true;
+    return { success: true };
+  }
+
+  public disableLuaPlugin(pluginId: string): { success: boolean; error?: string } {
+    const plugin = this.luaPlugins.get(pluginId);
+    if (!plugin) {
+      return { success: false, error: `Lua plugin ${pluginId} not found` };
+    }
+
+    plugin.enabled = false;
+    return { success: true };
+  }
+
+  public getLuaPlugins(): LuaPluginInfo[] {
+    return Array.from(this.luaPlugins.values()).map(p => ({
+      id: p.id,
+      name: p.name,
+      enabled: p.enabled,
+      registeredAt: new Date()
+    }));
+  }
+
+  public getLuaPlugin(pluginId: string): LuaPlugin | undefined {
+    return this.luaPlugins.get(pluginId);
+  }
+
+  public registerLuaBridgeFunction(name: string, fn: (...args: any[]) => any): void {
+    this.luaBridgeFunctions.set(name, fn);
+  }
+
+  public setLuaGlobal(pluginId: string | null, name: string, value: any): void {
+    const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+    if (interpreter) {
+      interpreter.setGlobal(name, this.jsToLuaValue(value));
+    }
+  }
+
+  public getLuaGlobal(pluginId: string | null, name: string): any {
+    const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+    if (interpreter) {
+      const value = interpreter.getGlobal(name);
+      return value ? this.luaValueToJs(value) : undefined;
+    }
+    return undefined;
+  }
+
+  private jsToLuaValue(value: any): LuaValue {
+    if (value === null || value === undefined) return { type: 'nil', value: null };
+    if (typeof value === 'number') return { type: 'number', value };
+    if (typeof value === 'string') return { type: 'string', value };
+    if (typeof value === 'boolean') return { type: 'boolean', value };
+    if (Array.isArray(value)) {
+      return {
+        type: 'table',
+        value: {
+          array: value.map(v => this.jsToLuaValue(v)),
+          dict: new Map()
+        }
+      };
+    }
+    if (typeof value === 'object') {
+      const dict = new Map<string, LuaValue>();
+      for (const [k, v] of Object.entries(value)) {
+        dict.set(k, this.jsToLuaValue(v));
+      }
+      return { type: 'table', value: { array: [], dict } };
+    }
+    return { type: 'userdata', value };
+  }
+
+  private luaValueToJs(value: LuaValue): any {
+    switch (value.type) {
+      case 'nil': return null;
+      case 'number': return value.value;
+      case 'string': return value.value;
+      case 'boolean': return value.value;
+      case 'table':
+        const table = value.value as { array: LuaValue[]; dict: Map<string, LuaValue> };
+        const hasNumericKeys = table.array.length > 0;
+        const hasStringKeys = table.dict.size > 0;
+        
+        if (hasNumericKeys && !hasStringKeys) {
+          return table.array.map(v => this.luaValueToJs(v));
+        }
+        
+        const obj: Record<string, any> = {};
+        for (let i = 0; i < table.array.length; i++) {
+          obj[String(i + 1)] = this.luaValueToJs(table.array[i]);
+        }
+        table.dict.forEach((v, k) => {
+          obj[k] = this.luaValueToJs(v);
+        });
+        return obj;
+      default: return value.value;
+    }
+  }
+
+  public hasLuaSupport(): boolean {
+    return true;
+  }
+
+  public getLuaVersion(): string {
+    return '5.3';
   }
 }
 

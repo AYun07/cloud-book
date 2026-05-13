@@ -311,6 +311,8 @@ export interface SchemaProperty {
   format?: string;
   items?: SchemaProperty;
   $ref?: string;
+  minimum?: number;
+  maximum?: number;
 }
 
 export interface SchemaDefinition {
@@ -929,11 +931,21 @@ export interface WritingPattern {
   examples: string[];
 }
 
+export interface CoverImageOptions {
+  size?: '1024x1024' | '1024x1792' | '1792x1024';
+  quality?: 'standard' | 'hd';
+  style?: 'vivid' | 'natural';
+  model?: 'dall-e-3' | 'dall-e-2';
+}
+
 export interface CoverConfig {
   style?: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom';
   mainColor?: string;
   characters?: string[];
   theme?: string;
+  imageOptions?: CoverImageOptions;
+  openaiApiKey?: string;
+  openaiEndpoint?: string;
 }
 
 export interface MindMapNode {

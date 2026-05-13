@@ -9,7 +9,8 @@ import {
   AuditResult, 
   WritingOptions,
   TruthFiles,
-  LLMConfig
+  LLMConfig,
+  ChapterSummary
 } from '../../types';
 import { LLMManager } from '../LLMProvider/LLMManager';
 import { AIAuditEngine } from '../AIAudit/AIAuditEngine';
@@ -22,21 +23,326 @@ export interface PipelineStep {
   onError?: (error: Error) => Promise<any>;
 }
 
+export interface ChapterContextState {
+  chapterNumber: number;
+  auditResult?: AuditResult;
+  contextSnapshot?: string;
+  completedAt?: Date;
+  summary?: ChapterSummary;
+  status: 'pending' | 'writing' | 'auditing' | 'completed' | 'failed';
+  error?: string;
+}
+
+export interface ContextSyncOptions {
+  enableSequentialSync: boolean;
+  waitForAuditResult: boolean;
+  enableConsistencyCheck: boolean;
+  maxWaitTimeMs: number;
+}
+
+const DEFAULT_SYNC_OPTIONS: ContextSyncOptions = {
+  enableSequentialSync: true,
+  waitForAuditResult: true,
+  enableConsistencyCheck: true,
+  maxWaitTimeMs: 30000
+};
+
 export class WritingPipeline {
   private llmManager: LLMManager;
   private auditEngine: AIAuditEngine;
   private antiDetectionEngine: AntiDetectionEngine;
   private contextManager: ContextManager;
+  private chapterStates: Map<number, ChapterContextState> = new Map();
+  private chapterLocks: Map<number, Promise<void>> = new Map();
+  private syncOptions: ContextSyncOptions;
 
   constructor(
     llmManager: LLMManager,
     auditEngine: AIAuditEngine,
-    antiDetectionEngine: AntiDetectionEngine
+    antiDetectionEngine: AntiDetectionEngine,
+    syncOptions?: Partial<ContextSyncOptions>
   ) {
     this.llmManager = llmManager;
     this.auditEngine = auditEngine;
     this.antiDetectionEngine = antiDetectionEngine;
     this.contextManager = new ContextManager();
+    this.syncOptions = { ...DEFAULT_SYNC_OPTIONS, ...syncOptions };
+  }
+
+  /**
+   * 获取章节上下文状态
+   */
+  getChapterContextState(chapterNumber: number): ChapterContextState | undefined {
+    return this.chapterStates.get(chapterNumber);
+  }
+
+  /**
+   * 获取所有章节状态
+   */
+  getAllChapterStates(): Map<number, ChapterContextState> {
+    return new Map(this.chapterStates);
+  }
+
+  /**
+   * 清除章节状态（用于新项目）
+   */
+  clearChapterStates(): void {
+    this.chapterStates.clear();
+    this.chapterLocks.clear();
+  }
+
+  /**
+   * 等待前面的章节完成
+   */
+  private async waitForPreviousChapters(
+    currentChapter: number,
+    requiredStatus: ChapterContextState['status'][] = ['completed']
+  ): Promise<void> {
+    const previousChapters: number[] = [];
+    for (let i = 1; i < currentChapter; i++) {
+      const state = this.chapterStates.get(i);
+      if (!state || requiredStatus.includes(state.status)) {
+        previousChapters.push(i);
+      }
+    }
+
+    const waitPromises: Promise<void>[] = [];
+    
+    for (const prevChapter of previousChapters) {
+      const lock = this.chapterLocks.get(prevChapter);
+      if (lock) {
+        waitPromises.push(
+          lock.then(() => {
+            const state = this.chapterStates.get(prevChapter);
+            if (state && !requiredStatus.includes(state.status)) {
+              throw new Error(`章节${prevChapter}未达到所需状态，当前状态: ${state.status}`);
+            }
+          }).catch(err => {
+            throw new Error(`等待章节${prevChapter}完成失败: ${err.message}`);
+          })
+        );
+      }
+    }
+
+    if (waitPromises.length > 0) {
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`等待前面章节完成超时，最大等待时间: ${this.syncOptions.maxWaitTimeMs}ms`));
+        }, this.syncOptions.maxWaitTimeMs);
+      });
+
+      await Promise.race([
+        Promise.all(waitPromises).then(() => {}),
+        timeoutPromise
+      ]);
+    }
+  }
+
+  /**
+   * 获取前面章节的审计结果
+   */
+  private getPreviousAuditResults(currentChapter: number): AuditResult[] {
+    const results: AuditResult[] = [];
+    for (let i = 1; i < currentChapter; i++) {
+      const state = this.chapterStates.get(i);
+      if (state?.auditResult) {
+        results.push(state.auditResult);
+      }
+    }
+    return results;
+  }
+
+  /**
+   * 获取前面章节的摘要
+   */
+  private getPreviousChapterSummaries(currentChapter: number): ChapterSummary[] {
+    const summaries: ChapterSummary[] = [];
+    for (let i = 1; i < currentChapter; i++) {
+      const state = this.chapterStates.get(i);
+      if (state?.summary) {
+        summaries.push(state.summary);
+      }
+    }
+    return summaries;
+  }
+
+  /**
+   * 上下文一致性检查
+   */
+  private async checkContextConsistency(
+    project: NovelProject,
+    currentChapter: number,
+    truthFiles: TruthFiles
+  ): Promise<{ consistent: boolean; warnings: string[] }> {
+    const warnings: string[] = [];
+    const previousSummaries = this.getPreviousChapterSummaries(currentChapter);
+
+    if (previousSummaries.length === 0) {
+      return { consistent: true, warnings };
+    }
+
+    const currentState = truthFiles.currentState;
+    const protagonist = currentState.protagonist;
+
+    for (const summary of previousSummaries.slice(-3)) {
+      const charactersInChapter = summary.charactersPresent || [];
+      
+      for (const charName of charactersInChapter) {
+        const char = project.characters?.find(
+          c => c.name === charName || c.aliases?.includes(charName)
+        );
+        
+        if (char) {
+          const stateChanges = summary.stateChanges || [];
+          const hasLocationChange = stateChanges.some(
+            (s: string) => s.toLowerCase().includes('location') || s.toLowerCase().includes('地点')
+          );
+          
+          if (!hasLocationChange) {
+            const relationshipEntry = Object.entries(currentState.relationshipSnapshot || {})
+              .find(([name]) => name === charName);
+            
+            if (!relationshipEntry) {
+              warnings.push(`角色"${charName}"在前面章节出现过但未在关系快照中找到`);
+            }
+          }
+        }
+      }
+
+      const newHooks = summary.newHooks || [];
+      for (const hook of newHooks) {
+        const pendingHook = truthFiles.pendingHooks?.find(
+          (h: any) => h.description === hook || h.id === hook
+        );
+        if (!pendingHook) {
+          warnings.push(`伏笔"${hook}"在真相文件中未找到`);
+        }
+      }
+    }
+
+    const particleLedger = truthFiles.particleLedger || [];
+    for (const particle of particleLedger) {
+      if (particle.lastUpdatedChapter >= currentChapter) {
+        warnings.push(`物品"${particle.name}"的最后更新章节(${particle.lastUpdatedChapter})不应该 >= 当前章节(${currentChapter})`);
+      }
+    }
+
+    return { consistent: warnings.length === 0, warnings };
+  }
+
+  /**
+   * 更新章节上下文状态
+   */
+  private updateChapterState(
+    chapterNumber: number,
+    update: Partial<ChapterContextState>
+  ): void {
+    const current = this.chapterStates.get(chapterNumber) || {
+      chapterNumber,
+      status: 'pending' as const
+    };
+    this.chapterStates.set(chapterNumber, { ...current, ...update });
+  }
+
+  /**
+   * 注册章节锁
+   */
+  private registerChapterLock(chapterNumber: number): void {
+    if (!this.chapterLocks.has(chapterNumber)) {
+      let resolveLock: (() => void) | undefined;
+      let rejectLock: ((err: Error) => void) | undefined;
+      
+      const lockPromise = new Promise<void>((resolve, reject) => {
+        resolveLock = resolve;
+        rejectLock = reject;
+      });
+      
+      (lockPromise as any)._resolve = resolveLock;
+      (lockPromise as any)._reject = rejectLock;
+      this.chapterLocks.set(chapterNumber, lockPromise);
+    }
+  }
+
+  /**
+   * 释放章节锁
+   */
+  private releaseChapterLock(chapterNumber: number, error?: Error): void {
+    const lock = this.chapterLocks.get(chapterNumber);
+    if (lock) {
+      if (error) {
+        (lock as any)._reject?.(error);
+      } else {
+        (lock as any)._resolve?.();
+      }
+      this.chapterLocks.delete(chapterNumber);
+    }
+  }
+
+  /**
+   * 构建增强的上下文（包含前面章节的审计结果）
+   */
+  private buildEnhancedContext(
+    project: NovelProject,
+    chapterNumber: number,
+    truthFiles: TruthFiles
+  ): string {
+    const baseContext = this.contextManager.buildWritingContext(
+      project,
+      chapterNumber,
+      truthFiles
+    );
+
+    const previousAuditResults = this.getPreviousAuditResults(chapterNumber);
+    
+    if (previousAuditResults.length === 0) {
+      return baseContext;
+    }
+
+    const auditContextParts: string[] = [];
+    
+    const recentAudits = previousAuditResults.slice(-3);
+    
+    const commonIssues: Map<string, number> = new Map();
+    for (const audit of recentAudits) {
+      for (const issue of audit.issues) {
+        const count = commonIssues.get(issue.type) || 0;
+        commonIssues.set(issue.type, count + 1);
+      }
+    }
+
+    const recurringIssues = Array.from(commonIssues.entries())
+      .filter(([_, count]) => count >= 2)
+      .map(([type]) => type);
+
+    if (recurringIssues.length > 0) {
+      auditContextParts.push(`## 前面章节发现的常见问题（需避免）`);
+      auditContextParts.push(`- ${recurringIssues.join('\n- ')}`);
+    }
+
+    let passedCount = 0;
+    let avgScore = 0;
+    for (const audit of recentAudits) {
+      if (audit.passed) passedCount++;
+      avgScore += audit.score;
+    }
+    avgScore = recentAudits.length > 0 ? avgScore / recentAudits.length : 0;
+
+    auditContextParts.push(`## 前面章节质量概况`);
+    auditContextParts.push(`- 通过率: ${passedCount}/${recentAudits.length}`);
+    auditContextParts.push(`- 平均分: ${avgScore.toFixed(1)}/100`);
+
+    const lastAudit = previousAuditResults[previousAuditResults.length - 1];
+    if (lastAudit && lastAudit.dimensions) {
+      const lowScoringDims = lastAudit.dimensions
+        .filter(d => d.score < 70)
+        .map(d => `${d.name}(${d.score})`);
+      
+      if (lowScoringDims.length > 0) {
+        auditContextParts.push(`- 前面章节得分较低维度: ${lowScoringDims.join(', ')}`);
+      }
+    }
+
+    return baseContext + '\n\n' + auditContextParts.join('\n');
   }
 
   /**
@@ -52,59 +358,211 @@ export class WritingPipeline {
     auditResult?: AuditResult;
     humanized?: string;
   }> {
-    // 1. 构建上下文
-    const context = this.contextManager.buildWritingContext(
-      project,
-      chapterNumber,
-      truthFiles
-    );
+    this.registerChapterLock(chapterNumber);
 
-    // 2. 生成正文
-    const draftContent = await this.generateDraft(
-      project,
-      chapterNumber,
-      context,
-      options
-    );
+    try {
+      if (this.syncOptions.enableSequentialSync) {
+        await this.waitForPreviousChapters(chapterNumber, ['completed']);
+      }
 
-    // 3. 审计
-    let auditResult: AuditResult | undefined;
-    if (options?.autoAudit !== false) {
-      auditResult = await this.auditEngine.audit(draftContent, truthFiles);
-    }
+      this.updateChapterState(chapterNumber, { status: 'writing' });
 
-    // 4. 修订（如果审计不通过）
-    let finalContent = draftContent;
-    if (auditResult && !auditResult.passed) {
-      finalContent = await this.reviseBasedOnAudit(
-        draftContent,
+      if (this.syncOptions.enableConsistencyCheck) {
+        const consistency = await this.checkContextConsistency(project, chapterNumber, truthFiles);
+        if (!consistency.consistent) {
+          console.warn(`章节${chapterNumber}上下文一致性检查发现问题:`, consistency.warnings);
+        }
+      }
+
+      const context = this.buildEnhancedContext(project, chapterNumber, truthFiles);
+
+      const draftContent = await this.generateDraft(
+        project,
+        chapterNumber,
+        context,
+        options
+      );
+
+      this.updateChapterState(chapterNumber, { status: 'auditing' });
+
+      let auditResult: AuditResult | undefined;
+      if (options?.autoAudit !== false) {
+        auditResult = await this.auditEngine.audit(draftContent, truthFiles);
+        
+        const previousAudits = this.getPreviousAuditResults(chapterNumber);
+        if (previousAudits.length > 0 && auditResult) {
+          const consistencyIssues = this.checkAuditConsistency(previousAudits, auditResult);
+          if (consistencyIssues.length > 0) {
+            console.warn(`章节${chapterNumber}与前面章节审计一致性检查:`, consistencyIssues);
+          }
+        }
+      }
+
+      let finalContent = draftContent;
+      if (auditResult && !auditResult.passed) {
+        finalContent = await this.reviseBasedOnAudit(
+          draftContent,
+          auditResult,
+          truthFiles,
+          context
+        );
+      }
+
+      let humanized: string | undefined;
+      if (options?.autoHumanize) {
+        humanized = await this.antiDetectionEngine.humanize(finalContent, this.llmManager);
+        finalContent = humanized;
+      }
+
+      const summary = await this.generateChapterSummary(
+        finalContent,
+        chapterNumber,
+        project,
+        auditResult
+      );
+
+      const chapter: Chapter = {
+        id: this.generateId(),
+        number: chapterNumber,
+        title: `第${this.toChineseNumber(chapterNumber)}章`,
+        status: auditResult?.passed ? 'draft' : 'reviewing',
+        wordCount: this.countWords(finalContent),
+        content: finalContent,
         auditResult,
-        truthFiles,
-        context
+        summary: summary?.keyEvents?.join('; ') || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      this.updateChapterState(chapterNumber, {
+        status: 'completed',
+        auditResult,
+        summary,
+        completedAt: new Date()
+      });
+
+      return { chapter, auditResult, humanized };
+
+    } catch (error) {
+      this.updateChapterState(chapterNumber, {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    } finally {
+      this.releaseChapterLock(
+        chapterNumber,
+        undefined
       );
     }
+  }
 
-    // 5. 去AI味（如果启用）
-    let humanized: string | undefined;
-    if (options?.autoHumanize) {
-      humanized = await this.antiDetectionEngine.humanize(finalContent, this.llmManager);
-      finalContent = humanized;
+  /**
+   * 检查审计结果一致性
+   */
+  private checkAuditConsistency(
+    previousAudits: AuditResult[],
+    currentAudit: AuditResult
+  ): string[] {
+    const issues: string[] = [];
+
+    const prevAvgScores = previousAudits.map(a => a.score);
+    const prevAvg = prevAvgScores.reduce((a, b) => a + b, 0) / prevAvgScores.length;
+    
+    if (Math.abs(currentAudit.score - prevAvg) > 30) {
+      issues.push(`当前审计分数(${currentAudit.score})与历史平均(${prevAvg.toFixed(1)})差距过大`);
     }
 
-    // 6. 创建章节对象
-    const chapter: Chapter = {
-      id: this.generateId(),
-      number: chapterNumber,
-      title: `第${this.toChineseNumber(chapterNumber)}章`,
-      status: auditResult?.passed ? 'draft' : 'reviewing',
-      wordCount: this.countWords(finalContent),
-      content: finalContent,
-      auditResult,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    const prevFailedDimensions = new Set<string>();
+    for (const audit of previousAudits) {
+      for (const dim of audit.dimensions) {
+        if (!dim.passed) {
+          prevFailedDimensions.add(dim.name);
+        }
+      }
+    }
 
-    return { chapter, auditResult, humanized };
+    for (const dim of currentAudit.dimensions) {
+      if (!dim.passed && prevFailedDimensions.has(dim.name)) {
+        issues.push(`维度"${dim.name}"在多个章节中持续失败`);
+      }
+    }
+
+    return issues;
+  }
+
+  /**
+   * 生成章节摘要
+   */
+  private async generateChapterSummary(
+    content: string,
+    chapterNumber: number,
+    project: NovelProject,
+    auditResult?: AuditResult
+  ): Promise<ChapterSummary> {
+    const keyEvents = this.extractKeyEvents(content);
+    const charactersPresent = this.extractCharacters(content, project);
+
+    return {
+      chapterId: this.generateId(),
+      chapterNumber,
+      title: `第${this.toChineseNumber(chapterNumber)}章`,
+      charactersPresent,
+      keyEvents,
+      stateChanges: [],
+      newHooks: this.extractNewHooks(content),
+      resolvedHooks: []
+    };
+  }
+
+  private extractKeyEvents(content: string): string[] {
+    const events: string[] = [];
+    const eventPatterns = [
+      /(?:发生|遇到|发现|获得|失去|决定|发生|完成)([^，。,]+)/g,
+      /(?:主角|他|她)([^，。,]+(?:了|完成|发生|遇到|发现)[^，。,]+)/g
+    ];
+
+    for (const pattern of eventPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null && events.length < 5) {
+        if (match[1].length > 5 && match[1].length < 50) {
+          events.push(match[1].trim());
+        }
+      }
+    }
+
+    return events.slice(0, 5);
+  }
+
+  private extractCharacters(content: string, project: NovelProject): string[] {
+    const present: string[] = [];
+    const charNames = project.characters?.map(c => c.name) || [];
+
+    for (const name of charNames) {
+      if (content.includes(name)) {
+        present.push(name);
+      }
+    }
+
+    return present;
+  }
+
+  private extractNewHooks(content: string): string[] {
+    const hooks: string[] = [];
+    const hookPatterns = [
+      /(?:突然|出人意料|没想到|令人震惊)([^，。,]+)/g,
+      /(?:埋下|设置|暗示)([^，。,]+伏笔?)/g,
+      /(?:悬念|疑问)([^，。,]+)/g
+    ];
+
+    for (const pattern of hookPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null && hooks.length < 3) {
+        hooks.push(match[1].trim());
+      }
+    }
+
+    return hooks;
   }
 
   /**
@@ -412,6 +870,7 @@ ${content}
 
   /**
    * 批量生成章节
+   * 支持跨章节上下文同步
    */
   async generateChaptersBatch(
     project: NovelProject,
@@ -424,26 +883,94 @@ ${content}
     const chapters: Chapter[] = [];
     const total = endChapter - startChapter + 1;
     const parallelCount = options?.parallelCount || 2;
-    
+    const enableSync = this.syncOptions.enableSequentialSync;
+
+    this.clearChapterStates();
+
+    if (enableSync) {
+      await this.executeSequentialBatch(
+        project, startChapter, endChapter, truthFiles, options,
+        chapters, total, onProgress
+      );
+    } else {
+      await this.executeParallelBatch(
+        project, startChapter, endChapter, truthFiles, options,
+        chapters, total, parallelCount, onProgress
+      );
+    }
+
+    return chapters;
+  }
+
+  /**
+   * 顺序执行批次（确保跨章节上下文同步）
+   */
+  private async executeSequentialBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    truthFiles: TruthFiles,
+    options: WritingOptions | undefined,
+    chapters: Chapter[],
+    total: number,
+    onProgress?: (current: number, total: number, chapter?: Chapter) => void
+  ): Promise<void> {
+    for (let i = startChapter; i <= endChapter; i++) {
+      try {
+        const result = await this.generateChapter(project, i, truthFiles, options);
+        chapters.push(result.chapter);
+        onProgress?.(chapters.length, total, result.chapter);
+
+        if (result.chapter.auditResult) {
+          truthFiles.chapterSummaries.push({
+            chapterId: result.chapter.id,
+            chapterNumber: result.chapter.number,
+            title: result.chapter.title,
+            charactersPresent: result.chapter.characters || [],
+            keyEvents: [],
+            stateChanges: [],
+            newHooks: [],
+            resolvedHooks: []
+          });
+        }
+      } catch (error) {
+        console.error(`章节${i}生成失败:`, error);
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * 并行执行批次（保持有限并行）
+   */
+  private async executeParallelBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    truthFiles: TruthFiles,
+    options: WritingOptions | undefined,
+    chapters: Chapter[],
+    total: number,
+    parallelCount: number,
+    onProgress?: (current: number, total: number, chapter?: Chapter) => void
+  ): Promise<void> {
     for (let i = startChapter; i <= endChapter; i += parallelCount) {
       const batch: Promise<{ chapter: Chapter; chapterNumber: number }>[] = [];
-      
+
       for (let j = i; j < Math.min(i + parallelCount, endChapter + 1); j++) {
         batch.push(
           this.generateChapter(project, j, truthFiles, options)
             .then(result => ({ chapter: result.chapter, chapterNumber: j }))
         );
       }
-      
+
       const results = await Promise.all(batch);
-      
+
       for (const result of results.sort((a, b) => a.chapterNumber - b.chapterNumber)) {
         chapters.push(result.chapter);
         onProgress?.(chapters.length, total, result.chapter);
       }
     }
-    
-    return chapters;
   }
 
   /**

@@ -1,8 +1,10 @@
 /**
- * Cloud Book - 知识图谱管理器 V2
- * 支持多种图数据库后端
+ * Cloud Book - 知识图谱管理器 V3
+ * 支持多种图数据库后端（Memory / Neo4j）
  * 真正的图遍历算法
  */
+
+import neo4j, { Driver, Session } from 'neo4j-driver';
 
 export interface KGNode {
   id: string;
@@ -50,8 +52,16 @@ export interface KGStats {
 
 export type GraphBackend = 'memory' | 'neo4j' | 'dgraph' | 'arango';
 
+export interface Neo4jConfig {
+  uri: string;
+  username: string;
+  password: string;
+  database?: string;
+}
+
 export interface KGConfig {
   backend: GraphBackend;
+  neo4j?: Neo4jConfig;
   endpoint?: string;
   apiKey?: string;
   database?: string;
@@ -65,6 +75,8 @@ export class KnowledgeGraphManager {
   private relationshipIndex: Map<string, Set<string>> = new Map();
   private llmProvider: any = null;
   private embeddingProvider: any = null;
+  private neo4jDriver: Driver | null = null;
+  private isConnected: boolean = false;
 
   constructor(config?: Partial<KGConfig>) {
     this.config = {
@@ -81,9 +93,113 @@ export class KnowledgeGraphManager {
     this.embeddingProvider = provider;
   }
 
-  /**
-   * 添加节点
-   */
+  async connectNeo4j(config: Neo4jConfig): Promise<boolean> {
+    try {
+      this.neo4jDriver = neo4j.driver(
+        config.uri,
+        neo4j.auth.basic(config.username, config.password),
+        {
+          maxConnectionPoolSize: 50,
+          connectionAcquisitionTimeout: 30000
+        }
+      );
+
+      const session = this.neo4jDriver.session({
+        database: config.database || 'neo4j'
+      });
+
+      await session.run('RETURN 1');
+      await session.close();
+
+      this.config.backend = 'neo4j';
+      this.config.neo4j = config;
+      this.isConnected = true;
+
+      await this.initializeNeo4jSchema();
+
+      return true;
+    } catch (error) {
+      console.error('Failed to connect to Neo4j:', error);
+      this.neo4jDriver = null;
+      this.isConnected = false;
+      return false;
+    }
+  }
+
+  async disconnectNeo4j(): Promise<void> {
+    if (this.neo4jDriver) {
+      await this.neo4jDriver.close();
+      this.neo4jDriver = null;
+    }
+    this.isConnected = false;
+    this.config.backend = 'memory';
+  }
+
+  getConnectionStatus(): { connected: boolean; backend: GraphBackend } {
+    return {
+      connected: this.isConnected,
+      backend: this.config.backend
+    };
+  }
+
+  private async initializeNeo4jSchema(): Promise<void> {
+    if (!this.isConnected || !this.neo4jDriver) return;
+
+    const session = this.neo4jDriver.session();
+    try {
+      await session.run(`
+        CREATE CONSTRAINT IF NOT EXISTS FOR (n:KGNode) REQUIRE n.kg_id IS UNIQUE
+      `);
+      await session.run(`
+        CREATE INDEX IF NOT EXISTS FOR (n:KGNode) ON (n.type)
+      `);
+      await session.run(`
+        CREATE INDEX IF NOT EXISTS FOR (n:KGNode) ON (n.name)
+      `);
+    } catch (error) {
+      console.warn('Schema initialization warning:', error);
+    } finally {
+      await session.close();
+    }
+  }
+
+  private async getSession(): Promise<Session | null> {
+    if (!this.isConnected || !this.neo4jDriver) return null;
+    
+    return this.neo4jDriver.session({
+      database: this.config.neo4j?.database || 'neo4j'
+    });
+  }
+
+  private mapNeo4jNode(node: any): KGNode {
+    const props = node.properties;
+    
+    return {
+      id: props.kg_id,
+      type: props.type,
+      name: props.name,
+      properties: props.properties ? JSON.parse(props.properties) : {},
+      embedding: props.embedding ? JSON.parse(props.embedding) : undefined,
+      createdAt: new Date(props.createdAt),
+      updatedAt: new Date(props.updatedAt)
+    };
+  }
+
+  private mapNeo4jRelationship(rel: any, sourceId: string, targetId: string): KGRelationship {
+    const props = rel.properties;
+    
+    return {
+      id: props.kg_id,
+      sourceId,
+      targetId,
+      type: props.type,
+      properties: props.properties ? JSON.parse(props.properties) : {},
+      weight: props.weight || 1,
+      bidirectional: props.bidirectional || false,
+      createdAt: new Date(props.createdAt)
+    };
+  }
+
   async addNode(
     type: KGNode['type'],
     name: string,
@@ -110,15 +226,46 @@ export class KnowledgeGraphManager {
       updatedAt: new Date()
     };
 
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.addNodeToNeo4j(node);
+    }
+
     this.nodes.set(id, node);
     this.adjacencyList.set(id, new Set());
-
     return node;
   }
 
-  /**
-   * 添加关系
-   */
+  private async addNodeToNeo4j(node: KGNode): Promise<KGNode> {
+    const session = await this.getSession();
+    if (!session) throw new Error('Neo4j session not available');
+
+    try {
+      await session.run(
+        `CREATE (n:KGNode {
+          kg_id: $id,
+          type: $type,
+          name: $name,
+          properties: $properties,
+          embedding: $embedding,
+          createdAt: datetime($createdAt),
+          updatedAt: datetime($updatedAt)
+        })`,
+        {
+          id: node.id,
+          type: node.type,
+          name: node.name,
+          properties: JSON.stringify(node.properties),
+          embedding: node.embedding ? JSON.stringify(node.embedding) : null,
+          createdAt: node.createdAt.toISOString(),
+          updatedAt: node.updatedAt.toISOString()
+        }
+      );
+      return node;
+    } finally {
+      await session.close();
+    }
+  }
+
   async addRelationship(
     sourceId: string,
     targetId: string,
@@ -127,8 +274,8 @@ export class KnowledgeGraphManager {
     weight: number = 1,
     bidirectional: boolean = false
   ): Promise<KGRelationship | null> {
-    const source = this.nodes.get(sourceId);
-    const target = this.nodes.get(targetId);
+    const source = this.findNode(sourceId);
+    const target = this.findNode(targetId);
     
     if (!source || !target) {
       throw new Error('Source or target node not found');
@@ -146,6 +293,10 @@ export class KnowledgeGraphManager {
       bidirectional,
       createdAt: new Date()
     };
+
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.addRelationshipToNeo4j(relationship);
+    }
 
     this.relationships.set(id, relationship);
     
@@ -169,34 +320,137 @@ export class KnowledgeGraphManager {
     return relationship;
   }
 
-  /**
-   * 查找节点
-   */
-  findNode(id: string): KGNode | undefined {
+  private async addRelationshipToNeo4j(rel: KGRelationship): Promise<KGRelationship> {
+    const session = await this.getSession();
+    if (!session) throw new Error('Neo4j session not available');
+
+    try {
+      await session.run(
+        `MATCH (source:KGNode {kg_id: $sourceId})
+         MATCH (target:KGNode {kg_id: $targetId})
+         CREATE (source)-[r:KG_RELATIONSHIP {
+           kg_id: $id,
+           type: $type,
+           properties: $properties,
+           weight: $weight,
+           bidirectional: $bidirectional,
+           createdAt: datetime($createdAt)
+         }]->(target)`,
+        {
+          id: rel.id,
+          sourceId: rel.sourceId,
+          targetId: rel.targetId,
+          type: rel.type,
+          properties: JSON.stringify(rel.properties),
+          weight: rel.weight,
+          bidirectional: rel.bidirectional,
+          createdAt: rel.createdAt.toISOString()
+        }
+      );
+
+      if (rel.bidirectional) {
+        await session.run(
+          `MATCH (source:KGNode {kg_id: $sourceId})
+           MATCH (target:KGNode {kg_id: $targetId})
+           CREATE (target)-[r:KG_RELATIONSHIP {
+             kg_id: $id_rev,
+             type: $type,
+             properties: $properties,
+             weight: $weight,
+             bidirectional: true,
+             createdAt: datetime($createdAt)
+           }]->(source)`,
+          {
+            id_rev: `${rel.id}_rev`,
+            sourceId: rel.sourceId,
+            targetId: rel.targetId,
+            type: rel.type,
+            properties: JSON.stringify(rel.properties),
+            weight: rel.weight,
+            createdAt: rel.createdAt.toISOString()
+          }
+        );
+      }
+
+      return rel;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async findNode(id: string): Promise<KGNode | undefined> {
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.findNodeInNeo4j(id);
+    }
     return this.nodes.get(id);
   }
 
-  /**
-   * 查找节点（通过属性）
-   */
-  findNodesByProperty(
+  private async findNodeInNeo4j(id: string): Promise<KGNode | undefined> {
+    const session = await this.getSession();
+    if (!session) return undefined;
+
+    try {
+      const result = await session.run(
+        'MATCH (n:KGNode {kg_id: $id}) RETURN n',
+        { id }
+      );
+      const records = result.records;
+      if (records.length > 0) {
+        return this.mapNeo4jNode(records[0].get('n'));
+      }
+      return undefined;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async findNodesByProperty(
     type: KGNode['type'],
     property: string,
     value: any
-  ): KGNode[] {
+  ): Promise<KGNode[]> {
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.findNodesByPropertyInNeo4j(type, property, value);
+    }
+
     return Array.from(this.nodes.values()).filter(
       node => node.type === type && node.properties[property] === value
     );
   }
 
-  /**
-   * 语义搜索节点
-   */
+  private async findNodesByPropertyInNeo4j(
+    type: KGNode['type'],
+    property: string,
+    value: any
+  ): Promise<KGNode[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+
+    try {
+      const result = await session.run(
+        `MATCH (n:KGNode)
+         WHERE n.type = $type AND n.properties[$property] = $value
+         RETURN n`,
+        { type, property, value: String(value) }
+      );
+      
+      return result.records.map(record => this.mapNeo4jNode(record.get('n')));
+    } finally {
+      await session.close();
+    }
+  }
+
   async semanticSearch(
     query: string,
     type?: KGNode['type'],
     limit: number = 10
   ): Promise<KGNode[]> {
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      if (!this.embeddingProvider) {
+        return await this.semanticSearchInNeo4j(query, type, limit);
+      }
+    }
+
     if (!this.embeddingProvider) {
       return Array.from(this.nodes.values())
         .filter(node => !type || node.type === type)
@@ -222,10 +476,41 @@ export class KnowledgeGraphManager {
     return scored.slice(0, limit).map(s => s.node);
   }
 
-  /**
-   * 获取节点的所有关系
-   */
-  getNodeRelationships(nodeId: string): KGRelationship[] {
+  private async semanticSearchInNeo4j(
+    query: string,
+    type?: KGNode['type'],
+    limit: number = 10
+  ): Promise<KGNode[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+
+    try {
+      let cypher = `
+        MATCH (n:KGNode)
+        WHERE n.name CONTAINS $query OR n.properties CONTAINS $query
+      `;
+      if (type) {
+        cypher += ' AND n.type = $type';
+      }
+      cypher += ' RETURN n LIMIT toInteger($limit)';
+
+      const result = await session.run(cypher, {
+        query,
+        type: type || null,
+        limit
+      });
+      
+      return result.records.map(record => this.mapNeo4jNode(record.get('n')));
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getNodeRelationships(nodeId: string): Promise<KGRelationship[]> {
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.getNodeRelationshipsInNeo4j(nodeId);
+    }
+
     const relIds = this.adjacencyList.get(nodeId);
     if (!relIds) return [];
 
@@ -235,10 +520,32 @@ export class KnowledgeGraphManager {
       .filter(rel => rel.sourceId === nodeId || rel.bidirectional);
   }
 
-  /**
-   * 获取两个节点之间的关系
-   */
-  getRelationship(sourceId: string, targetId: string): KGRelationship | undefined {
+  private async getNodeRelationshipsInNeo4j(nodeId: string): Promise<KGRelationship[]> {
+    const session = await this.getSession();
+    if (!session) return [];
+
+    try {
+      const result = await session.run(
+        `MATCH (n:KGNode {kg_id: $nodeId})-[r:KG_RELATIONSHIP]->(target:KGNode)
+         RETURN r, target`,
+        { nodeId }
+      );
+      
+      return result.records.map(record => {
+        const rel = record.get('r');
+        const target = record.get('target');
+        return this.mapNeo4jRelationship(rel, nodeId, target.properties.kg_id);
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getRelationship(sourceId: string, targetId: string): Promise<KGRelationship | undefined> {
+    if (this.isConnected && this.config.backend === 'neo4j') {
+      return await this.getRelationshipInNeo4j(sourceId, targetId);
+    }
+
     const relIds = this.adjacencyList.get(sourceId);
     if (!relIds) return undefined;
 
@@ -251,9 +558,26 @@ export class KnowledgeGraphManager {
     return undefined;
   }
 
-  /**
-   * 图遍历：BFS
-   */
+  private async getRelationshipInNeo4j(sourceId: string, targetId: string): Promise<KGRelationship | undefined> {
+    const session = await this.getSession();
+    if (!session) return undefined;
+
+    try {
+      const result = await session.run(
+        `MATCH (source:KGNode {kg_id: $sourceId})-[r:KG_RELATIONSHIP]->(target:KGNode {kg_id: $targetId})
+         RETURN r`,
+        { sourceId, targetId }
+      );
+      
+      if (result.records.length > 0) {
+        return this.mapNeo4jRelationship(result.records[0].get('r'), sourceId, targetId);
+      }
+      return undefined;
+    } finally {
+      await session.close();
+    }
+  }
+
   traverseBFS(
     startNodeId: string,
     options?: {
@@ -278,7 +602,7 @@ export class KnowledgeGraphManager {
       const node = this.nodes.get(id);
       if (node) result.push(node);
 
-      const rels = this.getNodeRelationships(id);
+      const rels = this.getNodeRelationshipsSync(id);
       for (const rel of rels) {
         if (relTypes && !relTypes.includes(rel.type)) continue;
         
@@ -300,9 +624,16 @@ export class KnowledgeGraphManager {
     return result;
   }
 
-  /**
-   * 图遍历：DFS
-   */
+  private getNodeRelationshipsSync(nodeId: string): KGRelationship[] {
+    const relIds = this.adjacencyList.get(nodeId);
+    if (!relIds) return [];
+
+    return Array.from(relIds)
+      .map(id => this.relationships.get(id))
+      .filter((rel): rel is KGRelationship => rel !== undefined)
+      .filter(rel => rel.sourceId === nodeId || rel.bidirectional);
+  }
+
   traverseDFS(
     startNodeId: string,
     options?: {
@@ -324,7 +655,7 @@ export class KnowledgeGraphManager {
       const node = this.nodes.get(nodeId);
       if (node) result.push(node);
 
-      const rels = this.getNodeRelationships(nodeId);
+      const rels = this.getNodeRelationshipsSync(nodeId);
       for (const rel of rels) {
         if (relTypes && !relTypes.includes(rel.type)) continue;
         
@@ -345,9 +676,6 @@ export class KnowledgeGraphManager {
     return result;
   }
 
-  /**
-   * 查找最短路径（Dijkstra算法）
-   */
   async findShortestPath(
     startNodeId: string,
     endNodeId: string,
@@ -385,7 +713,7 @@ export class KnowledgeGraphManager {
 
       unvisited.delete(current);
 
-      const rels = this.getNodeRelationships(current);
+      const rels = this.getNodeRelationshipsSync(current);
       for (const rel of rels) {
         if (relTypes && !relTypes.includes(rel.type)) continue;
         
@@ -429,9 +757,6 @@ export class KnowledgeGraphManager {
     };
   }
 
-  /**
-   * 查找所有路径（限制深度）
-   */
   findAllPaths(
     startNodeId: string,
     endNodeId: string,
@@ -457,7 +782,7 @@ export class KnowledgeGraphManager {
         return;
       }
 
-      const rels = this.getNodeRelationships(current);
+      const rels = this.getNodeRelationshipsSync(current);
       for (const rel of rels) {
         const nextId = rel.sourceId === current ? rel.targetId : rel.sourceId;
         if (visited.has(nextId)) continue;
@@ -482,16 +807,13 @@ export class KnowledgeGraphManager {
     return paths;
   }
 
-  /**
-   * 查找关键节点（PageRank）
-   */
   calculatePageRank(damping: number = 0.85, iterations: number = 100): Map<string, number> {
     const ranks = new Map<string, number>();
     const outLinks = new Map<string, number>();
 
     for (const [nodeId] of this.nodes) {
       ranks.set(nodeId, 1);
-      outLinks.set(nodeId, this.getNodeRelationships(nodeId).length || 1);
+      outLinks.set(nodeId, this.getNodeRelationshipsSync(nodeId).length || 1);
     }
 
     for (let i = 0; i < iterations; i++) {
@@ -500,7 +822,7 @@ export class KnowledgeGraphManager {
 
       for (const [nodeId, rank] of ranks) {
         let sum = 0;
-        const rels = this.getNodeRelationships(nodeId);
+        const rels = this.getNodeRelationshipsSync(nodeId);
         
         for (const rel of rels) {
           const sourceId = rel.sourceId === nodeId ? rel.targetId : rel.sourceId;
@@ -524,9 +846,6 @@ export class KnowledgeGraphManager {
     return ranks;
   }
 
-  /**
-   * 社区检测（简单版本）
-   */
   detectCommunities(): Map<string, string[]> {
     const communities = new Map<string, string[]>();
     const assigned = new Set<string>();
@@ -549,9 +868,6 @@ export class KnowledgeGraphManager {
     return communities;
   }
 
-  /**
-   * 获取统计信息
-   */
   getStats(): KGStats {
     const nodeTypes: Record<string, number> = {};
     const relationshipTypes: Record<string, number> = {};
@@ -559,7 +875,7 @@ export class KnowledgeGraphManager {
 
     for (const node of this.nodes.values()) {
       nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
-      totalDegree += this.getNodeRelationships(node.id).length;
+      totalDegree += this.getNodeRelationshipsSync(node.id).length;
     }
 
     for (const rel of this.relationships.values()) {
@@ -575,11 +891,8 @@ export class KnowledgeGraphManager {
     };
   }
 
-  /**
-   * 删除节点
-   */
   deleteNode(id: string): void {
-    const rels = this.getNodeRelationships(id);
+    const rels = this.getNodeRelationshipsSync(id);
     for (const rel of rels) {
       this.deleteRelationship(rel.id);
     }
@@ -587,9 +900,6 @@ export class KnowledgeGraphManager {
     this.adjacencyList.delete(id);
   }
 
-  /**
-   * 删除关系
-   */
   deleteRelationship(id: string): void {
     const rel = this.relationships.get(id);
     if (!rel) return;
@@ -606,9 +916,6 @@ export class KnowledgeGraphManager {
     this.relationships.delete(id);
   }
 
-  /**
-   * 导出为JSON
-   */
   exportToJSON(): string {
     return JSON.stringify({
       nodes: Array.from(this.nodes.values()),
@@ -617,9 +924,6 @@ export class KnowledgeGraphManager {
     }, null, 2);
   }
 
-  /**
-   * 从JSON导入
-   */
   importFromJSON(json: string): void {
     const data = JSON.parse(json);
     
@@ -646,6 +950,81 @@ export class KnowledgeGraphManager {
         this.relationshipIndex.set(rel.type, new Set());
       }
       this.relationshipIndex.get(rel.type)!.add(rel.id);
+    }
+  }
+
+  async syncToNeo4j(): Promise<void> {
+    if (!this.isConnected || !this.neo4jDriver) {
+      throw new Error('Neo4j not connected');
+    }
+
+    const session = await this.getSession();
+    if (!session) return;
+
+    try {
+      await session.run('MATCH (n) DETACH DELETE n');
+
+      for (const node of this.nodes.values()) {
+        await this.addNodeToNeo4j(node);
+      }
+
+      for (const rel of this.relationships.values()) {
+        await this.addRelationshipToNeo4j(rel);
+      }
+    } finally {
+      await session.close();
+    }
+  }
+
+  async syncFromNeo4j(): Promise<void> {
+    if (!this.isConnected || !this.neo4jDriver) {
+      throw new Error('Neo4j not connected');
+    }
+
+    const session = await this.getSession();
+    if (!session) return;
+
+    try {
+      this.nodes.clear();
+      this.relationships.clear();
+      this.adjacencyList.clear();
+      this.relationshipIndex.clear();
+
+      const nodesResult = await session.run('MATCH (n:KGNode) RETURN n');
+      for (const record of nodesResult.records) {
+        const node = this.mapNeo4jNode(record.get('n'));
+        this.nodes.set(node.id, node);
+        this.adjacencyList.set(node.id, new Set());
+      }
+
+      const relsResult = await session.run('MATCH ()-[r:KG_RELATIONSHIP]->() RETURN r');
+      for (const record of relsResult.records) {
+        const rel = record.get('r');
+        const sourceResult = await session.run(
+          'MATCH (n:KGNode) WHERE id(n) = $internalId RETURN n.kg_id as kg_id',
+          { internalId: rel.start }
+        );
+        const targetResult = await session.run(
+          'MATCH (n:KGNode) WHERE id(n) = $internalId RETURN n.kg_id as kg_id',
+          { internalId: rel.end }
+        );
+        
+        if (sourceResult.records.length > 0 && targetResult.records.length > 0) {
+          const sourceId = sourceResult.records[0].get('kg_id');
+          const targetId = targetResult.records[0].get('kg_id');
+          const kgRel = this.mapNeo4jRelationship(rel, sourceId, targetId);
+          
+          this.relationships.set(kgRel.id, kgRel);
+          this.adjacencyList.get(kgRel.sourceId)?.add(kgRel.id);
+          
+          if (!this.relationshipIndex.has(kgRel.type)) {
+            this.relationshipIndex.set(kgRel.type, new Set());
+          }
+          this.relationshipIndex.get(kgRel.type)!.add(kgRel.id);
+        }
+      }
+    } finally {
+      await session.close();
     }
   }
 

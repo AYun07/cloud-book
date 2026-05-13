@@ -4,6 +4,7 @@
  */
 
 import { Chapter } from '../../types';
+import * as fs from 'fs';
 
 export interface Version {
   id: string;
@@ -40,14 +41,54 @@ export interface ChangeStats {
   modifications: number;
 }
 
+export interface AutoSaveConfig {
+  enabled: boolean;
+  intervalMs: number;
+  watchChanges: boolean;
+  onAutoSaveStart?: () => void;
+  onAutoSaveComplete?: (projectId: string) => void;
+  onAutoSaveError?: (projectId: string, error: Error) => void;
+  onExternalChange?: (projectId: string) => void;
+}
+
+export interface AutoSaveState {
+  isRunning: boolean;
+  lastSaveTime: Date | null;
+  lastSaveProjectId: string | null;
+  pendingChanges: Set<string>;
+  saveInProgress: boolean;
+  errorCount: number;
+}
+
 export class VersionHistoryManager {
   private versions: Map<string, Version[]> = new Map();
   private branches: Map<string, Branch[]> = new Map();
   private currentBranch: Map<string, string> = new Map();
   private storagePath: string;
 
-  constructor(storagePath: string = './data/versioning') {
+  private autoSaveConfig: AutoSaveConfig = {
+    enabled: true,
+    intervalMs: 30000,
+    watchChanges: true
+  };
+
+  private autoSaveState: AutoSaveState = {
+    isRunning: false,
+    lastSaveTime: null,
+    lastSaveProjectId: null,
+    pendingChanges: new Set(),
+    saveInProgress: false,
+    errorCount: 0
+  };
+
+  private autoSaveTimers: Map<string, NodeJS.Timeout> = new Map();
+  private fileWatchers: Map<string, fs.FSWatcher> = new Map();
+
+  constructor(storagePath: string = './data/versioning', autoSaveConfig?: Partial<AutoSaveConfig>) {
     this.storagePath = storagePath;
+    if (autoSaveConfig) {
+      this.autoSaveConfig = { ...this.autoSaveConfig, ...autoSaveConfig };
+    }
   }
 
   async initialize(projectId: string): Promise<void> {
@@ -87,7 +128,7 @@ export class VersionHistoryManager {
     projectVersions.push(version);
     this.versions.set(projectId, projectVersions);
 
-    this.save(projectId);
+    this.markPendingChange(projectId);
     return version;
   }
 
@@ -171,7 +212,7 @@ export class VersionHistoryManager {
 
     projectBranches.push(branch);
     this.branches.set(projectId, projectBranches);
-    this.save(projectId);
+    this.markPendingChange(projectId);
 
     return branch;
   }
@@ -185,7 +226,7 @@ export class VersionHistoryManager {
     }
 
     this.currentBranch.set(projectId, branchName);
-    this.save(projectId);
+    this.markPendingChange(projectId);
   }
 
   getBranches(projectId: string): Branch[] {
@@ -218,7 +259,7 @@ export class VersionHistoryManager {
       this.currentBranch.set(projectId, 'main');
     }
 
-    this.save(projectId);
+    this.markPendingChange(projectId);
     return true;
   }
 
@@ -373,7 +414,7 @@ export class VersionHistoryManager {
       version.tags.push(tag);
     }
 
-    this.save(projectId);
+    this.markPendingChange(projectId);
   }
 
   removeTag(projectId: string, versionId: string, tag: string): void {
@@ -382,7 +423,7 @@ export class VersionHistoryManager {
     
     if (version && version.tags) {
       version.tags = version.tags.filter(t => t !== tag);
-      this.save(projectId);
+      this.markPendingChange(projectId);
     }
   }
 
@@ -395,11 +436,128 @@ export class VersionHistoryManager {
     return `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private async save(projectId: string): Promise<void> {
+  private markPendingChange(projectId: string): void {
+    if (!this.autoSaveState.pendingChanges.has(projectId)) {
+      this.autoSaveState.pendingChanges.add(projectId);
+    }
+  }
+
+  startAutoSave(projectId: string): void {
+    if (!this.autoSaveConfig.enabled) {
+      return;
+    }
+
+    if (this.autoSaveTimers.has(projectId)) {
+      this.stopAutoSave(projectId);
+    }
+
+    if (this.autoSaveConfig.watchChanges) {
+      this.startFileWatcher(projectId);
+    }
+
+    const timer = setInterval(async () => {
+      if (this.autoSaveState.pendingChanges.has(projectId)) {
+        await this.performAutoSave(projectId);
+      }
+    }, this.autoSaveConfig.intervalMs);
+
+    this.autoSaveTimers.set(projectId, timer);
+    this.autoSaveState.isRunning = true;
+  }
+
+  stopAutoSave(projectId: string): void {
+    const timer = this.autoSaveTimers.get(projectId);
+    if (timer) {
+      clearInterval(timer);
+      this.autoSaveTimers.delete(projectId);
+    }
+
+    this.stopFileWatcher(projectId);
+  }
+
+  stopAllAutoSave(): void {
+    Array.from(this.autoSaveTimers.keys()).forEach(projectId => {
+      this.stopAutoSave(projectId);
+    });
+    this.autoSaveState.isRunning = false;
+  }
+
+  private async performAutoSave(projectId: string): Promise<void> {
+    if (this.autoSaveState.saveInProgress) {
+      return;
+    }
+
     try {
-      const fs = require('fs');
+      this.autoSaveState.saveInProgress = true;
+      this.autoSaveState.pendingChanges.delete(projectId);
+
+      if (this.autoSaveConfig.onAutoSaveStart) {
+        this.autoSaveConfig.onAutoSaveStart();
+      }
+
+      await this.save(projectId);
+
+      this.autoSaveState.lastSaveTime = new Date();
+      this.autoSaveState.lastSaveProjectId = projectId;
+
+      if (this.autoSaveConfig.onAutoSaveComplete) {
+        this.autoSaveConfig.onAutoSaveComplete(projectId);
+      }
+    } catch (error) {
+      this.autoSaveState.errorCount++;
+      if (this.autoSaveConfig.onAutoSaveError) {
+        this.autoSaveConfig.onAutoSaveError(projectId, error as Error);
+      }
+      console.error(`Auto-save failed for project ${projectId}:`, error);
+    } finally {
+      this.autoSaveState.saveInProgress = false;
+    }
+  }
+
+  private startFileWatcher(projectId: string): void {
+    const dir = `${this.storagePath}/${projectId}`;
+
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+
+    if (this.fileWatchers.has(projectId)) {
+      return;
+    }
+
+    try {
+      const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
+        if (filename && (filename.endsWith('.json') || filename.endsWith('.md'))) {
+          this.handleExternalChange(projectId, filename, eventType);
+        }
+      });
+
+      this.fileWatchers.set(projectId, watcher);
+    } catch (error) {
+      console.error(`Failed to start file watcher for project ${projectId}:`, error);
+    }
+  }
+
+  private stopFileWatcher(projectId: string): void {
+    const watcher = this.fileWatchers.get(projectId);
+    if (watcher) {
+      watcher.close();
+      this.fileWatchers.delete(projectId);
+    }
+  }
+
+  private handleExternalChange(projectId: string, filename: string, eventType: string): void {
+    if (eventType === 'change' || eventType === 'rename') {
+      if (this.autoSaveConfig.onExternalChange) {
+        this.autoSaveConfig.onExternalChange(projectId);
+      }
+    }
+  }
+
+  async save(projectId: string): Promise<void> {
+    try {
       const dir = `${this.storagePath}/${projectId}`;
-      
+
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
@@ -420,12 +578,12 @@ export class VersionHistoryManager {
       );
     } catch (error) {
       console.error('Failed to save version history:', error);
+      throw error;
     }
   }
 
   async load(projectId: string): Promise<void> {
     try {
-      const fs = require('fs');
       const dir = `${this.storagePath}/${projectId}`;
 
       if (fs.existsSync(`${dir}/versions.json`)) {
@@ -444,7 +602,35 @@ export class VersionHistoryManager {
       }
     } catch (error) {
       console.error('Failed to load version history:', error);
+      throw error;
     }
+  }
+
+  getAutoSaveConfig(): Readonly<AutoSaveConfig> {
+    return { ...this.autoSaveConfig };
+  }
+
+  updateAutoSaveConfig(config: Partial<AutoSaveConfig>): void {
+    this.autoSaveConfig = { ...this.autoSaveConfig, ...config };
+  }
+
+  getAutoSaveState(): Readonly<AutoSaveState> {
+    return {
+      ...this.autoSaveState,
+      pendingChanges: new Set(this.autoSaveState.pendingChanges)
+    };
+  }
+
+  triggerAutoSave(projectId: string): void {
+    this.markPendingChange(projectId);
+  }
+
+  destroy(): void {
+    this.stopAllAutoSave();
+    Array.from(this.fileWatchers.values()).forEach(watcher => {
+      watcher.close();
+    });
+    this.fileWatchers.clear();
   }
 }
 

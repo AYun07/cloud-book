@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface WorldElement {
   id: string;
@@ -18,7 +19,7 @@ export default function WorldScreen({ route }: any) {
   const [newCategory, setNewCategory] = useState('地理');
   const [newDescription, setNewDescription] = useState('');
 
-  const addElement = () => {
+  const addElement = async () => {
     if (!newName.trim()) {
       Alert.alert('错误', '请输入名称');
       return;
@@ -33,7 +34,7 @@ export default function WorldScreen({ route }: any) {
 
     const updated = [...elements, element];
     setElements(updated);
-    localStorage.setItem(`world_${project.id}`, JSON.stringify(updated));
+    await AsyncStorage.setItem(`world_${project.id}`, JSON.stringify(updated));
     
     setNewName('');
     setNewDescription('');

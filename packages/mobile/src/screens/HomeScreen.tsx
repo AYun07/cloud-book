@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, SafeAreaView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Project {
   id: string;
@@ -21,7 +22,7 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadProjects = async () => {
     try {
-      const stored = localStorage.getItem('cloudbook_projects');
+      const stored = await AsyncStorage.getItem('cloudbook_projects');
       if (stored) {
         setProjects(JSON.parse(stored));
       }
@@ -47,7 +48,7 @@ export default function HomeScreen({ navigation }: any) {
           
           const updatedProjects = [newProject, ...projects];
           setProjects(updatedProjects);
-          localStorage.setItem('cloudbook_projects', JSON.stringify(updatedProjects));
+          await AsyncStorage.setItem('cloudbook_projects', JSON.stringify(updatedProjects));
           
           navigation.navigate('Project', { project: newProject });
         }

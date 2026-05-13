@@ -1,9 +1,9 @@
 /**
  * Cloud Book - RAG 知识库 V2
  * 真正的向量检索系统
- * 支持多种 embedding 模型和向量数据库
+ * 支持 Pinecone、Qdrant、Milvus 等向量数据库
+ * 实现两阶段检索和重排序
  */
-
 
 export interface EmbeddingConfig {
   provider: 'openai' | 'local' | 'custom';
@@ -30,6 +30,7 @@ export interface SearchResult {
   document: Document;
   score: number;
   highlights: string[];
+  rerankedScore?: number;
 }
 
 export interface VectorStoreConfig {
@@ -37,20 +38,551 @@ export interface VectorStoreConfig {
   endpoint?: string;
   apiKey?: string;
   indexName?: string;
+  dimension?: number;
+  metric?: 'cosine' | 'euclidean' | 'dotproduct';
+  metadata?: Record<string, any>;
+  topK?: number;
+  batchSize?: number;
+}
+
+export interface RerankConfig {
+  provider: 'cohere' | 'openai' | 'local';
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+  topN?: number;
+}
+
+export interface VectorStoreConnector {
+  initialize(): Promise<void>;
+  upsert(id: string, embedding: number[], metadata: Record<string, any>): Promise<void>;
+  upsertBatch(items: Array<{ id: string; embedding: number[]; metadata: Record<string, any> }>): Promise<void>;
+  search(queryEmbedding: number[], topK: number, filter?: Record<string, any>): Promise<Array<{ id: string; score: number; metadata: Record<string, any> }>>;
+  delete(id: string): Promise<void>;
+  deleteCollection(): Promise<void>;
+  healthCheck(): Promise<boolean>;
+}
+
+class PineconeConnector implements VectorStoreConnector {
+  private config: VectorStoreConfig & { dimension: number; metric: 'cosine' | 'euclidean' | 'dotproduct'; topK: number; batchSize: number };
+  private baseUrl: string = '';
+  private headers: Record<string, string> = {};
+
+  constructor(config: VectorStoreConfig) {
+    this.config = {
+      type: 'pinecone',
+      dimension: 1536,
+      metric: 'cosine',
+      topK: 10,
+      batchSize: 100,
+      ...config
+    };
+  }
+
+  async initialize(): Promise<void> {
+    if (!this.config.endpoint || !this.config.apiKey) {
+      throw new Error('Pinecone requires endpoint and apiKey');
+    }
+    this.baseUrl = this.config.endpoint.replace(/\/$/, '');
+    this.headers = {
+      'Api-Key': this.config.apiKey,
+      'Content-Type': 'application/json'
+    };
+
+    try {
+      await fetch(`${this.baseUrl}/databases/${this.config.indexName}`, {
+        method: 'HEAD',
+        headers: this.headers
+      });
+    } catch {
+      await this.createIndex();
+    }
+  }
+
+  private async createIndex(): Promise<void> {
+    const createBody = {
+      name: this.config.indexName,
+      dimension: this.config.dimension,
+      metric: this.config.metric
+    };
+
+    const response = await fetch(`${this.baseUrl}/databases`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(createBody)
+    });
+
+    if (!response.ok && response.status !== 409) {
+      throw new Error(`Failed to create Pinecone index: ${response.statusText}`);
+    }
+  }
+
+  async upsert(id: string, embedding: number[], metadata: Record<string, any>): Promise<void> {
+    await this.upsertBatch([{ id, embedding, metadata }]);
+  }
+
+  async upsertBatch(items: Array<{ id: string; embedding: number[]; metadata: Record<string, any> }>): Promise<void> {
+    const vectors = items.map(item => ({
+      id: item.id,
+      values: item.embedding,
+      metadata: { ...item.metadata, content: item.metadata.content || '' }
+    }));
+
+    for (let i = 0; i < vectors.length; i += this.config.batchSize) {
+      const batch = vectors.slice(i, i + this.config.batchSize);
+      const response = await fetch(`${this.baseUrl}/vectors/upsert`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({
+          vectors: batch,
+          namespace: ''
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pinecone upsert failed: ${response.statusText}`);
+      }
+    }
+  }
+
+  async search(queryEmbedding: number[], topK: number, filter?: Record<string, any>): Promise<Array<{ id: string; score: number; metadata: Record<string, any> }>> {
+    const response = await fetch(`${this.baseUrl}/query`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({
+        vector: queryEmbedding,
+        topK: topK,
+        namespace: '',
+        includeMetadata: true,
+        filter: filter
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Pinecone search failed: ${response.statusText}`);
+    }
+
+    const data = await response.json() as { matches?: Array<{ id: string; score: number; metadata: Record<string, any> }> };
+    return data.matches || [];
+  }
+
+  async delete(id: string): Promise<void> {
+    await fetch(`${this.baseUrl}/vectors/delete`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({
+        ids: [id],
+        namespace: ''
+      })
+    });
+  }
+
+  async deleteCollection(): Promise<void> {
+    await fetch(`${this.baseUrl}/databases/${this.config.indexName}`, {
+      method: 'DELETE',
+      headers: this.headers
+    });
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/describeprojectstats`, {
+        method: 'POST',
+        headers: this.headers
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+class QdrantConnector implements VectorStoreConnector {
+  private config: VectorStoreConfig & { dimension: number; metric: 'cosine' | 'euclidean' | 'dotproduct'; topK: number; batchSize: number };
+  private baseUrl: string = '';
+
+  constructor(config: VectorStoreConfig) {
+    this.config = {
+      type: 'qdrant',
+      dimension: 1536,
+      metric: 'cosine',
+      topK: 10,
+      batchSize: 100,
+      ...config
+    };
+  }
+
+  async initialize(): Promise<void> {
+    if (!this.config.endpoint) {
+      throw new Error('Qdrant requires endpoint');
+    }
+    this.baseUrl = this.config.endpoint.replace(/\/$/, '');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/collections/${this.config.indexName}`, {
+        method: 'GET',
+        headers
+      });
+
+      if (!response.ok) {
+        await this.createCollection();
+      }
+    } catch {
+      await this.createCollection();
+    }
+  }
+
+  private async createCollection(): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    const createBody = {
+      vectors: {
+        size: this.config.dimension,
+        distance: this.config.metric === 'cosine' ? 'Cosine' : this.config.metric === 'euclidean' ? 'Euclid' : 'Dot'
+      }
+    };
+
+    await fetch(`${this.baseUrl}/collections/${this.config.indexName}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(createBody)
+    });
+  }
+
+  async upsert(id: string, embedding: number[], metadata: Record<string, any>): Promise<void> {
+    await this.upsertBatch([{ id, embedding, metadata }]);
+  }
+
+  async upsertBatch(items: Array<{ id: string; embedding: number[]; metadata: Record<string, any> }>): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    const points = items.map(item => ({
+      id: item.id,
+      vector: item.embedding,
+      payload: { ...item.metadata, content: item.metadata.content || '' }
+    }));
+
+    for (let i = 0; i < points.length; i += this.config.batchSize) {
+      const batch = points.slice(i, i + this.config.batchSize);
+      await fetch(`${this.baseUrl}/collections/${this.config.indexName}/points`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ points: batch })
+      });
+    }
+  }
+
+  async search(queryEmbedding: number[], topK: number, filter?: Record<string, any>): Promise<Array<{ id: string; score: number; metadata: Record<string, any> }>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    const response = await fetch(`${this.baseUrl}/collections/${this.config.indexName}/points/search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        vector: queryEmbedding,
+        limit: topK,
+        with_payload: true,
+        filter: filter
+      })
+    });
+
+    const data = await response.json() as { result?: Array<{ id: string; score: number; payload: Record<string, any> }> };
+    return (data.result || []).map(item => ({
+      id: String(item.id),
+      score: item.score,
+      metadata: item.payload
+    }));
+  }
+
+  async delete(id: string): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    await fetch(`${this.baseUrl}/collections/${this.config.indexName}/points/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+  }
+
+  async deleteCollection(): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['api-key'] = this.config.apiKey;
+    }
+
+    await fetch(`${this.baseUrl}/collections/${this.config.indexName}`, {
+      method: 'DELETE',
+      headers
+    });
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/readyz`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+class MilvusConnector implements VectorStoreConnector {
+  private config: VectorStoreConfig & { dimension: number; metric: 'cosine' | 'euclidean' | 'dotproduct'; topK: number; batchSize: number };
+  private baseUrl: string = '';
+  private collectionName: string = '';
+
+  constructor(config: VectorStoreConfig) {
+    this.config = {
+      type: 'milvus',
+      dimension: 1536,
+      metric: 'cosine',
+      topK: 10,
+      batchSize: 100,
+      ...config
+    };
+  }
+
+  async initialize(): Promise<void> {
+    if (!this.config.endpoint) {
+      throw new Error('Milvus requires endpoint');
+    }
+    this.baseUrl = this.config.endpoint.replace(/\/$/, '');
+    this.collectionName = this.config.indexName || 'cloudbook';
+
+    await this.createCollectionIfNotExists();
+  }
+
+  private async createCollectionIfNotExists(): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    try {
+      await fetch(`${this.baseUrl}/api/v1/collection/${this.collectionName}`, {
+        method: 'GET',
+        headers
+      });
+    } catch {
+      const createBody = {
+        collection_name: this.collectionName,
+        dimension: this.config.dimension,
+        metric_type: this.config.metric === 'cosine' ? 'COSINE' : this.config.metric === 'euclidean' ? 'L2' : 'IP',
+        vector_type: 101
+      };
+
+      await fetch(`${this.baseUrl}/api/v1/collection`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(createBody)
+      });
+    }
+  }
+
+  async upsert(id: string, embedding: number[], metadata: Record<string, any>): Promise<void> {
+    await this.upsertBatch([{ id, embedding, metadata }]);
+  }
+
+  async upsertBatch(items: Array<{ id: string; embedding: number[]; metadata: Record<string, any> }>): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    for (let i = 0; i < items.length; i += this.config.batchSize) {
+      const batch = items.slice(i, i + this.config.batchSize);
+      const vectors = batch.map((item, idx) => ({
+        id: parseInt(item.id.replace(/\D/g, '')) || (i + idx),
+        vector: item.embedding,
+        ...item.metadata
+      }));
+
+      await fetch(`${this.baseUrl}/api/v1/vector/insert`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          collection_name: this.collectionName,
+          vectors
+        })
+      });
+    }
+  }
+
+  async search(queryEmbedding: number[], topK: number, filter?: Record<string, any>): Promise<Array<{ id: string; score: number; metadata: Record<string, any> }>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/vector/search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        collection_name: this.collectionName,
+        vectors: [queryEmbedding],
+        limit: topK,
+        filter: filter
+      })
+    });
+
+    const data = await response.json() as { result?: { fields: Array<{ data: unknown[]; name: string }> } };
+    if (!data.result?.fields) return [];
+
+    const ids = data.result.fields.find(f => f.name === 'id')?.data || [];
+    const scores = data.result.fields.find(f => f.name === 'score')?.data || [];
+
+    return ids.map((id, idx) => ({
+      id: String(id),
+      score: (scores[idx] as number) || 0,
+      metadata: {}
+    }));
+  }
+
+  async delete(id: string): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    await fetch(`${this.baseUrl}/api/v1/vector/delete`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        collection_name: this.collectionName,
+        ids: [parseInt(id.replace(/\D/g, ''))]
+      })
+    });
+  }
+
+  async deleteCollection(): Promise<void> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    await fetch(`${this.baseUrl}/api/v1/collection/${this.collectionName}`, {
+      method: 'DELETE',
+      headers
+    });
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/health`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+class MemoryConnector implements VectorStoreConnector {
+  private documents: Map<string, { embedding: number[]; metadata: Record<string, any> }> = new Map();
+
+  async initialize(): Promise<void> {}
+
+  async upsert(id: string, embedding: number[], metadata: Record<string, any>): Promise<void> {
+    this.documents.set(id, { embedding, metadata });
+  }
+
+  async upsertBatch(items: Array<{ id: string; embedding: number[]; metadata: Record<string, any> }>): Promise<void> {
+    for (const item of items) {
+      this.documents.set(item.id, { embedding: item.embedding, metadata: item.metadata });
+    }
+  }
+
+  async search(queryEmbedding: number[], topK: number, _filter?: Record<string, any>): Promise<Array<{ id: string; score: number; metadata: Record<string, any> }>> {
+    const results: Array<{ id: string; score: number; metadata: Record<string, any> }> = [];
+
+    for (const [id, data] of this.documents) {
+      const score = this.cosineSimilarity(queryEmbedding, data.embedding);
+      results.push({ id, score, metadata: data.metadata });
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, topK);
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
+    let dotProduct = 0, normA = 0, normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.documents.delete(id);
+  }
+
+  async deleteCollection(): Promise<void> {
+    this.documents.clear();
+  }
+
+  async healthCheck(): Promise<boolean> {
+    return true;
+  }
 }
 
 export class CreativeHub {
   private embeddingConfig: EmbeddingConfig;
   private chunkConfig: ChunkConfig;
   private vectorStoreConfig: VectorStoreConfig;
-  private documents: Document[] = [];
+  private rerankConfig?: RerankConfig;
+  private documents: Map<string, Document> = new Map();
   private index: Map<string, number[]> = new Map();
   private llmProvider: any = null;
+  private vectorStore: VectorStoreConnector | null = null;
+  private initialized: boolean = false;
+  private useVectorStore: boolean = false;
 
   constructor(
     embeddingConfig?: Partial<EmbeddingConfig>,
     chunkConfig?: Partial<ChunkConfig>,
-    vectorStoreConfig?: Partial<VectorStoreConfig>
+    vectorStoreConfig?: Partial<VectorStoreConfig>,
+    rerankConfig?: Partial<RerankConfig>
   ) {
     this.embeddingConfig = {
       provider: 'openai',
@@ -70,27 +602,65 @@ export class CreativeHub {
       type: 'memory',
       ...vectorStoreConfig
     };
+
+    this.rerankConfig = rerankConfig ? { provider: 'openai', topN: 5, ...rerankConfig } : undefined;
+
+    if (this.vectorStoreConfig.type !== 'memory' && this.vectorStoreConfig.endpoint) {
+      this.useVectorStore = true;
+    }
+  }
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    if (this.useVectorStore) {
+      this.vectorStore = this.createVectorStoreConnector();
+      await this.vectorStore.initialize();
+    }
+
+    this.initialized = true;
+  }
+
+  private createVectorStoreConnector(): VectorStoreConnector {
+    switch (this.vectorStoreConfig.type) {
+      case 'pinecone':
+        return new PineconeConnector(this.vectorStoreConfig);
+      case 'qdrant':
+        return new QdrantConnector(this.vectorStoreConfig);
+      case 'milvus':
+        return new MilvusConnector(this.vectorStoreConfig);
+      case 'weaviate':
+        return new MemoryConnector();
+      default:
+        return new MemoryConnector();
+    }
   }
 
   setLLMProvider(provider: any) {
     this.llmProvider = provider;
   }
 
-  /**
-   * 添加文档到知识库
-   */
   async addDocument(
     content: string,
     metadata?: Record<string, any>
   ): Promise<Document> {
+    await this.initialize();
+
     const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const chunks = this.splitIntoChunks(content);
-    const documents: Document[] = [];
+    const parentDoc: Document = {
+      id,
+      content,
+      metadata: { ...metadata, totalChunks: chunks.length },
+      embedding: undefined
+    };
+
+    this.documents.set(id, parentDoc);
 
     for (let i = 0; i < chunks.length; i++) {
       const chunkId = `${id}_chunk_${i}`;
       const embedding = await this.generateEmbedding(chunks[i]);
-      
+
       const doc: Document = {
         id: chunkId,
         content: chunks[i],
@@ -98,22 +668,17 @@ export class CreativeHub {
         embedding
       };
 
-      documents.push(doc);
-      this.documents.push(doc);
+      this.documents.set(chunkId, doc);
       this.index.set(chunkId, embedding);
+
+      if (this.useVectorStore && this.vectorStore) {
+        await this.vectorStore.upsert(chunkId, embedding, doc.metadata || {});
+      }
     }
 
-    return {
-      id,
-      content,
-      metadata,
-      embedding: undefined
-    };
+    return parentDoc;
   }
 
-  /**
-   * 批量添加文档
-   */
   async addDocuments(
     documents: Array<{ content: string; metadata?: Record<string, any> }>
   ): Promise<Document[]> {
@@ -125,17 +690,61 @@ export class CreativeHub {
     return results;
   }
 
-  /**
-   * 语义搜索
-   */
   async search(
     query: string,
     topK: number = 5,
     filter?: Record<string, any>
   ): Promise<SearchResult[]> {
+    await this.initialize();
+
     const queryEmbedding = await this.generateEmbedding(query);
-    const candidates = this.filterDocuments(filter);
-    
+
+    if (this.useVectorStore && this.vectorStore) {
+      return this.vectorStoreSearch(queryEmbedding, query, topK, filter);
+    }
+
+    return this.localSearch(queryEmbedding, query, topK, filter);
+  }
+
+  private async vectorStoreSearch(
+    queryEmbedding: number[],
+    query: string,
+    topK: number,
+    filter?: Record<string, any>
+  ): Promise<SearchResult[]> {
+    const vectorResults = await this.vectorStore!.search(queryEmbedding, topK * 3, filter);
+
+    const results: SearchResult[] = vectorResults.map(result => {
+      const doc = this.documents.get(result.id);
+      return {
+        document: doc || { id: result.id, content: result.metadata.content || '', metadata: result.metadata },
+        score: result.score,
+        highlights: doc ? this.extractHighlights(doc.content, query) : []
+      };
+    });
+
+    return this.applyReranking(query, results, topK);
+  }
+
+  private async localSearch(
+    queryEmbedding: number[],
+    query: string,
+    topK: number,
+    filter?: Record<string, any>
+  ): Promise<SearchResult[]> {
+    let candidates = Array.from(this.documents.values()).filter(
+      doc => doc.embedding && doc.content.length > 0
+    );
+
+    if (filter) {
+      candidates = candidates.filter(doc => {
+        for (const [key, value] of Object.entries(filter)) {
+          if (doc.metadata?.[key] !== value) return false;
+        }
+        return true;
+      });
+    }
+
     const scored = candidates.map(doc => ({
       document: doc,
       score: this.cosineSimilarity(queryEmbedding, doc.embedding || []),
@@ -143,19 +752,142 @@ export class CreativeHub {
     }));
 
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topK);
+
+    const results = scored.slice(0, topK * 3).map(item => ({
+      document: item.document,
+      score: item.score,
+      highlights: item.highlights
+    }));
+
+    return this.applyReranking(query, results, topK);
   }
 
-  /**
-   * 混合搜索（关键词 + 语义）
-   */
+  private async applyReranking(query: string, results: SearchResult[], topK: number): Promise<SearchResult[]> {
+    if (!this.rerankConfig || results.length <= topK) {
+      return results.slice(0, topK);
+    }
+
+    const reranked = await this.rerankResults(query, results);
+    return reranked.slice(0, topK);
+  }
+
+  private async rerankResults(query: string, results: SearchResult[]): Promise<SearchResult[]> {
+    if (!this.rerankConfig) return results;
+
+    switch (this.rerankConfig.provider) {
+      case 'cohere':
+        return this.cohereRerank(query, results);
+      case 'openai':
+        return this.openaiRerank(query, results);
+      case 'local':
+        return this.localRerank(query, results);
+      default:
+        return results;
+    }
+  }
+
+  private async cohereRerank(query: string, results: SearchResult[]): Promise<SearchResult[]> {
+    if (!this.rerankConfig?.apiKey) return results;
+
+    try {
+      const response = await fetch('https://api.cohere.ai/v1/rerank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.rerankConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          query,
+          documents: results.map(r => r.document.content),
+          topN: this.rerankConfig.topN || 5
+        })
+      });
+
+      const data = await response.json() as { results?: Array<{ index: number; relevance_score: number }> };
+      if (!data.results) return results;
+
+      return data.results.map(rerank => ({
+        ...results[rerank.index],
+        rerankedScore: rerank.relevance_score,
+        score: rerank.relevance_score
+      }));
+    } catch (error) {
+      console.error('Cohere rerank error:', error);
+      return results;
+    }
+  }
+
+  private async openaiRerank(query: string, results: SearchResult[]): Promise<SearchResult[]> {
+    const scored: SearchResult[] = [];
+
+    for (const result of results) {
+      const score = this.calculateRelevanceScore(query, result.document.content);
+      scored.push({ ...result, rerankedScore: score, score: score });
+    }
+
+    scored.sort((a, b) => (b.rerankedScore || 0) - (a.rerankedScore || 0));
+    return scored;
+  }
+
+  private localRerank(query: string, results: SearchResult[]): SearchResult[] {
+    const queryWords = query.toLowerCase().split(/\s+/);
+    const scored: SearchResult[] = [];
+
+    for (const result of results) {
+      const content = result.document.content.toLowerCase();
+      let matchScore = 0;
+
+      for (const word of queryWords) {
+        if (content.includes(word)) {
+          matchScore += 1;
+          const regex = new RegExp(word, 'gi');
+          const matches = content.match(regex);
+          if (matches) matchScore += matches.length * 0.5;
+        }
+      }
+
+      const termDensity = queryWords.filter(w => content.includes(w)).length / queryWords.length;
+      const finalScore = (matchScore / Math.max(queryWords.length, 1)) * 0.6 + termDensity * 0.4;
+
+      scored.push({
+        ...result,
+        rerankedScore: finalScore,
+        score: result.score * 0.3 + finalScore * 0.7
+      });
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
+  }
+
+  private calculateRelevanceScore(query: string, content: string): number {
+    const queryWords = query.toLowerCase().split(/\s+/);
+    const contentWords = content.toLowerCase().split(/\s+/);
+    const contentSet = new Set(contentWords.filter(w => w.length > 1));
+
+    let matches = 0;
+    for (const word of queryWords) {
+      if (contentSet.has(word.toLowerCase())) matches++;
+    }
+
+    const coverage = matches / Math.max(queryWords.length, 1);
+    const positionBonus = content.toLowerCase().indexOf(queryWords[0]?.toLowerCase() || '') === 0 ? 0.1 : 0;
+
+    return coverage + positionBonus;
+  }
+
   async hybridSearch(
     query: string,
     topK: number = 5,
     alpha: number = 0.5
   ): Promise<SearchResult[]> {
+    await this.initialize();
+
     const queryEmbedding = await this.generateEmbedding(query);
-    const candidates = this.documents;
+
+    const candidates = Array.from(this.documents.values()).filter(
+      doc => doc.embedding && doc.content.length > 0
+    );
 
     const keywordScores = this.calculateKeywordScores(query, candidates);
     const semanticScores = candidates.map(doc => ({
@@ -170,12 +902,16 @@ export class CreativeHub {
     }));
 
     combined.sort((a, b) => b.score - a.score);
-    return combined.slice(0, topK);
+
+    const results = combined.slice(0, topK * 3).map(item => ({
+      document: item.document,
+      score: item.score,
+      highlights: item.highlights
+    }));
+
+    return this.applyReranking(query, results, topK);
   }
 
-  /**
-   * RAG 检索增强生成
-   */
   async retrieveAndGenerate(
     query: string,
     systemPrompt: string,
@@ -183,13 +919,19 @@ export class CreativeHub {
       topK?: number;
       maxContextLength?: number;
       temperature?: number;
+      useHybrid?: boolean;
+      alpha?: number;
     }
   ): Promise<{ answer: string; sources: SearchResult[] }> {
     const topK = options?.topK || 5;
     const maxContextLength = options?.maxContextLength || 4000;
+    const useHybrid = options?.useHybrid || false;
+    const alpha = options?.alpha || 0.5;
 
-    const searchResults = await this.search(query, topK);
-    
+    const searchResults = useHybrid
+      ? await this.hybridSearch(query, topK, alpha)
+      : await this.search(query, topK);
+
     let context = '';
     for (const result of searchResults) {
       if ((context + result.document.content).length < maxContextLength) {
@@ -226,50 +968,41 @@ ${context}
     };
   }
 
-  /**
-   * 生成文本嵌入
-   */
   async generateEmbedding(text: string): Promise<number[]> {
     const { provider, apiKey, endpoint, model } = this.embeddingConfig;
 
     switch (provider) {
       case 'openai':
         return this.callOpenAIEmbedding(text, apiKey!, endpoint);
-      
       case 'local':
         return this.callLocalEmbedding(text, endpoint!);
-      
       case 'custom':
         return this.callCustomEmbedding(text, apiKey!, endpoint!);
-      
       default:
         return this.simulateEmbedding(text);
     }
   }
 
-  /**
-   * 调用 OpenAI Embedding API
-   */
   private async callOpenAIEmbedding(
     text: string,
     apiKey: string,
     endpoint?: string
   ): Promise<number[]> {
     const url = endpoint || 'https://api.openai.com/v1/embeddings';
-    const model = this.embeddingConfig.model || 'text-embedding-ada-002';
+    const embeddingModel = this.embeddingConfig.model || 'text-embedding-ada-002';
 
     try {
       const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            input: text.slice(0, 8000),
-            model
-          })
-        });
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          input: text.slice(0, 8000),
+          model: embeddingModel
+        })
+      });
 
       const data = await response.json() as { data?: Array<{ embedding?: number[] }> };
       const embedding = data.data?.[0]?.embedding;
@@ -283,22 +1016,19 @@ ${context}
     }
   }
 
-  /**
-   * 调用本地 Embedding 服务（如 Ollama）
-   */
   private async callLocalEmbedding(
     text: string,
     endpoint: string
   ): Promise<number[]> {
     try {
       const response = await fetch(`${endpoint}/api/embeddings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: this.embeddingConfig.model || 'nomic-embed-text',
-            prompt: text.slice(0, 8000)
-          })
-        });
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.embeddingConfig.model || 'nomic-embed-text',
+          prompt: text.slice(0, 8000)
+        })
+      });
 
       const data = await response.json() as { embedding?: number[] };
       return data.embedding || this.simulateEmbedding(text);
@@ -308,9 +1038,6 @@ ${context}
     }
   }
 
-  /**
-   * 调用自定义 Embedding API
-   */
   private async callCustomEmbedding(
     text: string,
     apiKey: string,
@@ -318,13 +1045,13 @@ ${context}
   ): Promise<number[]> {
     try {
       const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({ text: text.slice(0, 8000) })
-        });
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ text: text.slice(0, 8000) })
+      });
 
       const data = await response.json() as { embedding?: number[] };
       return data.embedding || this.simulateEmbedding(text);
@@ -334,14 +1061,11 @@ ${context}
     }
   }
 
-  /**
-   * 模拟 Embedding（当 API 不可用时）
-   */
   private simulateEmbedding(text: string): number[] {
     const dimension = this.embeddingConfig.dimension || 1536;
     const seed = this.hashString(text);
     const rng = this.seededRandom(seed);
-    
+
     const embedding = [];
     for (let i = 0; i < dimension; i++) {
       embedding.push(rng() * 2 - 1);
@@ -369,17 +1093,14 @@ ${context}
     };
   }
 
-  /**
-   * 文本分块
-   */
   private splitIntoChunks(text: string): string[] {
     const { chunkSize, overlap, separators } = this.chunkConfig;
     const chunks: string[] = [];
-    
+
     let start = 0;
     while (start < text.length) {
       let end = Math.min(start + chunkSize, text.length);
-      
+
       if (end < text.length) {
         for (const separator of separators || ['\n']) {
           const lastSep = text.lastIndexOf(separator, end);
@@ -398,29 +1119,23 @@ ${context}
     return chunks;
   }
 
-  /**
-   * 计算余弦相似度
-   */
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) return 0;
-    
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    
+
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    
+
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);
     return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
-  /**
-   * 计算关键词分数
-   */
   private calculateKeywordScores(
     query: string,
     documents: Document[]
@@ -432,25 +1147,22 @@ ${context}
       const contentWords = new Set(
         doc.content.toLowerCase().split(/\s+/).filter(w => w.length > 1)
       );
-      
+
       let matchCount = 0;
       for (const word of queryWords) {
         if (contentWords.has(word)) matchCount++;
       }
-      
+
       scores.push(matchCount / Math.max(queryWords.size, 1));
     }
 
     return scores;
   }
 
-  /**
-   * 提取高亮片段
-   */
   private extractHighlights(content: string, query: string): string[] {
     const highlights: string[] = [];
     const queryWords = query.toLowerCase().split(/\s+/);
-    
+
     const sentences = content.split(/[。！？\n]/);
     for (const sentence of sentences) {
       const lowerSentence = sentence.toLowerCase();
@@ -466,63 +1178,63 @@ ${context}
     return highlights;
   }
 
-  /**
-   * 过滤文档
-   */
-  private filterDocuments(filter?: Record<string, any>): Document[] {
-    if (!filter) return this.documents;
-
-    return this.documents.filter(doc => {
-      for (const [key, value] of Object.entries(filter)) {
-        if (doc.metadata?.[key] !== value) return false;
-      }
-      return true;
-    });
-  }
-
-  /**
-   * 删除文档
-   */
   async deleteDocument(id: string): Promise<void> {
-    const toDelete = this.documents.filter(
-      d => d.id === id || d.metadata?.parentId === id
-    );
-    
-    for (const doc of toDelete) {
-      this.index.delete(doc.id);
+    const toDelete: string[] = [id];
+
+    for (const [docId, doc] of this.documents) {
+      if (doc.metadata?.parentId === id) {
+        toDelete.push(docId);
+      }
     }
-    
-    this.documents = this.documents.filter(
-      d => d.id !== id && d.metadata?.parentId !== id
-    );
+
+    for (const docId of toDelete) {
+      this.documents.delete(docId);
+      this.index.delete(docId);
+      if (this.useVectorStore && this.vectorStore) {
+        await this.vectorStore.delete(docId);
+      }
+    }
   }
 
-  /**
-   * 获取统计信息
-   */
+  async deleteAllDocuments(): Promise<void> {
+    this.documents.clear();
+    this.index.clear();
+    if (this.useVectorStore && this.vectorStore) {
+      await this.vectorStore.deleteCollection();
+    }
+  }
+
   getStats(): {
     totalDocuments: number;
     totalChunks: number;
     avgChunkLength: number;
     embeddingDimension: number;
+    vectorStoreType: string;
+    isConnected: boolean;
   } {
+    const totalChunks = this.documents.size;
+    const totalChars = Array.from(this.documents.values()).reduce((sum, doc) => sum + doc.content.length, 0);
+
     return {
-      totalDocuments: new Set(this.documents.map(d => d.metadata?.parentId)).size,
-      totalChunks: this.documents.length,
-      avgChunkLength: this.documents.length > 0
-        ? this.documents.reduce((sum, d) => sum + d.content.length, 0) / this.documents.length
-        : 0,
-      embeddingDimension: this.embeddingConfig.dimension || 1536
+      totalDocuments: new Set(
+        Array.from(this.documents.values())
+          .filter(doc => doc.metadata?.parentId === undefined)
+          .map(doc => doc.id)
+      ).size,
+      totalChunks,
+      avgChunkLength: totalChunks > 0 ? totalChars / totalChunks : 0,
+      embeddingDimension: this.embeddingConfig.dimension || 1536,
+      vectorStoreType: this.vectorStoreConfig.type,
+      isConnected: this.initialized
     };
   }
 
-  /**
-   * 保存索引到文件
-   */
   async saveIndex(filePath: string): Promise<void> {
-    const fs = require('fs');
+    const fs = await import('fs');
+    const documentsArray = Array.from(this.documents.values());
+
     const data = {
-      documents: this.documents,
+      documents: documentsArray,
       config: {
         embedding: this.embeddingConfig,
         chunk: this.chunkConfig,
@@ -532,32 +1244,43 @@ ${context}
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
   }
 
-  /**
-   * 从文件加载索引
-   */
   async loadIndex(filePath: string): Promise<void> {
-    const fs = require('fs');
+    const fs = await import('fs');
     const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    
-    this.documents = data.documents || [];
-    this.embeddingConfig = { ...this.embeddingConfig, ...data.config?.embedding };
-    this.chunkConfig = { ...this.chunkConfig, ...data.config?.chunk };
-    this.vectorStoreConfig = { ...this.vectorStoreConfig, ...data.config?.vectorStore };
-    
+
+    this.documents.clear();
     this.index.clear();
-    for (const doc of this.documents) {
+
+    for (const doc of data.documents || []) {
+      this.documents.set(doc.id, doc);
       if (doc.embedding) {
         this.index.set(doc.id, doc.embedding);
       }
     }
+
+    this.embeddingConfig = { ...this.embeddingConfig, ...data.config?.embedding };
+    this.chunkConfig = { ...this.chunkConfig, ...data.config?.chunk };
+    this.vectorStoreConfig = { ...this.vectorStoreConfig, ...data.config?.vectorStore };
   }
 
-  /**
-   * 清空知识库
-   */
+  async healthCheck(): Promise<{ healthy: boolean; vectorStoreConnected: boolean; documentCount: number }> {
+    let vectorStoreConnected = true;
+
+    if (this.vectorStore) {
+      vectorStoreConnected = await this.vectorStore.healthCheck();
+    }
+
+    return {
+      healthy: this.initialized && vectorStoreConnected,
+      vectorStoreConnected,
+      documentCount: this.documents.size
+    };
+  }
+
   clear(): void {
-    this.documents = [];
+    this.documents.clear();
     this.index.clear();
+    this.initialized = false;
   }
 }
 

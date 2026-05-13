@@ -37,7 +37,8 @@ export { AgentSystem, AgentTask, AgentResponse } from './modules/AgentSystem/Age
 export { DaemonService } from './modules/DaemonService/DaemonService';
 export { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
 export { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
-export { PluginSystem } from './modules/PluginSystem/PluginSystem';
+export { PluginSystem, PluginContext, HookPayload, CommandResult, LuaPluginInfo } from './modules/PluginSystem/PluginSystem';
+export { LuaInterpreter, LuaPlugin, LuaExecutionResult, LuaValue } from './modules/PluginSystem/LuaInterpreter';
 export { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 export { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
 export { TrendAnalyzer, TrendData, MarketTrend, CompetitiveAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';

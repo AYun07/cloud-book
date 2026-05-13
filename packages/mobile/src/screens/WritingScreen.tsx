@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function WritingScreen({ route, navigation }: any) {
   const { project, chapter } = route.params;
   const [content, setContent] = useState(chapter?.content || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const saveContent = () => {
+  const saveContent = async () => {
     setIsSaving(true);
     try {
-      const chaptersStr = localStorage.getItem(`chapters_${project.id}`) || '[]';
+      const chaptersStr = await AsyncStorage.getItem(`chapters_${project.id}`) || '[]';
       const chapters = JSON.parse(chaptersStr);
       
       const chapterIndex = chapters.findIndex((c: any) => c.id === chapter?.id);
@@ -26,7 +27,7 @@ export default function WritingScreen({ route, navigation }: any) {
         });
       }
       
-      localStorage.setItem(`chapters_${project.id}`, JSON.stringify(chapters));
+      await AsyncStorage.setItem(`chapters_${project.id}`, JSON.stringify(chapters));
       Alert.alert('保存成功', '章节内容已保存');
     } catch (error) {
       Alert.alert('保存失败', '无法保存章节内容');

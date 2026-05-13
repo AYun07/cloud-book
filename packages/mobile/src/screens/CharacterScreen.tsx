@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, SafeAreaView, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Character {
   id: string;
@@ -19,9 +20,9 @@ export default function CharacterScreen({ route }: any) {
     loadCharacters();
   }, []);
 
-  const loadCharacters = () => {
+  const loadCharacters = async () => {
     try {
-      const stored = localStorage.getItem(`characters_${project.id}`);
+      const stored = await AsyncStorage.getItem(`characters_${project.id}`);
       if (stored) {
         setCharacters(JSON.parse(stored));
       }
@@ -30,7 +31,7 @@ export default function CharacterScreen({ route }: any) {
     }
   };
 
-  const addCharacter = () => {
+  const addCharacter = async () => {
     if (!newName.trim()) {
       Alert.alert('错误', '请输入角色名称');
       return;
@@ -45,7 +46,7 @@ export default function CharacterScreen({ route }: any) {
 
     const updated = [...characters, character];
     setCharacters(updated);
-    localStorage.setItem(`characters_${project.id}`, JSON.stringify(updated));
+    await AsyncStorage.setItem(`characters_${project.id}`, JSON.stringify(updated));
     
     setNewName('');
     setNewRole('');
@@ -60,10 +61,10 @@ export default function CharacterScreen({ route }: any) {
         {
           text: '删除',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const updated = characters.filter(c => c.id !== id);
             setCharacters(updated);
-            localStorage.setItem(`characters_${project.id}`, JSON.stringify(updated));
+            await AsyncStorage.setItem(`characters_${project.id}`, JSON.stringify(updated));
           }
         }
       ]

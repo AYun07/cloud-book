@@ -82,21 +82,33 @@ export class ImitationEngine {
   }
   
   private reconstructFromParseResult(parseResult: ParseResult): string {
-    const parts: string[] = [];
+    const fullContent: string[] = [];
     
-    if (parseResult.characters.length > 0) {
-      parts.push(`主要角色：${parseResult.characters.map(c => c.name).join('、')}`);
+    for (const chapter of parseResult.chapters) {
+      if (chapter.content && chapter.content.trim()) {
+        if (chapter.title) {
+          fullContent.push(`【${chapter.title}】`);
+        }
+        fullContent.push(chapter.content);
+        fullContent.push('\n');
+      }
     }
     
-    if (parseResult.worldSettings?.powerSystem) {
-      parts.push(`力量体系：${parseResult.worldSettings.powerSystem}`);
+    if (fullContent.length === 0) {
+      const parts: string[] = [];
+      if (parseResult.characters.length > 0) {
+        parts.push(`主要角色：${parseResult.characters.map(c => c.name).join('、')}`);
+      }
+      if (parseResult.worldSettings?.powerSystem) {
+        parts.push(`力量体系：${parseResult.worldSettings.powerSystem}`);
+      }
+      if (parseResult.chapters.length > 0) {
+        parts.push(`章节数：${parseResult.chapters.length}`);
+      }
+      return parts.join('\n');
     }
     
-    if (parseResult.chapters.length > 0) {
-      parts.push(`章节数：${parseResult.chapters.length}`);
-    }
-    
-    return parts.join('\n');
+    return fullContent.join('\n');
   }
   
   private performStyleAnalysis(content: string): {
