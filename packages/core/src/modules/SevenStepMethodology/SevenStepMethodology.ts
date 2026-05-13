@@ -408,6 +408,17 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
   }
 
   private parseConstitution(response: string, params?: Record<string, any>): Constitution {
+    const jsonResult = this.tryParseJSON(response);
+    if (jsonResult) {
+      return {
+        id: this.generateId(),
+        title: jsonResult.title || params?.title || '写作宪章',
+        corePrinciples: jsonResult.corePrinciples || this.extractList(response, '核心原则'),
+        writingGuidelines: jsonResult.writingGuidelines || this.extractList(response, '写作指南'),
+        genreSpecificRules: jsonResult.genreSpecificRules || this.extractList(response, '类型规则')
+      };
+    }
+    
     return {
       id: this.generateId(),
       title: params?.title || '写作宪章',
@@ -418,6 +429,22 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
   }
 
   private parseSpec(response: string, params?: Record<string, any>): StorySpec {
+    const jsonResult = this.tryParseJSON(response);
+    if (jsonResult) {
+      return {
+        id: this.generateId(),
+        title: jsonResult.title || params?.title || '待定',
+        premise: jsonResult.premise || '',
+        genre: jsonResult.genre || (params?.genre as any) || 'fantasy',
+        targetAudience: jsonResult.targetAudience || '通用',
+        wordCountTarget: parseInt(jsonResult.wordCountTarget || jsonResult.wordCount || '100000'),
+        themes: jsonResult.themes || this.extractList(response, '主题'),
+        tone: jsonResult.tone || this.extractField(response, '基调') || '中性',
+        structure: jsonResult.structure || this.extractField(response, '结构') || '三幕式',
+        requirements: jsonResult.requirements || this.extractList(response, '要求')
+      };
+    }
+    
     return {
       id: this.generateId(),
       title: this.extractField(response, '标题') || params?.title || '待定',
@@ -433,20 +460,52 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
   }
 
   private parsePlan(response: string, targetChapters: number): WritingPlan {
-    const chapters: any[] = [];
-    const planMatch = response.match(/章节大纲[\s\S]*?(?=里程碑|伏笔|$)/i);
+    const jsonResult = this.tryParseJSON(response);
+    let chapters: any[] = [];
     
-    if (planMatch) {
-      const lines = planMatch[0].split('\n').filter(l => l.trim());
-      for (let i = 0; i < Math.min(lines.length, targetChapters); i++) {
-        chapters.push({
-          number: i + 1,
-          title: this.extractChapterTitle(lines[i]) || `第${i + 1}章`,
-          summary: this.extractChapterSummary(lines[i]),
-          wordCountTarget: 2500,
-          keyPoints: [],
-          hooks: []
-        });
+    if (jsonResult && jsonResult.chapters) {
+      chapters = jsonResult.chapters.slice(0, targetChapters).map((ch: any, i: number) => ({
+        number: ch.number || ch.chapterNumber || i + 1,
+        title: ch.title || `第${this.toChineseNumber(i + 1)}章`,
+        summary: ch.summary || ch.description || ch.content || '',
+        wordCountTarget: ch.wordCountTarget || ch.wordCount || 2500,
+        keyPoints: ch.keyPoints || ch.keyEvents || [],
+        hooks: ch.hooks || ch.ending || []
+      }));
+    } else {
+      const outlineMatch = response.match(/章节大纲[\s\S]*?(?=里程碑|伏笔|$)/i);
+      if (outlineMatch) {
+        const lines = outlineMatch[0].split('\n').filter((l: string) => l.trim());
+        let chapterCount = 0;
+        
+        for (const line of lines) {
+          if (chapterCount >= targetChapters) break;
+          if (this.looksLikeChapter(line)) {
+            chapterCount++;
+            chapters.push({
+              number: chapterCount,
+              title: this.extractChapterTitle(line) || `第${this.toChineseNumber(chapterCount)}章`,
+              summary: this.extractChapterSummary(line),
+              wordCountTarget: 2500,
+              keyPoints: [],
+              hooks: []
+            });
+          }
+        }
+        
+        if (chapterCount === 0) {
+          const paragraphs = response.split(/\n\n+/).filter((p: string) => p.trim().length > 50);
+          for (let i = 0; i < Math.min(paragraphs.length, targetChapters); i++) {
+            chapters.push({
+              number: i + 1,
+              title: `第${this.toChineseNumber(i + 1)}章`,
+              summary: paragraphs[i].slice(0, 200),
+              wordCountTarget: 2500,
+              keyPoints: [],
+              hooks: []
+            });
+          }
+        }
       }
     }
 
@@ -459,21 +518,114 @@ ${chapters.map((c: any, i: number) => `${i + 1}. 第${c.number}章 "${c.title}"`
   }
 
   private parseTasks(response: string): TaskItem[] {
-    const tasks: TaskItem[] = [];
-    const lines = response.split('\n').filter(l => l.trim());
+    const jsonResult = this.tryParseJSON(response);
+    if (jsonResult) {
+      const tasks = Array.isArray(jsonResult) ? jsonResult : jsonResult.tasks;
+      if (Array.isArray(tasks)) {
+        return tasks.map((t: any, i: number) => ({
+          id: t.id || this.generateId(),
+          description: t.description || t.content || t.text || '',
+          status: 'pending' as const,
+          priority: t.priority || (i < 5 ? 'high' : 'medium'),
+          estimatedTime: t.estimatedTime || t.time || 60,
+          dependencies: t.dependencies || []
+        }));
+      }
+    }
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.match(/^\d+[.、]/) || line.match(/^[-*]/)) {
+    const tasks: TaskItem[] = [];
+    const lines = response.split('\n').filter((l: string) => l.trim());
+    let currentSection = '';
+    
+    for (const line of lines) {
+      if (line.match(/^\d+[.、]/)) {
         tasks.push({
           id: this.generateId(),
-          description: line.replace(/^\d+[.、]\s*/, '').replace(/^[-*]\s*/, ''),
+          description: line.replace(/^\d+[.、]\s*/, '').trim(),
+          status: 'pending'
+        });
+      } else if (line.match(/^[-*◆]/)) {
+        if (tasks.length > 0) {
+          tasks[tasks.length - 1].description += ' ' + line.replace(/^[-*◆]\s*/, '').trim();
+        }
+      } else if (line.match(/^[一二三四五六七八九十]+[.、]/)) {
+        const chineseNum = line.match(/^([一二三四五六七八九十]+)/)?.[1] || '';
+        tasks.push({
+          id: this.generateId(),
+          description: line.replace(/^[一二三四五六七八九十]+[.、]\s*/, '').trim(),
           status: 'pending'
         });
       }
     }
 
     return tasks;
+  }
+
+  private tryParseJSON(text: string): any | null {
+    const patterns = [
+      /```(?:json)?\s*([\s\S]*?)\s*```/,
+      /\{[\s\S]*\}/,
+      /\[[\s\S]*\]/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        try {
+          const result = JSON.parse(match[0]);
+          if (typeof result === 'object' && result !== null) {
+            return result;
+          }
+        } catch {}
+      }
+    }
+    
+    const jsonLikeStart = text.indexOf('{');
+    const jsonLikeEnd = text.lastIndexOf('}');
+    if (jsonLikeStart !== -1 && jsonLikeEnd !== -1 && jsonLikeStart < jsonLikeEnd) {
+      try {
+        const jsonStr = text.slice(jsonLikeStart, jsonLikeEnd + 1);
+        const result = JSON.parse(jsonStr);
+        if (typeof result === 'object' && result !== null) {
+          return result;
+        }
+      } catch {}
+    }
+    
+    return null;
+  }
+
+  private looksLikeChapter(line: string): boolean {
+    const patterns = [
+      /第[一二三四五六七八九十百千\d]+章/,
+      /Chapter\s*\d+/i,
+      /章节\s*\d+/,
+      /\d+[.、].*(?:章|节)/
+    ];
+    return patterns.some(p => p.test(line));
+  }
+
+  private toChineseNumber(num: number): string {
+    const units = ['', '十', '百', '千', '万'];
+    const digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    
+    if (num === 0) return '零';
+    
+    let result = '';
+    let unitIndex = 0;
+    
+    while (num > 0) {
+      const digit = num % 10;
+      if (digit !== 0) {
+        result = digits[digit] + units[unitIndex] + result;
+      } else if (result && !result.startsWith('零')) {
+        result = '零' + result;
+      }
+      num = Math.floor(num / 10);
+      unitIndex++;
+    }
+    
+    return result.replace(/零+$/, '');
   }
 
   private extractSection(text: string, section: string): string {

@@ -56,10 +56,346 @@ export class ImitationEngine {
   }
 
   /**
-   * 提取原作风格
+   * 提取原作风格（真实分析算法）
    */
   extractSourceStyle(): StyleFingerprint {
-    return this.config.sourceParseResult.styleFingerprint;
+    const parseResult = this.config.sourceParseResult;
+    const content = parseResult.fullText || this.reconstructFromParseResult(parseResult);
+    const analysis = this.performStyleAnalysis(content);
+    
+    return {
+      averageSentenceLength: analysis.avgSentenceLength,
+      sentenceLengthDistribution: analysis.sentenceLengthDistribution,
+      dialogueRatio: analysis.dialogueRatio,
+      descriptionDensity: analysis.descriptionDensity,
+      emotionalWordFrequency: analysis.emotionalWords,
+      signaturePhrases: analysis.signaturePhrases,
+      tabooWords: analysis.tabooWords,
+      punctuationPatterns: analysis.punctuationPatterns,
+      narrativeVoice: analysis.narrativeVoice,
+      tense: analysis.tense,
+      paragraphStructure: analysis.paragraphStructure
+    };
+  }
+  
+  private reconstructFromParseResult(parseResult: ParseResult): string {
+    const parts: string[] = [];
+    
+    if (parseResult.characters.length > 0) {
+      parts.push(`主要角色：${parseResult.characters.map(c => c.name).join('、')}`);
+    }
+    
+    if (parseResult.worldSettings?.powerSystem) {
+      parts.push(`力量体系：${parseResult.worldSettings.powerSystem}`);
+    }
+    
+    if (parseResult.chapters.length > 0) {
+      parts.push(`章节数：${parseResult.chapters.length}`);
+    }
+    
+    return parts.join('\n');
+  }
+  
+  private performStyleAnalysis(content: string): {
+    avgSentenceLength: number;
+    sentenceLengthDistribution: number[];
+    dialogueRatio: number;
+    descriptionDensity: number;
+    emotionalWords: Record<string, number>;
+    signaturePhrases: string[];
+    tabooWords: string[];
+    punctuationPatterns: Record<string, number>;
+    narrativeVoice: 'first_person' | 'third_person' | 'mixed';
+    tense: 'past' | 'present' | 'mixed';
+    paragraphStructure: { avgLength: number; variance: number };
+  } {
+    const sentences = this.splitSentences(content);
+    const paragraphs = content.split(/\n\n+/);
+    
+    const sentenceLengths = sentences.map(s => this.countWords(s));
+    const avgSentenceLength = sentenceLengths.reduce((a, b) => a + b, 0) / sentences.length;
+    
+    const sentenceLengthDistribution = this.calculateLengthDistribution(sentenceLengths);
+    
+    const dialogueSegments = this.extractDialogueSegments(content);
+    const dialogueRatio = content.length > 0 ? dialogueSegments.length / content.length : 0.3;
+    
+    const descriptiveWords = ['突然', '轻轻', '慢慢', '静静', '深深', '微微', '缓缓', '悄然', '骤然', '霍然'];
+    const descriptionDensity = this.calculateWordDensity(content, descriptiveWords);
+    
+    const emotionalWords = this.extractEmotionalWords(sentences);
+    const signaturePhrases = this.extractSignaturePhrases(sentences);
+    const tabooWords = this.extractTabooWords(sentences);
+    const punctuationPatterns = this.analyzePunctuation(content);
+    
+    const narrativeVoice = this.detectNarrativeVoice(content);
+    const tense = this.detectTense(sentences);
+    
+    const paragraphLengths = paragraphs.map(p => this.countWords(p));
+    const avgParagraphLength = paragraphLengths.reduce((a, b) => a + b, 0) / paragraphs.length;
+    const paragraphVariance = this.calculateVariance(paragraphLengths);
+    
+    return {
+      avgSentenceLength,
+      sentenceLengthDistribution,
+      dialogueRatio,
+      descriptionDensity,
+      emotionalWords,
+      signaturePhrases,
+      tabooWords,
+      punctuationPatterns,
+      narrativeVoice,
+      tense,
+      paragraphStructure: { avgLength: avgParagraphLength, variance: paragraphVariance }
+    };
+  }
+  
+  private splitSentences(text: string): string[] {
+    return text.split(/[。！？\.!?]+/).filter(s => s.trim().length > 0);
+  }
+  
+  private countWords(text: string): number {
+    const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+    return chineseChars + englishWords;
+  }
+  
+  private calculateLengthDistribution(lengths: number[]): number[] {
+    const buckets = new Array(10).fill(0);
+    for (const len of lengths) {
+      const bucketIndex = Math.min(Math.floor(len / 10), 9);
+      buckets[bucketIndex]++;
+    }
+    const total = lengths.length || 1;
+    return buckets.map(c => c / total);
+  }
+  
+  private extractDialogueSegments(text: string): string[] {
+    const segments: string[] = [];
+    const regex = /"([^"]+)"|"([^"]+)"|『([^』]+)』/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const dialogue = match[1] || match[2] || match[3];
+      if (dialogue) segments.push(dialogue);
+    }
+    return segments;
+  }
+  
+  private calculateWordDensity(text: string, words: string[]): number {
+    let count = 0;
+    for (const word of words) {
+      const matches = text.match(new RegExp(word, 'g'));
+      if (matches) count += matches.length;
+    }
+    return count / this.countWords(text);
+  }
+  
+  private extractEmotionalWords(sentences: string[]): Record<string, number> {
+    const emotionalLexicon: Record<string, string[]> = {
+      'joy': ['高兴', '开心', '快乐', '幸福', '喜悦', '愉快', '欢乐', '欢快'],
+      'sadness': ['悲伤', '难过', '伤心', '痛苦', '绝望', '哀伤', '凄凉'],
+      'anger': ['愤怒', '生气', '恼火', '怨恨', '气愤', '恼怒'],
+      'fear': ['害怕', '恐惧', '担忧', '紧张', '焦虑', '不安', '惶恐'],
+      'surprise': ['惊讶', '吃惊', '意外', '震惊', '惊愕', '诧异'],
+      'love': ['爱', '喜欢', '爱慕', '深情', '柔情', '温暖']
+    };
+    
+    const wordFreq: Record<string, number> = {};
+    const text = sentences.join('');
+    
+    for (const [emotion, words] of Object.entries(emotionalLexicon)) {
+      for (const word of words) {
+        const matches = text.match(new RegExp(word, 'g'));
+        if (matches) {
+          wordFreq[word] = matches.length;
+        }
+      }
+    }
+    
+    return wordFreq;
+  }
+  
+  private extractSignaturePhrases(sentences: string[]): string[] {
+    const phraseCounts: Record<string, number> = {};
+    const minLength = 4;
+    const maxLength = 8;
+    
+    for (const sentence of sentences) {
+      for (let len = minLength; len <= maxLength; len++) {
+        for (let i = 0; i <= sentence.length - len; i++) {
+          const phrase = sentence.slice(i, i + len);
+          if (!phrase.includes('\n') && !/^\d+$/.test(phrase)) {
+            phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1;
+          }
+        }
+      }
+    }
+    
+    return Object.entries(phraseCounts)
+      .filter(([_, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([phrase]) => phrase);
+  }
+  
+  private extractTabooWords(sentences: string[]): string[] {
+    const commonPhrases = ['其实', '不过', '然后', '所以', '因为', '但是', '如果', '虽然', '就是', '还是', '可以', '没有', '什么', '这个', '那个'];
+    const text = sentences.join('');
+    
+    return commonPhrases.filter(phrase => {
+      const matches = text.match(new RegExp(phrase, 'g'));
+      return matches && matches.length > 10;
+    });
+  }
+  
+  private analyzePunctuation(text: string): Record<string, number> {
+    const punctuation = ['，', '。', '！', '？', '；', '：', '"', '"', '"', '"', '、', '……', '——'];
+    const patterns: Record<string, number> = {};
+    
+    for (const p of punctuation) {
+      const matches = text.match(new RegExp(p, 'g'));
+      patterns[p] = matches ? matches.length : 0;
+    }
+    
+    return patterns;
+  }
+  
+  private detectNarrativeVoice(text: string): 'first_person' | 'third_person' | 'mixed' {
+    const firstPersonPatterns = [/\b我\b/, /\b我们\b/, /\b我的\b/, /\b我们\b/];
+    const thirdPersonPatterns = [/\b他\b/, /\b她\b/, /\b它\b/, /\b他们\b/, /\b她们\b/, /\b他的\b/, /\b她的\b/];
+    
+    let firstPersonCount = 0;
+    let thirdPersonCount = 0;
+    
+    for (const pattern of firstPersonPatterns) {
+      const matches = text.match(new RegExp(pattern, 'g'));
+      if (matches) firstPersonCount += matches.length;
+    }
+    
+    for (const pattern of thirdPersonPatterns) {
+      const matches = text.match(new RegExp(pattern, 'g'));
+      if (matches) thirdPersonCount += matches.length;
+    }
+    
+    if (firstPersonCount > thirdPersonCount * 2) return 'first_person';
+    if (thirdPersonCount > firstPersonCount * 2) return 'third_person';
+    return 'mixed';
+  }
+  
+  private detectTense(sentences: string[]): 'past' | 'present' | 'mixed' {
+    const pastMarkers = ['了', '曾经', '以前', '过去', '刚才', '当时', '已', '已经', '曾', '未曾'];
+    const presentMarkers = ['正在', '现在', '此刻', '此时', '目前', '当今', '当今'];
+    
+    let pastCount = 0;
+    let presentCount = 0;
+    
+    for (const marker of pastMarkers) {
+      for (const sentence of sentences) {
+        const matches = sentence.match(new RegExp(marker, 'g'));
+        if (matches) pastCount += matches.length;
+      }
+    }
+    
+    for (const marker of presentMarkers) {
+      for (const sentence of sentences) {
+        const matches = sentence.match(new RegExp(marker, 'g'));
+        if (matches) presentCount += matches.length;
+      }
+    }
+    
+    if (pastCount > presentCount * 2) return 'past';
+    if (presentCount > pastCount * 2) return 'present';
+    return 'mixed';
+  }
+  
+  private calculateVariance(values: number[]): number {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+    return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
+  }
+  
+  measureStyleSimilarity(style1: StyleFingerprint, style2: StyleFingerprint): number {
+    let totalScore = 0;
+    let totalWeight = 0;
+    
+    const weights = {
+      sentenceLength: 0.15,
+      dialogueRatio: 0.1,
+      descriptionDensity: 0.1,
+      narrativeVoice: 0.2,
+      tense: 0.15,
+      paragraphStructure: 0.1,
+      punctuation: 0.1,
+      emotionalWords: 0.1
+    };
+    
+    totalScore += this.compareNumeric(style1.averageSentenceLength, style2.averageSentenceLength, 50) * weights.sentenceLength;
+    totalWeight += weights.sentenceLength;
+    
+    totalScore += this.compareNumeric(style1.dialogueRatio, style2.dialogueRatio, 1) * weights.dialogueRatio;
+    totalWeight += weights.dialogueRatio;
+    
+    totalScore += this.compareNumeric(style1.descriptionDensity, style2.descriptionDensity, 1) * weights.descriptionDensity;
+    totalWeight += weights.descriptionDensity;
+    
+    totalScore += (style1.narrativeVoice === style2.narrativeVoice ? 1 : 0) * weights.narrativeVoice;
+    totalWeight += weights.narrativeVoice;
+    
+    totalScore += (style1.tense === style2.tense ? 1 : 0) * weights.tense;
+    totalWeight += weights.tense;
+    
+    totalScore += this.compareNumeric(
+      style1.paragraphStructure?.avgLength || 0,
+      style2.paragraphStructure?.avgLength || 0,
+      100
+    ) * weights.paragraphStructure;
+    totalWeight += weights.paragraphStructure;
+    
+    totalScore += this.comparePunctuation(style1.punctuationPatterns, style2.punctuationPatterns) * weights.punctuation;
+    totalWeight += weights.punctuation;
+    
+    totalScore += this.compareEmotionalWords(style1.emotionalWordFrequency, style2.emotionalWordFrequency) * weights.emotionalWords;
+    totalWeight += weights.emotionalWords;
+    
+    return totalWeight > 0 ? totalScore / totalWeight : 0;
+  }
+  
+  private compareNumeric(a: number, b: number, maxDiff: number): number {
+    const diff = Math.abs(a - b);
+    return Math.max(0, 1 - diff / maxDiff);
+  }
+  
+  private comparePunctuation(p1: Record<string, number>, p2: Record<string, number>): number {
+    const allKeys = new Set([...Object.keys(p1), ...Object.keys(p2)]);
+    let totalDiff = 0;
+    let count = 0;
+    
+    for (const key of allKeys) {
+      const v1 = p1[key] || 0;
+      const v2 = p2[key] || 0;
+      const max = Math.max(v1, v2, 1);
+      totalDiff += 1 - Math.abs(v1 - v2) / max;
+      count++;
+    }
+    
+    return count > 0 ? totalDiff / count : 0;
+  }
+  
+  private compareEmotionalWords(w1: Record<string, number>, w2: Record<string, number>): number {
+    const allKeys = new Set([...Object.keys(w1), ...Object.keys(w2)]);
+    let totalDiff = 0;
+    let count = 0;
+    
+    for (const key of allKeys) {
+      const v1 = w1[key] || 0;
+      const v2 = w2[key] || 0;
+      const max = Math.max(v1, v2, 1);
+      totalDiff += 1 - Math.abs(v1 - v2) / max;
+      count++;
+    }
+    
+    return count > 0 ? totalDiff / count : 0;
   }
 
   /**

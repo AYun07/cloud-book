@@ -143,19 +143,124 @@ export class MemoryManager {
   async getRelevantMemories(projectId: string, context: MemoryContext): Promise<Memory[]> {
     const allMemories = await this.getAllMemories(projectId);
     
-    return allMemories.filter(memory => {
-      if (memory.type === 'systemPrompt') return true;
+    const scoredMemories: Array<{ memory: Memory; score: number }> = [];
+    
+    for (const memory of allMemories) {
+      let score = 0;
       
-      if (context.recentChapters !== undefined && memory.type === 'memory') {
-        return true;
+      switch (memory.type) {
+        case 'systemPrompt':
+          score = 100;
+          break;
+          
+        case 'memory':
+          score = this.calculateMemoryScore(memory, context);
+          break;
+          
+        case 'authorsNote':
+          score = this.calculateAuthorsNoteScore(memory, context);
+          break;
       }
       
-      if (context.characterStates && memory.type === 'authorsNote') {
-        return true;
+      if (score > 0) {
+        scoredMemories.push({ memory, score });
       }
+    }
+    
+    scoredMemories.sort((a, b) => b.score - a.score);
+    
+    const limit = context.recentChapters || 20;
+    return scoredMemories.slice(0, limit).map(sm => sm.memory);
+  }
+  
+  private calculateMemoryScore(memory: Memory, context: MemoryContext): number {
+    let score = 50;
+    
+    if (!memory.metadata) return score;
+    
+    if (context.recentChapters !== undefined) {
+      const memoryChapter = memory.metadata.chapterNumber || 0;
+      const relevance = Math.max(0, 1 - (context.recentChapters - memoryChapter) / context.recentChapters);
+      score += relevance * 30;
+    }
+    
+    if (context.plotProgress && memory.metadata.keywords) {
+      const keywords = context.plotProgress.toLowerCase().split(/[,\s]+/);
+      const hasMatch = memory.metadata.keywords.some((kw: string) => 
+        keywords.some(k => k.includes(kw.toLowerCase()) || kw.includes(kw.toLowerCase()))
+      );
+      if (hasMatch) score += 20;
+    }
+    
+    if (context.emotionalTone && memory.metadata.emotionalTone) {
+      if (memory.metadata.emotionalTone === context.emotionalTone) {
+        score += 15;
+      } else {
+        const oppositeTones: Record<string, string> = {
+          'happy': 'sad', 'sad': 'happy',
+          'tense': 'relaxed', 'relaxed': 'tense',
+          'angry': 'calm', 'calm': 'angry'
+        };
+        if (oppositeTones[memory.metadata.emotionalTone] === context.emotionalTone) {
+          score -= 10;
+        }
+      }
+    }
+    
+    if (context.characterStates) {
+      for (const [charName, state] of Object.entries(context.characterStates)) {
+        if (memory.content.includes(charName) && state) {
+          score += 10;
+          if (memory.metadata.characterStates?.[charName] === state) {
+            score += 5;
+          }
+        }
+      }
+    }
+    
+    if (memory.metadata.priority === 'high') {
+      score += 20;
+    } else if (memory.metadata.priority === 'low') {
+      score -= 10;
+    }
+    
+    return Math.max(0, Math.min(100, score));
+  }
+  
+  private calculateAuthorsNoteScore(memory: Memory, context: MemoryContext): number {
+    let score = 30;
+    
+    if (!context.characterStates && !context.emotionalTone && !context.plotProgress) {
+      return score;
+    }
+    
+    if (context.characterStates) {
+      for (const charName of Object.keys(context.characterStates)) {
+        if (memory.content.includes(charName)) {
+          score += 25;
+        }
+      }
+    }
+    
+    if (context.emotionalTone) {
+      const emotionalKeywords: Record<string, string[]> = {
+        'happy': ['幸福', '快乐', '开心', '高兴', '喜悦'],
+        'sad': ['悲伤', '难过', '伤心', '痛苦', '绝望'],
+        'tense': ['紧张', '担忧', '焦虑', '不安', '害怕'],
+        'relaxed': ['放松', '舒适', '悠闲', '平静', '宁静'],
+        'angry': ['愤怒', '生气', '恼火', '怨恨', '不满']
+      };
       
-      return true;
-    });
+      const keywords = emotionalKeywords[context.emotionalTone] || [];
+      const hasEmotion = keywords.some(kw => memory.content.includes(kw));
+      if (hasEmotion) score += 30;
+    }
+    
+    if (context.plotProgress && memory.metadata?.scope === 'global') {
+      score += 15;
+    }
+    
+    return Math.max(0, Math.min(100, score));
   }
 
   async buildMemoryContext(projectId: string, context: MemoryContext = {}): Promise<string> {

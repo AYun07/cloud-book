@@ -7,8 +7,8 @@
 import { LLMConfig, ModelRoute } from '../types';
 
 const API_CONFIG = {
-  baseURL: 'https://gemini.beijixingxing.com/v1',
-  apiKey: 'sk-RNxvNNojSg03dxkNsXsky2JolITLq1Ob3ELC2Y49LNFQikkn'
+  baseURL: process.env.LLM_API_BASE_URL || 'https://gemini.beijixingxing.com/v1',
+  apiKey: process.env.LLM_API_KEY || ''
 };
 
 export const MODEL_NAMES = {
