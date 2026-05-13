@@ -1,78 +1,54 @@
 /**
- * Cloud Book - 核心协调器
- * 单一职责：协调各子系统，不直接实现业务逻辑
+ * Cloud Book - 核心引擎
+ * 基于统一存储的简化实现
  */
 
-import { CloudBookError, handleError } from './utils/errors.js';
-import { UnifiedStorage } from './utils/storage.js';
-
-export interface CloudBookConfig {
-  storage?: UnifiedStorage;
-  enableEncryption?: boolean;
-  encryptionKey?: string;
-}
-
-export interface Project {
-  id: string;
-  title: string;
-  genre: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Chapter {
-  id: string;
-  projectId: string;
-  title: string;
-  content: string;
-  status: 'draft' | 'writing' | 'completed' | 'published';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WritingResult {
-  chapter: Chapter;
-  success: boolean;
-  metadata: {
-    tokensUsed: number;
-    cost: number;
-    duration: number;
-  };
-}
+import * as fs from 'fs';
+import * as path from 'path';
+import { UnifiedStorage } from './utils/storage';
+import { CloudBookError, handleError } from './utils/errors';
+import { LLMManager } from './modules/LLMProvider/LLMManager';
+import { MemoryManager } from './modules/Memory/MemoryManager';
+import { NovelProject, Chapter, Character, WorldSetting, TruthFiles, ChapterSummary } from './types';
 
 export class CloudBookCore {
   private storage: UnifiedStorage;
-  private config: CloudBookConfig;
+  private llmManager: LLMManager;
+  private memoryManager: MemoryManager;
 
-  constructor(config: CloudBookConfig = {}) {
-    this.config = config;
-    this.storage = config.storage || new UnifiedStorage({
-      encryptionKey: config.encryptionKey,
-      enableBackup: true,
-      maxBackups: 5
+  constructor(options: { 
+    storage?: UnifiedStorage;
+    llmManager?: LLMManager;
+    dataPath?: string;
+  } = {}) {
+    this.storage = options.storage || new UnifiedStorage({
+      basePath: options.dataPath || './data/cloudbook'
     });
+    this.llmManager = options.llmManager || new LLMManager();
+    this.memoryManager = new MemoryManager();
   }
 
   async initialize(): Promise<void> {
-    await this.storage.write('meta/version.json', JSON.stringify({ version: '1.0.0' }));
+    await this.memoryManager.initialize('default');
+    console.log('CloudBook 初始化完成');
   }
 
-  async createProject(title: string, genre: string): Promise<Project> {
+  async createProject(title: string, genre: string = 'fantasy'): Promise<NovelProject> {
     try {
-      const project: Project = {
+      const project: NovelProject = {
         id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         title,
-        genre,
+        genre: genre as any,
+        literaryGenre: 'novel',
+        writingMode: 'original',
+        status: 'planning',
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      await this.storage.batchWrite([
-        { path: `projects/${project.id}/meta.json`, content: JSON.stringify(project) },
-        { path: `projects/${project.id}/chapters/index.json`, content: JSON.stringify([]) },
-        { path: `projects/${project.id}/characters/index.json`, content: JSON.stringify([]) },
-        { path: `projects/${project.id}/world/index.json`, content: JSON.stringify({ characters: [], locations: [], factions: [], timeline: [] }) }
-      ]);
+      await this.storage.write(`projects/${project.id}/meta.json`, JSON.stringify(project));
+      await this.storage.write(`projects/${project.id}/chapters/index.json`, JSON.stringify([]));
+      await this.storage.write(`projects/${project.id}/characters/index.json`, JSON.stringify([]));
 
       return project;
     } catch (error) {
@@ -80,27 +56,47 @@ export class CloudBookCore {
     }
   }
 
-  async getProject(projectId: string): Promise<Project | null> {
+  async getProject(projectId: string): Promise<NovelProject | null> {
     try {
       const content = await this.storage.read(`projects/${projectId}/meta.json`);
       return JSON.parse(content);
     } catch (error) {
-      if (error instanceof CloudBookError && error.code === 'STORAGE_ERROR') {
-        return null;
-      }
-      throw handleError(error, 'CloudBook.getProject');
+      return null;
     }
   }
 
-  async listProjects(): Promise<Project[]> {
+  async listProjects(): Promise<NovelProject[]> {
     try {
-      const files = await this.storage.list('projects', { recursive: true });
-      const projects: Project[] = [];
+      const allFiles: string[] = [];
+      const listDir = async (dirPath: string) => {
+        try {
+          const files = await this.storage.list(dirPath);
+          for (const file of files) {
+            if (file === '.gitkeep') continue;
+            const fullPath = dirPath ? `${dirPath}/${file}` : file;
+            try {
+              const isDir = await this.storage.exists(fullPath);
+              if (isDir) {
+                await listDir(fullPath);
+              } else {
+                allFiles.push(fullPath);
+              }
+            } catch {}
+          }
+        } catch {}
+      };
 
-      for (const file of files) {
-        if (file.endsWith('/meta.json')) {
-          const content = await this.storage.read(file);
-          projects.push(JSON.parse(content));
+      try {
+        await listDir('projects');
+      } catch {}
+
+      const projects: NovelProject[] = [];
+      for (const file of allFiles) {
+        if (file.endsWith('meta.json') && file.includes('/projects/')) {
+          try {
+            const content = await this.storage.read(file);
+            projects.push(JSON.parse(content));
+          } catch {}
         }
       }
 
@@ -112,14 +108,14 @@ export class CloudBookCore {
     }
   }
 
-  async updateProject(projectId: string, updates: Partial<Project>): Promise<Project> {
+  async updateProject(projectId: string, updates: Partial<NovelProject>): Promise<NovelProject> {
     try {
       const project = await this.getProject(projectId);
       if (!project) {
         throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
       }
 
-      const updatedProject: Project = {
+      const updatedProject: NovelProject = {
         ...project,
         ...updates,
         id: project.id,
@@ -136,11 +132,41 @@ export class CloudBookCore {
 
   async deleteProject(projectId: string): Promise<void> {
     try {
-      const files = await this.storage.list(`projects/${projectId}`, { recursive: true });
-      for (const file of files) {
-        await this.storage.delete(file, { createBackup: false });
+      const project = await this.getProject(projectId);
+      if (!project) {
+        throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
       }
-      await this.storage.delete(`projects/${projectId}`, { createBackup: false });
+
+      const allFiles: string[] = [];
+      const listDir = async (dirPath: string) => {
+        try {
+          const files = await this.storage.list(dirPath);
+          for (const file of files) {
+            if (file === '.gitkeep') continue;
+            const fullPath = dirPath ? `${dirPath}/${file}` : file;
+            try {
+              const isDir = await this.storage.exists(fullPath);
+              if (isDir) {
+                await listDir(fullPath);
+              } else {
+                allFiles.push(fullPath);
+              }
+            } catch {}
+          }
+        } catch {}
+      };
+
+      await listDir(`projects/${projectId}`);
+
+      for (const file of allFiles.reverse()) {
+        try {
+          await this.storage.delete(file, false);
+        } catch {}
+      }
+
+      try {
+        await this.storage.delete(`projects/${projectId}`, false);
+      } catch {}
     } catch (error) {
       throw handleError(error, 'CloudBook.deleteProject');
     }
@@ -148,23 +174,29 @@ export class CloudBookCore {
 
   async createChapter(projectId: string, title: string, content: string = ''): Promise<Chapter> {
     try {
+      const project = await this.getProject(projectId);
+      if (!project) {
+        throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
+      }
+
+      const chapters: Chapter[] = project.chapters || [];
+      const chapterNumber = chapters.length + 1;
+      
       const chapter: Chapter = {
         id: `ch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        projectId,
+        number: chapterNumber,
         title,
-        content,
-        status: 'draft',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        status: 'outline',
+        wordCount: this.countWords(content),
+        content: content
       };
 
-      const indexContent = await this.storage.read(`projects/${projectId}/chapters/index.json`);
-      const chapters: Chapter[] = JSON.parse(indexContent);
       chapters.push(chapter);
-      await this.storage.batchWrite([
-        { path: `projects/${projectId}/chapters/${chapter.id}.json`, content: JSON.stringify(chapter) },
-        { path: `projects/${projectId}/chapters/index.json`, content: JSON.stringify(chapters) }
-      ]);
+      project.chapters = chapters;
+      project.updatedAt = new Date();
+
+      await this.storage.write(`projects/${projectId}/chapters/ch_${chapter.id}.json`, JSON.stringify(chapter));
+      await this.storage.write(`projects/${projectId}/meta.json`, JSON.stringify(project));
 
       return chapter;
     } catch (error) {
@@ -174,25 +206,10 @@ export class CloudBookCore {
 
   async getChapter(projectId: string, chapterId: string): Promise<Chapter | null> {
     try {
-      const content = await this.storage.read(`projects/${projectId}/chapters/${chapterId}.json`);
+      const content = await this.storage.read(`projects/${projectId}/chapters/ch_${chapterId}.json`);
       return JSON.parse(content);
     } catch (error) {
-      if (error instanceof CloudBookError && error.code === 'STORAGE_ERROR') {
-        return null;
-      }
-      throw handleError(error, 'CloudBook.getChapter');
-    }
-  }
-
-  async listChapters(projectId: string): Promise<Chapter[]> {
-    try {
-      const content = await this.storage.read(`projects/${projectId}/chapters/index.json`);
-      return JSON.parse(content);
-    } catch (error) {
-      if (error instanceof CloudBookError && error.code === 'STORAGE_ERROR') {
-        return [];
-      }
-      throw handleError(error, 'CloudBook.listChapters');
+      return null;
     }
   }
 
@@ -200,29 +217,40 @@ export class CloudBookCore {
     try {
       const chapter = await this.getChapter(projectId, chapterId);
       if (!chapter) {
-        throw new CloudBookError('Chapter not found', 'NOT_FOUND', { chapterId }, 404);
+        throw new CloudBookError('Chapter not found', 'NOT_FOUND', { projectId, chapterId }, 404);
       }
 
       const updatedChapter: Chapter = {
         ...chapter,
         ...updates,
         id: chapter.id,
-        projectId: chapter.projectId,
-        createdAt: chapter.createdAt,
-        updatedAt: new Date()
+        number: chapter.number
       };
 
-      const indexContent = await this.storage.read(`projects/${projectId}/chapters/index.json`);
-      const chapters: Chapter[] = JSON.parse(indexContent);
-      const index = chapters.findIndex(c => c.id === chapterId);
-      if (index >= 0) {
-        chapters[index] = updatedChapter;
+      if (updates.content !== undefined) {
+        updatedChapter.wordCount = this.countWords(updates.content);
       }
 
-      await this.storage.batchWrite([
-        { path: `projects/${projectId}/chapters/${chapterId}.json`, content: JSON.stringify(updatedChapter) },
-        { path: `projects/${projectId}/chapters/index.json`, content: JSON.stringify(chapters) }
-      ]);
+      await this.storage.write(
+        `projects/${projectId}/chapters/ch_${chapterId}.json`,
+        JSON.stringify(updatedChapter)
+      );
+
+      const project = await this.getProject(projectId);
+      if (project && project.chapters) {
+        const chapterIndex = project.chapters.findIndex(c => c.id === chapterId);
+        if (chapterIndex !== -1) {
+          project.chapters[chapterIndex] = {
+            id: chapter.id,
+            number: updatedChapter.number,
+            title: updatedChapter.title,
+            status: updatedChapter.status,
+            wordCount: updatedChapter.wordCount
+          };
+          project.updatedAt = new Date();
+          await this.storage.write(`projects/${projectId}/meta.json`, JSON.stringify(project));
+        }
+      }
 
       return updatedChapter;
     } catch (error) {
@@ -232,74 +260,169 @@ export class CloudBookCore {
 
   async deleteChapter(projectId: string, chapterId: string): Promise<void> {
     try {
-      const indexContent = await this.storage.read(`projects/${projectId}/chapters/index.json`);
-      const chapters: Chapter[] = JSON.parse(indexContent);
-      const filtered = chapters.filter(c => c.id !== chapterId);
+      const project = await this.getProject(projectId);
+      if (!project) {
+        throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
+      }
 
-      await this.storage.batchWrite([
-        { path: `projects/${projectId}/chapters/${chapterId}.json`, content: '' },
-        { path: `projects/${projectId}/chapters/index.json`, content: JSON.stringify(filtered) }
-      ]);
+      await this.storage.delete(`projects/${projectId}/chapters/ch_${chapterId}.json`, false);
 
-      await this.storage.delete(`projects/${projectId}/chapters/${chapterId}.json`);
+      if (project.chapters) {
+        project.chapters = project.chapters.filter(c => c.id !== chapterId);
+        project.chapters.forEach((c, i) => {
+          c.number = i + 1;
+        });
+        project.updatedAt = new Date();
+        await this.storage.write(`projects/${projectId}/meta.json`, JSON.stringify(project));
+      }
     } catch (error) {
       throw handleError(error, 'CloudBook.deleteChapter');
     }
   }
 
-  async exportProject(projectId: string, format: 'json' | 'markdown' | 'text'): Promise<string> {
+  async createCharacter(projectId: string, character: Omit<Character, 'id'>): Promise<Character> {
     try {
       const project = await this.getProject(projectId);
       if (!project) {
         throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
       }
 
-      const chapters = await this.listChapters(projectId);
+      const fullCharacter: Character = {
+        ...character,
+        id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      };
 
-      switch (format) {
-        case 'json':
-          return JSON.stringify({ project, chapters }, null, 2);
+      await this.storage.write(
+        `projects/${projectId}/characters/char_${fullCharacter.id}.json`,
+        JSON.stringify(fullCharacter)
+      );
 
-        case 'markdown':
-          let md = `# ${project.title}\n\n`;
-          md += `**类型**: ${project.genre}\n\n`;
-          md += `---\n\n`;
-          for (const chapter of chapters) {
-            md += `## ${chapter.title}\n\n`;
-            md += `${chapter.content}\n\n`;
-            md += `---\n\n`;
-          }
-          return md;
+      const characters = project.characters || [];
+      characters.push({
+        id: fullCharacter.id,
+        name: fullCharacter.name
+      });
+      project.characters = characters;
+      project.updatedAt = new Date();
+      await this.storage.write(`projects/${projectId}/meta.json`, JSON.stringify(project));
 
-        case 'text':
-          let txt = `${project.title}\n`;
-          txt += `${'='.repeat(project.title.length)}\n\n`;
-          for (const chapter of chapters) {
-            txt += `${chapter.title}\n`;
-            txt += `${'-'.repeat(chapter.title.length)}\n\n`;
-            txt += `${chapter.content}\n\n`;
-          }
-          return txt;
-
-        default:
-          throw new CloudBookError(`Unsupported format: ${format}`, 'VALIDATION_ERROR');
-      }
+      return fullCharacter;
     } catch (error) {
-      throw handleError(error, 'CloudBook.exportProject');
+      throw handleError(error, 'CloudBook.createCharacter');
     }
   }
 
-  async getStorageStats(): Promise<{ totalFiles: number; totalSize: number }> {
-    const stats = this.storage.getStats();
+  async getCharacter(projectId: string, characterId: string): Promise<Character | null> {
+    try {
+      const content = await this.storage.read(`projects/${projectId}/characters/char_${characterId}.json`);
+      return JSON.parse(content);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async updateCharacter(projectId: string, characterId: string, updates: Partial<Character>): Promise<Character> {
+    try {
+      const character = await this.getCharacter(projectId, characterId);
+      if (!character) {
+        throw new CloudBookError('Character not found', 'NOT_FOUND', { projectId, characterId }, 404);
+      }
+
+      const updatedCharacter: Character = {
+        ...character,
+        ...updates,
+        id: character.id
+      };
+
+      await this.storage.write(
+        `projects/${projectId}/characters/char_${characterId}.json`,
+        JSON.stringify(updatedCharacter)
+      );
+
+      return updatedCharacter;
+    } catch (error) {
+      throw handleError(error, 'CloudBook.updateCharacter');
+    }
+  }
+
+  async deleteCharacter(projectId: string, characterId: string): Promise<void> {
+    try {
+      await this.storage.delete(`projects/${projectId}/characters/char_${characterId}.json`, false);
+
+      const project = await this.getProject(projectId);
+      if (project && project.characters) {
+        project.characters = project.characters.filter(c => c.id !== characterId);
+        project.updatedAt = new Date();
+        await this.storage.write(`projects/${projectId}/meta.json`, JSON.stringify(project));
+      }
+    } catch (error) {
+      throw handleError(error, 'CloudBook.deleteCharacter');
+    }
+  }
+
+  async getTruthFiles(projectId: string): Promise<TruthFiles> {
+    const project = await this.getProject(projectId);
+    if (!project) {
+      throw new CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
+    }
+
+    const characters: Character[] = [];
+    if (project.characters) {
+      for (const char of project.characters) {
+        const fullChar = await this.getCharacter(projectId, char.id);
+        if (fullChar) characters.push(fullChar);
+      }
+    }
+
+    const chapters: Chapter[] = [];
+    if (project.chapters) {
+      for (const ch of project.chapters) {
+        const fullCh = await this.getChapter(projectId, ch.id);
+        if (fullCh) chapters.push(fullCh);
+      }
+    }
+
+    const summaries: ChapterSummary[] = chapters.map(c => ({
+      chapterId: c.id,
+      chapterNumber: c.number,
+      title: c.title,
+      summary: c.summary || c.content?.slice(0, 200) || '',
+      charactersPresent: c.characters || [],
+      keyEvents: [],
+      worldStateChanges: [],
+      emotionalBeat: '',
+      pacingNote: ''
+    }));
+
     return {
-      totalFiles: stats.totalFiles,
-      totalSize: stats.totalSize
+      currentState: {
+        protagonist: {
+          id: characters[0]?.id || '',
+          name: characters[0]?.name || '',
+          location: '',
+          status: ''
+        },
+        knownFacts: [],
+        currentConflicts: [],
+        relationshipSnapshot: {},
+        activeSubplots: []
+      },
+      particleLedger: [],
+      pendingHooks: [],
+      chapterSummaries: summaries,
+      subplotBoard: [],
+      emotionalArcs: [],
+      characterMatrix: []
     };
   }
 
-  destroy(): void {
-    this.storage.destroy();
+  private countWords(text: string): number {
+    const chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const english = (text.match(/[a-zA-Z]+/g) || []).length;
+    return chinese + english;
+  }
+
+  async close(): Promise<void> {
+    await this.storage.close();
   }
 }
-
-export const cloudBook = new CloudBookCore();

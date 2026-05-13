@@ -17,6 +17,7 @@ interface FileOperation {
 }
 export declare class UnifiedStorage {
     private basePath;
+    private baseResolved;
     private enableBackup;
     private maxBackups;
     private transactionTimeout;
@@ -39,32 +40,27 @@ export declare class UnifiedStorage {
     read(relativePath: string, options?: {
         decrypt?: boolean;
     }): Promise<string>;
-    delete(relativePath: string, options?: {
-        createBackup?: boolean;
-    }): Promise<void>;
+    delete(relativePath: string, createBackup?: boolean): Promise<void>;
     exists(relativePath: string): Promise<boolean>;
-    list(relativePath: string, options?: {
-        recursive?: boolean;
-        pattern?: RegExp;
-    }): Promise<string[]>;
-    private walkDirectory;
-    beginTransaction(): string;
-    addOperation(transactionId: string, operation: FileOperation): void;
+    list(relativePath?: string, pattern?: RegExp): Promise<string[]>;
+    startTransaction(transactionId: string): Promise<void>;
+    addOperation(transactionId: string, operation: FileOperation): Promise<void>;
     commitTransaction(transactionId: string): Promise<void>;
     rollbackTransaction(transactionId: string): Promise<void>;
     batchWrite(operations: Array<{
         path: string;
         content: string;
+        options?: {
+            encrypt?: boolean;
+        };
     }>): Promise<void>;
+    backup(relativePath: string): Promise<string | null>;
     getStats(): {
         totalFiles: number;
         totalSize: number;
-        lastModified: Date | null;
     };
-    encryptExisting(relativePath: string): Promise<void>;
-    decryptExisting(relativePath: string): Promise<void>;
+    close(): Promise<void>;
     destroy(): void;
 }
-export declare const storage: UnifiedStorage;
 export {};
 //# sourceMappingURL=storage.d.ts.map

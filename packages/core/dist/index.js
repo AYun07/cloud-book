@@ -18,7 +18,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GenreConfigManager = exports.SevenStepMethodology = exports.DaemonService = exports.AgentSystem = exports.KnowledgeGraphManager = exports.CardManager = exports.CreativeHubImpl = exports.CreativeHub = exports.AutoDirector = exports.MemoryManager = exports.WorldInfoManager = exports.ContextManager = exports.WritingPipeline = exports.TruthFileManager = exports.AuditEngine = exports.AIAuditEngine = exports.OFFLINE_CAPABILITIES = exports.OfflineConsistencyChecker = exports.OfflineAuditor = exports.offlineModeManager = exports.OfflineModeManager = exports.AdvancedVectorizerV2 = exports.basicVectorizer = exports.BasicVectorizer = exports.getProviderConfig = exports.ALL_PROVIDER_CONFIGS = exports.OFFLINE_CONFIG = exports.VECTOR_CONFIG = exports.buildCoverPrompt = exports.generateImage = exports.DEFAULT_IMAGE_CONFIG = exports.IMAGE_GEN_PROVIDERS = exports.MODULE_REVIEW_RESULT = exports.LLM_USAGE_SUMMARY = exports.getNonLLMFeatures = exports.getLLMRequiredFeatures = exports.FEATURE_LLM_REQUIREMENTS = exports.MODEL_NAMES = exports.API_CONFIG_INFO = exports.MODEL_CAPABILITIES = exports.getDefaultLLMConfig = exports.createModelRoutes = exports.createModelConfigs = exports.SUPPORTED_MODELS = exports.LLMManager = exports.AntiDetectionEngine = exports.ImitationEngine = exports.NovelParser = exports.CloudBookCore = exports.CloudBook = void 0;
-exports.WebScraper = exports.KeyboardShortcuts = exports.ImportManager = exports.ExportManager = exports.SnowflakeMethodology = exports.CostTracker = exports.GoalManager = exports.LocalStorage = exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = void 0;
+exports.GoalManager = exports.LocalStorage = exports.VersionHistoryManager = exports.MultiLevelCache = exports.CacheManager = exports.NetworkManager = exports.OfflineLLMManager = exports.LocalAPIServer = exports.GlobalLiteraryConfig = exports.I18nManager = exports.TrendAnalyzer = exports.MindMapGenerator = exports.CoverGenerator = exports.PluginSystem = void 0;
 var CloudBook_1 = require("./CloudBook");
 Object.defineProperty(exports, "CloudBook", { enumerable: true, get: function () { return CloudBook_1.CloudBook; } });
 var CloudBookCore_1 = require("./CloudBookCore");
@@ -128,16 +128,4 @@ var LocalStorage_1 = require("./modules/LocalStorage/LocalStorage");
 Object.defineProperty(exports, "LocalStorage", { enumerable: true, get: function () { return LocalStorage_1.LocalStorage; } });
 var GoalManager_1 = require("./modules/GoalManager/GoalManager");
 Object.defineProperty(exports, "GoalManager", { enumerable: true, get: function () { return GoalManager_1.GoalManager; } });
-var CostTracker_1 = require("./modules/CostTracker/CostTracker");
-Object.defineProperty(exports, "CostTracker", { enumerable: true, get: function () { return CostTracker_1.CostTracker; } });
-var SnowflakeMethodology_1 = require("./modules/SnowflakeMethodology/SnowflakeMethodology");
-Object.defineProperty(exports, "SnowflakeMethodology", { enumerable: true, get: function () { return SnowflakeMethodology_1.SnowflakeMethodology; } });
-var ExportManager_1 = require("./modules/ExportManager/ExportManager");
-Object.defineProperty(exports, "ExportManager", { enumerable: true, get: function () { return ExportManager_1.ExportManager; } });
-var ImportManager_1 = require("./modules/ImportManager/ImportManager");
-Object.defineProperty(exports, "ImportManager", { enumerable: true, get: function () { return ImportManager_1.ImportManager; } });
-var KeyboardShortcuts_1 = require("./modules/KeyboardShortcuts/KeyboardShortcuts");
-Object.defineProperty(exports, "KeyboardShortcuts", { enumerable: true, get: function () { return KeyboardShortcuts_1.KeyboardShortcuts; } });
-var WebScraper_1 = require("./modules/WebScraper/WebScraper");
-Object.defineProperty(exports, "WebScraper", { enumerable: true, get: function () { return WebScraper_1.WebScraper; } });
 //# sourceMappingURL=index.js.map

@@ -1,59 +1,35 @@
 /**
- * Cloud Book - 核心协调器
- * 单一职责：协调各子系统，不直接实现业务逻辑
+ * Cloud Book - 核心引擎
+ * 基于统一存储的简化实现
  */
-import { UnifiedStorage } from './utils/storage.js';
-export interface CloudBookConfig {
-    storage?: UnifiedStorage;
-    enableEncryption?: boolean;
-    encryptionKey?: string;
-}
-export interface Project {
-    id: string;
-    title: string;
-    genre: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
-export interface Chapter {
-    id: string;
-    projectId: string;
-    title: string;
-    content: string;
-    status: 'draft' | 'writing' | 'completed' | 'published';
-    createdAt: Date;
-    updatedAt: Date;
-}
-export interface WritingResult {
-    chapter: Chapter;
-    success: boolean;
-    metadata: {
-        tokensUsed: number;
-        cost: number;
-        duration: number;
-    };
-}
+import { UnifiedStorage } from './utils/storage';
+import { LLMManager } from './modules/LLMProvider/LLMManager';
+import { NovelProject, Chapter, Character, TruthFiles } from './types';
 export declare class CloudBookCore {
     private storage;
-    private config;
-    constructor(config?: CloudBookConfig);
+    private llmManager;
+    private memoryManager;
+    constructor(options?: {
+        storage?: UnifiedStorage;
+        llmManager?: LLMManager;
+        dataPath?: string;
+    });
     initialize(): Promise<void>;
-    createProject(title: string, genre: string): Promise<Project>;
-    getProject(projectId: string): Promise<Project | null>;
-    listProjects(): Promise<Project[]>;
-    updateProject(projectId: string, updates: Partial<Project>): Promise<Project>;
+    createProject(title: string, genre?: string): Promise<NovelProject>;
+    getProject(projectId: string): Promise<NovelProject | null>;
+    listProjects(): Promise<NovelProject[]>;
+    updateProject(projectId: string, updates: Partial<NovelProject>): Promise<NovelProject>;
     deleteProject(projectId: string): Promise<void>;
     createChapter(projectId: string, title: string, content?: string): Promise<Chapter>;
     getChapter(projectId: string, chapterId: string): Promise<Chapter | null>;
-    listChapters(projectId: string): Promise<Chapter[]>;
     updateChapter(projectId: string, chapterId: string, updates: Partial<Chapter>): Promise<Chapter>;
     deleteChapter(projectId: string, chapterId: string): Promise<void>;
-    exportProject(projectId: string, format: 'json' | 'markdown' | 'text'): Promise<string>;
-    getStorageStats(): Promise<{
-        totalFiles: number;
-        totalSize: number;
-    }>;
-    destroy(): void;
+    createCharacter(projectId: string, character: Omit<Character, 'id'>): Promise<Character>;
+    getCharacter(projectId: string, characterId: string): Promise<Character | null>;
+    updateCharacter(projectId: string, characterId: string, updates: Partial<Character>): Promise<Character>;
+    deleteCharacter(projectId: string, characterId: string): Promise<void>;
+    getTruthFiles(projectId: string): Promise<TruthFiles>;
+    private countWords;
+    close(): Promise<void>;
 }
-export declare const cloudBook: CloudBookCore;
 //# sourceMappingURL=CloudBookCore.d.ts.map

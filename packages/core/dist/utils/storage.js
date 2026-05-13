@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.storage = exports.UnifiedStorage = void 0;
+exports.UnifiedStorage = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
@@ -69,6 +69,7 @@ class FileLock {
 }
 class UnifiedStorage {
     basePath;
+    baseResolved;
     enableBackup;
     maxBackups;
     transactionTimeout;
@@ -78,6 +79,7 @@ class UnifiedStorage {
     cleanupInterval;
     constructor(config = {}) {
         this.basePath = config.basePath || './data/cloudbook';
+        this.baseResolved = path.resolve(this.basePath);
         this.enableBackup = config.enableBackup ?? true;
         this.maxBackups = config.maxBackups || 5;
         this.transactionTimeout = config.transactionTimeout || 30000;
@@ -119,7 +121,11 @@ class UnifiedStorage {
         return decrypted;
     }
     getFullPath(relativePath) {
-        return path.join(this.basePath, relativePath);
+        const fullPath = path.resolve(this.basePath, relativePath);
+        if (!fullPath.startsWith(this.baseResolved + path.sep) && fullPath !== this.baseResolved) {
+            throw new errors_js_1.StorageError('Path traversal detected', { path: relativePath });
+        }
+        return fullPath;
     }
     createBackup(filePath) {
         if (!this.enableBackup || !fs.existsSync(filePath))
@@ -200,22 +206,15 @@ class UnifiedStorage {
             throw (0, errors_js_1.handleError)(error, `Storage.read(${relativePath})`);
         }
     }
-    async delete(relativePath, options = {}) {
+    async delete(relativePath, createBackup = true) {
         const filePath = this.getFullPath(relativePath);
         try {
             const lock = await this.fileLock.acquire(filePath);
             try {
-                if (!fs.existsSync(filePath)) {
-                    return;
-                }
-                if (options.createBackup !== false && this.enableBackup) {
+                if (createBackup && this.enableBackup) {
                     this.createBackup(filePath);
                 }
-                const stat = fs.statSync(filePath);
-                if (stat.isDirectory()) {
-                    fs.rmSync(filePath, { recursive: true, force: true });
-                }
-                else {
+                if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
                 }
             }
@@ -228,67 +227,49 @@ class UnifiedStorage {
         }
     }
     async exists(relativePath) {
-        const filePath = this.getFullPath(relativePath);
-        return fs.existsSync(filePath);
+        try {
+            const filePath = this.getFullPath(relativePath);
+            return fs.existsSync(filePath);
+        }
+        catch {
+            return false;
+        }
     }
-    async list(relativePath, options = {}) {
+    async list(relativePath = '', pattern) {
         const dirPath = this.getFullPath(relativePath);
         try {
             if (!fs.existsSync(dirPath)) {
                 return [];
             }
-            const results = [];
-            if (options.recursive) {
-                this.walkDirectory(dirPath, path.dirname(dirPath), results, options.pattern);
+            let files = fs.readdirSync(dirPath);
+            if (pattern) {
+                files = files.filter(f => pattern.test(f));
             }
-            else {
-                const files = fs.readdirSync(dirPath);
-                for (const file of files) {
-                    const fullPath = path.join(relativePath, file);
-                    if (!options.pattern || options.pattern.test(fullPath)) {
-                        results.push(fullPath);
-                    }
-                }
-            }
-            return results;
+            return files;
         }
         catch (error) {
             throw (0, errors_js_1.handleError)(error, `Storage.list(${relativePath})`);
         }
     }
-    walkDirectory(dirPath, basePath, results, pattern) {
-        const files = fs.readdirSync(dirPath);
-        for (const file of files) {
-            const fullPath = path.join(dirPath, file);
-            const relativePath = path.relative(basePath, fullPath);
-            if (fs.statSync(fullPath).isDirectory()) {
-                this.walkDirectory(fullPath, basePath, results, pattern);
-            }
-            else {
-                if (!pattern || pattern.test(relativePath)) {
-                    results.push(relativePath);
-                }
-            }
+    async startTransaction(transactionId) {
+        if (this.transactions.has(transactionId)) {
+            throw new errors_js_1.StorageError(`Transaction ${transactionId} already exists`);
         }
-    }
-    beginTransaction() {
-        const id = crypto.randomUUID();
-        this.transactions.set(id, {
-            id,
+        this.transactions.set(transactionId, {
+            id: transactionId,
             operations: [],
             startTime: Date.now(),
             committed: false,
             rolledBack: false
         });
-        return id;
     }
-    addOperation(transactionId, operation) {
+    async addOperation(transactionId, operation) {
         const transaction = this.transactions.get(transactionId);
         if (!transaction) {
             throw new errors_js_1.StorageError(`Transaction ${transactionId} not found`);
         }
         if (transaction.committed || transaction.rolledBack) {
-            throw new errors_js_1.StorageError(`Transaction ${transactionId} is already ${transaction.committed ? 'committed' : 'rolled back'}`);
+            throw new errors_js_1.StorageError(`Transaction ${transactionId} already finalized`);
         }
         transaction.operations.push(operation);
     }
@@ -297,120 +278,87 @@ class UnifiedStorage {
         if (!transaction) {
             throw new errors_js_1.StorageError(`Transaction ${transactionId} not found`);
         }
-        if (transaction.committed || transaction.rolledBack) {
-            throw new errors_js_1.StorageError(`Transaction ${transactionId} is already ${transaction.committed ? 'committed' : 'rolled back'}`);
-        }
-        const executedOperations = [];
-        try {
-            for (const operation of transaction.operations) {
-                switch (operation.type) {
-                    case 'write':
-                        await this.write(operation.path, operation.content, { createBackup: false });
-                        break;
-                    case 'delete':
-                        await this.delete(operation.path, { createBackup: false });
-                        break;
-                    case 'mkdir':
-                        this.ensureDirectory(operation.path);
-                        break;
-                }
-                executedOperations.push(operation);
+        for (const op of transaction.operations) {
+            switch (op.type) {
+                case 'write':
+                    await this.write(op.path, op.content || '', { createBackup: false });
+                    break;
+                case 'delete':
+                    await this.delete(op.path, false);
+                    break;
+                case 'mkdir':
+                    this.ensureDirectory(op.path);
+                    break;
             }
-            transaction.committed = true;
-            this.transactions.delete(transactionId);
         }
-        catch (error) {
-            for (const operation of executedOperations.reverse()) {
-                try {
-                    if (operation.backupPath && fs.existsSync(operation.backupPath)) {
-                        const content = fs.readFileSync(operation.backupPath, 'utf8');
-                        await this.write(operation.path, content, { createBackup: false });
-                    }
-                }
-                catch (rollbackError) {
-                    console.error(`Failed to rollback operation:`, rollbackError);
-                }
-            }
-            throw (0, errors_js_1.handleError)(error, `Transaction.commit(${transactionId})`);
-        }
+        transaction.committed = true;
     }
     async rollbackTransaction(transactionId) {
         const transaction = this.transactions.get(transactionId);
         if (!transaction) {
-            return;
+            throw new errors_js_1.StorageError(`Transaction ${transactionId} not found`);
         }
-        for (const operation of transaction.operations.reverse()) {
-            try {
-                if (operation.backupPath && fs.existsSync(operation.backupPath)) {
-                    const content = fs.readFileSync(operation.backupPath, 'utf8');
-                    await this.write(operation.path, content, { createBackup: false });
-                }
-            }
-            catch (rollbackError) {
-                console.error(`Failed to rollback operation:`, rollbackError);
+        for (const op of transaction.operations.reverse()) {
+            if (op.backupPath && fs.existsSync(op.backupPath)) {
+                const targetPath = this.getFullPath(op.path);
+                fs.copyFileSync(op.backupPath, targetPath);
             }
         }
         transaction.rolledBack = true;
         this.transactions.delete(transactionId);
     }
     async batchWrite(operations) {
-        const transactionId = this.beginTransaction();
-        for (const op of operations) {
-            this.addOperation(transactionId, {
-                type: 'write',
-                path: op.path,
-                content: op.content
-            });
+        const transactionId = `batch_${Date.now()}`;
+        await this.startTransaction(transactionId);
+        try {
+            for (const op of operations) {
+                await this.addOperation(transactionId, { type: 'write', path: op.path, content: op.content });
+            }
+            await this.commitTransaction(transactionId);
         }
-        await this.commitTransaction(transactionId);
+        catch (error) {
+            await this.rollbackTransaction(transactionId);
+            throw error;
+        }
+    }
+    async backup(relativePath) {
+        const filePath = this.getFullPath(relativePath);
+        return this.createBackup(filePath);
     }
     getStats() {
         let totalFiles = 0;
         let totalSize = 0;
-        let lastModified = null;
-        const walk = (dirPath) => {
-            if (!fs.existsSync(dirPath))
+        const countFiles = (dir) => {
+            if (!fs.existsSync(dir))
                 return;
-            const files = fs.readdirSync(dirPath);
+            const files = fs.readdirSync(dir);
             for (const file of files) {
-                if (file === '.backups')
-                    continue;
-                const fullPath = path.join(dirPath, file);
+                const fullPath = path.join(dir, file);
                 const stat = fs.statSync(fullPath);
                 if (stat.isDirectory()) {
-                    walk(fullPath);
+                    if (!file.startsWith('.')) {
+                        countFiles(fullPath);
+                    }
                 }
                 else {
                     totalFiles++;
                     totalSize += stat.size;
-                    if (!lastModified || stat.mtime > lastModified) {
-                        lastModified = stat.mtime;
-                    }
                 }
             }
         };
-        walk(this.basePath);
-        return {
-            totalFiles,
-            totalSize,
-            lastModified
-        };
+        countFiles(this.basePath);
+        return { totalFiles, totalSize };
     }
-    async encryptExisting(relativePath) {
-        const content = await this.read(relativePath);
-        await this.write(relativePath, content, { encrypt: true });
-    }
-    async decryptExisting(relativePath) {
-        const content = await this.read(relativePath, { decrypt: true });
-        await this.write(relativePath, content, { encrypt: false });
+    async close() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+        }
     }
     destroy() {
         if (this.cleanupInterval) {
             clearInterval(this.cleanupInterval);
         }
-        this.transactions.clear();
     }
 }
 exports.UnifiedStorage = UnifiedStorage;
-exports.storage = new UnifiedStorage();
 //# sourceMappingURL=storage.js.map
