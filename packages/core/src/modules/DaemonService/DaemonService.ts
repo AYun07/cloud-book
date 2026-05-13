@@ -5,6 +5,7 @@
 
 import { DaemonConfig, NotificationConfig, NovelProject } from '../../types';
 import { LLMManager } from '../LLMProvider/LLMManager';
+import { UnifiedStorage } from '../../utils/storage';
 
 export interface ScheduledTask {
   id: string;
@@ -33,12 +34,14 @@ export class DaemonService {
   private isRunning: boolean = false;
   private intervalId?: NodeJS.Timeout;
   private llmManager: LLMManager;
+  private storage: UnifiedStorage;
   private storagePath: string;
 
   constructor(config: DaemonConfig, llmManager: LLMManager, storagePath: string = './data/daemon') {
     this.config = config;
     this.llmManager = llmManager;
     this.storagePath = storagePath;
+    this.storage = new UnifiedStorage({ basePath: storagePath });
   }
 
   async start(): Promise<void> {
@@ -235,7 +238,54 @@ export class DaemonService {
   }
   
   private async loadProjectData(projectId: string): Promise<any> {
-    return { id: projectId, title: 'Sample Project', chapters: [] };
+    try {
+      const metaPath = `projects/${projectId}/meta.json`;
+      if (await this.storage.exists(metaPath)) {
+        const metaContent = await this.storage.read(metaPath);
+        const meta = JSON.parse(metaContent);
+        
+        const chapters: any[] = [];
+        const chaptersIndexPath = `projects/${projectId}/chapters/index.json`;
+        if (await this.storage.exists(chaptersIndexPath)) {
+          const indexContent = await this.storage.read(chaptersIndexPath);
+          const index = JSON.parse(indexContent);
+          for (const chapterId of index.chapters || []) {
+            const chapterPath = `projects/${projectId}/chapters/${chapterId}.json`;
+            if (await this.storage.exists(chapterPath)) {
+              const chapterContent = await this.storage.read(chapterPath);
+              chapters.push(JSON.parse(chapterContent));
+            }
+          }
+        }
+        
+        const characters: any[] = [];
+        const charactersIndexPath = `projects/${projectId}/characters/index.json`;
+        if (await this.storage.exists(charactersIndexPath)) {
+          const charactersContent = await this.storage.read(charactersIndexPath);
+          characters.push(...JSON.parse(charactersContent).characters || []);
+        }
+        
+        return {
+          id: meta.id,
+          title: meta.title,
+          genre: meta.genre,
+          worldInfo: meta.worldSetting ? JSON.stringify(meta.worldSetting, null, 2) : '',
+          characters: characters.map(c => c.name).join(', '),
+          chapters: chapters.map(c => ({
+            id: c.id,
+            index: c.number,
+            title: c.title,
+            content: c.content,
+            wordCount: c.wordCount
+          })),
+          metadata: meta
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`Failed to load project ${projectId}:`, error);
+      return null;
+    }
   }
   
   private buildChapterContext(projectData: any, previousChapter: any): string {
@@ -444,24 +494,53 @@ ${content || '章节内容未提供'}
     return lines.join('\n');
   }
   
+  private escapeHtml(text: string): string {
+    const htmlEntities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    };
+    return text.replace(/[&<>"'/]/g, char => htmlEntities[char] || char);
+  }
+
   private exportAsHtml(projectData: any): string {
+    const escapeHtml = this.escapeHtml;
     const markdown = this.exportAsMarkdown(projectData);
+    
+    const escapeInline = (text: string) => text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>');
+    
+    const bodyContent = markdown
+      .replace(/^#\s+(.+)$/gm, (_, title) => `<h1>${escapeHtml(title)}</h1>`)
+      .replace(/^##\s+(.+)$/gm, (_, title) => `<h2>${escapeHtml(title)}</h2>`)
+      .replace(/^###\s+(.+)$/gm, (_, title) => `<h3>${escapeHtml(title)}</h3>`)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\n\n+/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+    
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${projectData.title || '无标题'}</title>
+  <title>${escapeHtml(projectData.title || '无标题')}</title>
   <style>
     body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
-    h2 { color: #555; }
+    h2 { color: #555; margin-top: 30px; }
     p { line-height: 1.8; text-align: justify; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+    strong { color: #333; }
   </style>
 </head>
 <body>
-${markdown.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
-          .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
-          .replace(/\n/g, '<br>')}
+<p>${bodyContent}</p>
 </body>
 </html>`;
   }

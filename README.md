@@ -5,62 +5,70 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
+## ⚠️ 重要说明
+
+本项目目前处于开发阶段，不建议直接用于生产环境。
+
 ## ✨ 核心特性
 
 ### 🎯 创作模式
 - **原创写作**: 从零开始创作独特的小说作品
-- **智能仿写**: 模仿特定作品的风格进行创作
-- **二次创作**: 基于原作进行续写、前传、外传等
-- **同人创作**: 保留原作角色，创作新故事
+- **智能仿写**: 模仿特定作品的风格进行创作（开发中）
+- **二次创作**: 基于原作进行续写、前传、外传等（开发中）
 
-### 🌍 全球支持
-- **40+ 语言支持**: 中文、英语、日语、韩语、西班牙语、法语、德语等
-- **语法检查**: 实时语法纠错
-- **拼写检查**: 支持多语言拼写检查
-- **本地化界面**: 多语言用户界面
+### 🌍 多语言支持
+- **多语言检测**: 基于Unicode范围检测中、英、日、韩、泰、越、阿拉伯、希伯来、印地、俄、希腊等语言
+- **语法检查**: 基于规则的正则表达式检测（重复词、冗余表达、常见错用词汇）
+- **拼写检查**: 常见英文拼写错误检测
+- **本地化界面**: 基础国际化支持
 
-### 🤖 AI 智能
-- **多模型支持**: OpenAI GPT-4、Claude 3、DeepSeek、本地 Ollama
-- **6大AI智能体**: 架构师、写作者、审计员、修订师、风格工程师、雷达
+### 🤖 AI 功能
+- **多模型支持**: 支持OpenAI、Claude、DeepSeek、Gemini等API（需要配置API密钥）
+- **智能体系统**: 6大AI智能体架构（架构师、写作者、审计员、修订师、风格工程师、雷达）
 - **七步创作法**: Constitution → Specify → Clarify → Plan → Tasks → Write → Analyze
-- **33维度质量审计**: 全面检测内容质量
+- **33维度质量审计**: 基于规则的内容质量检测（语法、拼写、冗余、节奏、展示-讲述等）
 
 ### 🛡️ 隐私安全
-- **零数据存储**: Cloud Book 不保存任何数据
-- **离线运行**: 支持完全离线使用
-- **本地API调用**: 使用您自己的 API Key
-- **隐私优先**: 所有数据仅保存在本地
+- **本地存储**: 所有数据保存在本地
+- **API密钥本地**: 使用您自己的API密钥，不会发送到非您配置的服务器
+- **离线模式**: 支持本地API调用
 
 ## 📦 安装
 
 ```bash
-# 使用 pnpm (推荐)
-pnpm install cloud-book
+# 克隆仓库
+git clone https://github.com/AYun07/cloud-book.git
+cd cloud-book
 
-# 或使用 npm
-npm install cloud-book
+# 安装依赖
+pnpm install
 
-# 或使用 yarn
-yarn add cloud-book
+# 构建项目
+pnpm build
 ```
 
 ## 🚀 快速开始
 
-### 1. 创建项目
+### 1. 配置环境变量
+
+```bash
+export LLM_API_KEY="your-api-key"
+export LLM_API_BASE_URL="https://your-api-endpoint.com/v1"
+```
+
+### 2. 创建项目
 
 ```typescript
-import { CloudBook, Genre } from 'cloud-book';
+import { CloudBook } from '@cloud-book/core';
 
 const cloudBook = new CloudBook({
   llmConfigs: [{
-    name: 'openai-gpt4',
-    provider: 'openai',
-    model: 'gpt-4',
-    apiKey: process.env.OPENAI_API_KEY
+    name: 'deepseek',
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+    apiKey: process.env.LLM_API_KEY,
+    baseURL: process.env.LLM_API_BASE_URL
   }],
-  modelRoutes: [],
-  auditConfig: { dimensions: [], threshold: 0.7, autoFix: true, maxIterations: 3 },
-  antiDetectionConfig: { enabled: true, intensity: 5 },
   storagePath: './projects'
 });
 
@@ -71,7 +79,7 @@ const project = await cloudBook.createProject(
 );
 ```
 
-### 2. 生成章节
+### 3. 生成章节
 
 ```typescript
 const chapter = await cloudBook.generateChapter(
@@ -79,16 +87,14 @@ const chapter = await cloudBook.generateChapter(
   1,
   {
     targetWordCount: 2500,
-    autoAudit: true,
-    autoHumanize: true,
-    chapterGuidance: '主角正在山谷中发现神秘古洞'
+    autoAudit: true
   }
 );
 
 console.log(`生成完成！字数: ${chapter.wordCount}`);
 ```
 
-### 3. 审计质量
+### 4. 审计质量
 
 ```typescript
 const auditResult = await cloudBook.auditChapter(project.id, chapter.id);
@@ -96,12 +102,6 @@ const auditResult = await cloudBook.auditChapter(project.id, chapter.id);
 if (!auditResult.passed) {
   console.log('发现问题:', auditResult.issues);
 }
-```
-
-### 4. 去AI味处理
-
-```typescript
-const humanizedText = await cloudBook.humanize(aiGeneratedText);
 ```
 
 ## 📁 项目结构
@@ -112,45 +112,13 @@ cloud-book/
 │   ├── core/              # 核心引擎
 │   │   └── src/
 │   │       ├── modules/   # 功能模块
-│   │       │   ├── AIAudit/           # AI审计引擎
-│   │       │   ├── AntiDetection/     # 反AI检测
-│   │       │   ├── AgentSystem/        # 智能体系统
-│   │       │   ├── AutoDirector/       # 自动策划
-│   │       │   ├── CacheManager/       # 缓存管理
-│   │       │   ├── Card/               # 卡片管理
-│   │       │   ├── ContextManager/     # 上下文管理
-│   │       │   ├── CoverGenerator/     # 封面生成
-│   │       │   ├── CreativeHub/        # 创意中心
-│   │       │   ├── DaemonService/      # 守护服务
-│   │       │   ├── GenreConfig/        # 题材配置
-│   │       │   ├── GlobalLiterary/     # 全球文学
-│   │       │   ├── I18n/              # 国际化
-│   │       │   ├── ImitationEngine/    # 仿写引擎
-│   │       │   ├── KnowledgeGraph/      # 知识图谱
-│   │       │   ├── LLMProvider/        # 大模型支持
-│   │       │   ├── LocalAPI/           # 离线API
-│   │       │   ├── Memory/             # 记忆管理
-│   │       │   ├── MindMapGenerator/   # 思维导图
-│   │       │   ├── NetworkManager/     # 网络管理
-│   │       │   ├── NovelParser/        # 小说解析
-│   │       │   ├── PluginSystem/       # 插件系统
-│   │       │   ├── SevenStepMethodology/  # 七步法
-│   │       │   ├── TrendAnalyzer/      # 趋势分析
-│   │       │   ├── TruthFiles/         # 真相文件
-│   │       │   ├── VersionHistory/     # 版本历史
-│   │       │   ├── WorldInfo/         # 世界信息
-│   │       │   └── WritingEngine/      # 写作引擎
 │   │       ├── CloudBook.ts           # 主入口
+│   │       ├── CloudBookCore.ts       # 核心实现
 │   │       └── types.ts               # 类型定义
 │   │
-│   ├── cli/               # 命令行工具
-│   │   └── src/
-│   │       └── index.ts
+│   ├── cli/               # 命令行工具（开发中）
 │   │
-│   └── web/              # 网页界面
-│       └── src/
-│           ├── components/
-│           └── pages/
+│   └── web/              # 网页界面（开发中）
 │
 ├── examples/              # 使用示例
 └── README.md
@@ -160,34 +128,20 @@ cloud-book/
 
 ```bash
 # 初始化项目
-cloud-book init
+pnpm run dev
 
-# 生成章节
-cloud-book write 1 --project <id>
-
-# 导入小说分析
-cloud-book import novel.txt
-
-# 审计章节
-cloud-book audit chapter.txt
-
-# 去AI味处理
-cloud-book humanize chapter.txt
-
-# 添加模型
-cloud-book model add
+# 运行测试
+pnpm test
 ```
 
 ## 🌍 支持的模型
 
-| 提供商 | 模型 | 类型 |
+| 提供商 | 模型 | 状态 |
 |--------|------|------|
-| OpenAI | GPT-4, GPT-3.5 | 云端 |
-| Anthropic | Claude 3 | 云端 |
-| DeepSeek | DeepSeek Chat | 云端 |
-| Ollama | Llama2, Mistral | 本地 |
-| KoboldCPP | Various | 本地 |
-| LM Studio | Various | 本地 |
+| DeepSeek | DeepSeek V4 | ✅ 已配置 |
+| Gemini | Gemini 2.5/3.0 | ✅ 已配置 |
+| OpenAI | GPT-4, GPT-3.5 | ⚙️ 待配置 |
+| Anthropic | Claude 3 | ⚙️ 待配置 |
 
 ## 🎨 支持的题材
 
@@ -204,6 +158,15 @@ cloud-book model add
 | game | 游戏电竞 |
 | other | 其他 |
 
+## 📊 33维度质量审计
+
+审计引擎对内容进行多维度质量检测：
+
+1. **基础检测**: 语法、拼写、标点、句子结构、段落结构
+2. **一致性**: 连贯性、设定一致性、角色声音、对话、时间线
+3. **质量**: 节奏、描写、情感冲击、冲突、张力
+4. **技巧**: 展示-讲述、主题深度、象征意义、修辞
+
 ## 🔧 配置选项
 
 ```typescript
@@ -214,47 +177,23 @@ interface CloudBookConfig {
   antiDetectionConfig: AntiDetectionConfig;  // 去AI味配置
   storagePath?: string;              // 存储路径
   i18nConfig?: I18nConfig;           // 国际化配置
-  connectionMode?: 'online' | 'offline' | 'hybrid';  // 连接模式
-  localAPIConfig?: LocalAPIConfig;    // 离线API配置
 }
 ```
 
-## 📊 33维度质量审计
-
-1. **一致性检查**
-   - 角色一致性
-   - 世界观一致性
-   - 时间线一致性
-   - 能力体系一致性
-
-2. **逻辑检查**
-   - 情节逻辑
-   - 因果关系
-   - 伏笔回收
-
-3. **质量检查**
-   - 叙事节奏
-   - 情感弧线
-   - 资源追踪
-   - AI痕迹检测
-   - 重复性检查
-
 ## 🔒 隐私与安全
 
-- **零数据存储**: Cloud Book 服务器不存储任何用户数据
-- **本地处理**: 所有计算在本地完成
-- **API Key 安全**: 使用您自己的 API Key，不会泄露
-- **离线支持**: 完全离线可用
+- **本地处理**: 所有数据保存在本地
+- **API密钥安全**: 使用环境变量配置，不会硬编码
+- **路径安全**: 文件存储有路径遍历防护
 
 ## 📚 文档
 
-- [完整文档](./docs/)
-- [API 参考](./docs/api.md)
-- [示例代码](./examples/)
+- 示例代码: [examples/](file:///workspace/cloud-book/examples/)
+- API类型定义: [packages/core/src/types.ts](file:///workspace/cloud-book/packages/core/src/types.ts)
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交Issue和Pull Request！
 
 ## 📄 许可证
 

@@ -29,6 +29,7 @@ export declare class DaemonService {
     private isRunning;
     private intervalId?;
     private llmManager;
+    private storage;
     private storagePath;
     constructor(config: DaemonConfig, llmManager: LLMManager, storagePath?: string);
     start(): Promise<void>;
@@ -54,6 +55,7 @@ export declare class DaemonService {
     private executeExportTask;
     private exportAsTxt;
     private exportAsMarkdown;
+    private escapeHtml;
     private exportAsHtml;
     private executeBackupTask;
     private calculateTotalWords;
