@@ -21,6 +21,8 @@ export { OfflineModeManager, offlineModeManager, OfflineAuditor, OfflineConsiste
 export { AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { AuditEngine, AuditResult, AuditDimension, AuditIssue } from './modules/AIAudit/AuditEngineImpl';
 export { TruthFileManager } from './modules/TruthFiles/TruthFileManager';
+export { ExportManager, ExportOptions, ExportResult, ExportTemplate, ExportFormat } from './modules/ExportManager/ExportManager';
+export { ImportManager, ImportOptions, ImportResult, ImportFormat } from './modules/ImportManager/ImportManager';
 export { WritingPipeline } from './modules/WritingEngine/WritingPipeline';
 export { ContextManager } from './modules/ContextManager/ContextManager';
 
@@ -38,7 +40,7 @@ export { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreCo
 export { PluginSystem } from './modules/PluginSystem/PluginSystem';
 export { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 export { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
-export { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+export { TrendAnalyzer, TrendData, MarketTrend, CompetitiveAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
 
 export { I18nManager } from './modules/I18nManager/I18nManager';
 export { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';

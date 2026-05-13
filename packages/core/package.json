@@ -19,10 +19,15 @@
     "lint": "echo \"No linter configured\"",
     "typecheck": "tsc --noEmit"
   },
+  "optionalDependencies": {
+    "puppeteer": "^22.0.0"
+  },
   "dependencies": {
+    "archiver": "^7.0.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.4",
     "@types/node": "^20.19.41",
     "@types/uuid": "^9.0.0",
     "typescript": "^5.4.0",

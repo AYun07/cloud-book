@@ -1194,3 +1194,36 @@ export interface SearchResult {
   relevanceScore: number;
   matchedSegments: string[];
 }
+
+export interface TrendAnalysisConfig {
+  enabled: boolean;
+  platforms?: string[];
+  cacheResults?: boolean;
+}
+
+export interface TrendReport {
+  period: string;
+  topGenres: { genre: string; count: number; avgPopularity: number }[];
+  risingTopics: { topic: string; category: string; growthRate: number }[];
+  audienceInsights: { insight: string; source: string }[];
+  platformData: PlatformData[];
+  marketTrends: MarketTrend[];
+  recommendations: { type: 'opportunity' | 'warning' | 'suggestion'; message: string }[];
+  timestamp: Date;
+}
+
+export interface PlatformData {
+  platform: string;
+  trends: { title: string; popularity: number; trend: 'rising' | 'falling' | 'stable' }[];
+}
+
+export interface MarketTrend {
+  category: string;
+  demand: 'high' | 'medium' | 'low';
+  saturation: number;
+  growth: number;
+  competition: number;
+  bestTimeToEnter: string;
+  risk: 'high' | 'medium' | 'low';
+  recommendations: string[];
+}

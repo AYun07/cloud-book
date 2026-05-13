@@ -37,7 +37,8 @@ import { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreCo
 import { PluginSystem } from './modules/PluginSystem/PluginSystem';
 import { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 import { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
-import { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+import { TrendAnalyzer, CompetitiveAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+import type { TrendReport } from './types';
 import { I18nManager } from './modules/I18nManager/I18nManager';
 import { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';
 import { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
@@ -176,7 +177,7 @@ export class CloudBook {
     this.pluginSystem = new PluginSystem(config.storagePath + '/plugins');
     this.coverGenerator = new CoverGenerator(this.llmManager);
     this.mindMapGenerator = new MindMapGenerator();
-    this.trendAnalyzer = new TrendAnalyzer(this.llmManager);
+    this.trendAnalyzer = new TrendAnalyzer({ enabled: true, platforms: ['qidian', 'jjwxc', 'zongheng'] });
 
     this.i18nManager = new I18nManager(config.i18nConfig?.primaryLanguage as any || 'zh-CN');
     this.globalLiteraryConfig = new GlobalLiteraryConfig();
@@ -930,16 +931,21 @@ export class CloudBook {
   // Trend Analyzer
   // ============================================
 
-  async analyzeMarketTrends(platform: string, genre: Genre) {
-    return this.trendAnalyzer.analyzeTrends(platform, genre);
+  async analyzeMarketTrends() {
+    return this.trendAnalyzer.analyzeTrends();
   }
 
   async analyzeCompetitor(bookInfo: { title?: string; url?: string; genre?: Genre }) {
-    return this.trendAnalyzer.analyzeCompetitor(bookInfo);
+    const title = bookInfo.title || '未知作品';
+    return this.trendAnalyzer.analyzeCompetitor(title);
   }
 
   async generateInspiration(genre: Genre, type?: 'plot' | 'character' | 'world' | 'all') {
-    return this.trendAnalyzer.generateInspiration(genre, type);
+    const inspirations = await this.trendAnalyzer.generateInspiration(genre);
+    if (type && type !== 'all') {
+      return inspirations.slice(0, 2);
+    }
+    return inspirations;
   }
 
   // ============================================

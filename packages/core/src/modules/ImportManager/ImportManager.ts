@@ -1,7 +1,16 @@
 /**
  * 多格式导入管理器
- * 支持导入txt、md、json、epub、docx等格式的小说
+ * 支持导入txt、md、json、epub、docx、Scrivener、Plottr、yWriter、Obsidian等格式
  */
+
+interface ImportParseResult {
+  project: Partial<NovelProject>;
+  chapters: Chapter[];
+}
+
+interface ImportParseResultWithSuccess extends ImportParseResult {
+  success: true;
+}
 
 declare const FileReader: {
   new(): FileReader;
@@ -29,10 +38,15 @@ interface Event {
   target: FileReader | null;
 }
 
-import { NovelProject, Chapter } from '../../types';
+import { NovelProject, Chapter, Character } from '../../types';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as archiver from 'archiver';
+
+export type ImportFormat = 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx' | 'scrivener' | 'plottr' | 'ywriter' | 'obsidian';
 
 export interface ImportOptions {
-  format: 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx';
+  format: ImportFormat;
   encoding?: 'utf-8' | 'gbk' | 'gb2312';
   chapterPattern?: RegExp;
   extractMetadata?: boolean;
@@ -67,12 +81,111 @@ export interface ParseChapter {
 }
 
 export interface FormatDetector {
-  format: ImportOptions['format'];
+  format: ImportFormat;
   confidence: number;
   evidence: string[];
 }
 
-export type ImportFormat = 'auto' | 'txt' | 'md' | 'json' | 'epub' | 'html' | 'docx';
+export interface ScrivenerProject {
+  metadata?: {
+    title?: string;
+    author?: string;
+    synopsis?: string;
+    labelType?: string;
+  };
+  folders: ScrivenerFolder[];
+}
+
+export interface ScrivenerFolder {
+  typeId: number;
+  title: string;
+  text?: string;
+  children?: ScrivenerFolder[];
+}
+
+export interface PlottrProject {
+  book?: {
+    title?: string;
+    author?: string;
+    description?: string;
+  };
+  chapters: PlottrChapter[];
+  characters: PlottrCharacter[];
+  notes: PlottrNote[];
+}
+
+export interface PlottrChapter {
+  id: string;
+  title: string;
+  notes?: string;
+  scenes: PlottrScene[];
+}
+
+export interface PlottrScene {
+  id: string;
+  title: string;
+  notes?: string;
+  content?: string;
+  viewpoint?: string;
+}
+
+export interface PlottrCharacter {
+  id: string;
+  name: string;
+  description?: string;
+  goals?: string;
+  conflicts?: string;
+}
+
+export interface PlottrNote {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface YWriterProject {
+  projectTitle?: string;
+  authorName?: string;
+  scenes: YWriterScene[];
+  characters: YWriterCharacter[];
+  locations: YWriterLocation[];
+  items: YWriterItem[];
+  tags: YWriterTag[];
+}
+
+export interface YWriterScene {
+  id: number;
+  title?: string;
+  desc?: string;
+  content?: string;
+  chapterId?: number;
+}
+
+export interface YWriterCharacter {
+  id: number;
+  name: string;
+  bio?: string;
+  goals?: string;
+  fullName?: string;
+}
+
+export interface YWriterLocation {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface YWriterItem {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface YWriterTag {
+  id: number;
+  name: string;
+  category?: string;
+}
 
 export class ImportManager {
   private defaultOptions: ImportOptions = {
@@ -136,13 +249,13 @@ export class ImportManager {
       switch (format) {
         case 'txt':
           const txtResult = this.parseTxt(content, opts);
-          project = txtResult.metadata;
+          project = txtResult.project;
           chapters = txtResult.chapters;
           break;
 
         case 'md':
           const mdResult = this.parseMarkdown(content, opts);
-          project = mdResult.metadata;
+          project = mdResult.project;
           chapters = mdResult.chapters;
           break;
 
@@ -154,20 +267,44 @@ export class ImportManager {
 
         case 'html':
           const htmlResult = this.parseHtml(content);
-          project = htmlResult.metadata;
+          project = htmlResult.project;
           chapters = htmlResult.chapters;
           break;
 
         case 'epub':
-          const epubResult = this.parseEpub(content);
-          project = epubResult.metadata;
+          const epubResult = await this.parseEpub(content);
+          project = epubResult.project;
           chapters = epubResult.chapters;
           break;
 
         case 'docx':
-          const docxResult = this.parseDocx(content);
-          project = docxResult.metadata;
+          const docxResult = await this.parseDocx(content);
+          project = docxResult.project;
           chapters = docxResult.chapters;
+          break;
+
+        case 'scrivener':
+          const scrivenerResult = this.parseScrivener(content);
+          project = scrivenerResult.project;
+          chapters = scrivenerResult.chapters;
+          break;
+
+        case 'plottr':
+          const plottrResult = this.parsePlottr(content);
+          project = plottrResult.project;
+          chapters = plottrResult.chapters;
+          break;
+
+        case 'ywriter':
+          const yWriterResult = this.parseYWriter(content);
+          project = yWriterResult.project;
+          chapters = yWriterResult.chapters;
+          break;
+
+        case 'obsidian':
+          const obsidianResult = this.parseObsidian(content);
+          project = obsidianResult.project;
+          chapters = obsidianResult.chapters;
           break;
 
         default:
@@ -219,12 +356,151 @@ export class ImportManager {
       };
 
       const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'docx' || ext === 'doc') {
+      if (ext === 'docx' || ext === 'doc' || ext === 'scrivener' || ext === 'plottr' || ext === 'ywriter7' || ext === 'yaml') {
         reader.readAsArrayBuffer(file);
       } else {
         reader.readAsText(file);
       }
     });
+  }
+
+  async importFromFilePath(filePath: string, format?: ImportFormat): Promise<ImportResult> {
+    try {
+      const ext = path.extname(filePath).toLowerCase().slice(1);
+      const detectedFormat = format || this.detectFormatFromExtension(ext);
+      let content: string | Buffer;
+
+      if (['docx', 'scrivener', 'ywriter7'].includes(ext)) {
+        content = fs.readFileSync(filePath);
+      } else {
+        content = fs.readFileSync(filePath, 'utf-8');
+      }
+
+      if (typeof content === 'string') {
+        return this.import(content, { format: detectedFormat });
+      } else {
+        const buffer = content;
+        if (ext === 'scrivener') {
+          return this.importScrivenerZip(buffer);
+        } else if (ext === 'ywriter7') {
+          return this.importYWriterProject(buffer);
+        } else {
+          return this.import(buffer.toString('utf-8'), { format: detectedFormat });
+        }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private detectFormatFromExtension(ext: string): ImportFormat {
+    const formatMap: Record<string, ImportFormat> = {
+      'txt': 'txt',
+      'md': 'md',
+      'markdown': 'md',
+      'json': 'json',
+      'html': 'html',
+      'htm': 'html',
+      'epub': 'epub',
+      'docx': 'docx',
+      'doc': 'docx',
+      'scrivener': 'scrivener',
+      'scriv': 'scrivener',
+      'plottr': 'plottr',
+      'ywriter7': 'ywriter',
+      'yaml': 'obsidian',
+      'yml': 'obsidian'
+    };
+    return formatMap[ext] || 'auto';
+  }
+
+  private async importScrivenerZip(buffer: Buffer): Promise<ImportResult> {
+    const tempDir = path.join(process.cwd(), '.import-temp', `scrivener_${Date.now()}`);
+    const zipPath = path.join(tempDir, 'input.zip');
+
+    try {
+      fs.mkdirSync(tempDir, { recursive: true });
+      fs.writeFileSync(zipPath, buffer);
+
+      const { execSync } = require('child_process');
+      try {
+        execSync(`cd "${tempDir}" && unzip -o "${zipPath}"`, { stdio: 'pipe' });
+      } catch {}
+
+      const files = this.getAllFiles(tempDir);
+
+      let content = '';
+      let metadata: any = {};
+
+      for (const file of files) {
+        const relativePath = path.relative(tempDir, file);
+        const basename = path.basename(file).toLowerCase();
+
+        if (basename === 'metadata.xml') {
+          const xmlContent = fs.readFileSync(file, 'utf-8');
+          metadata = this.parseScrivenerMetadata(xmlContent);
+        } else if (basename.endsWith('.rtf') || basename.endsWith('.txt')) {
+          content += fs.readFileSync(file, 'utf-8') + '\n\n';
+        }
+      }
+
+      const result = this.parseScrivener(content);
+      if (metadata.title) result.project!.title = metadata.title;
+      if (metadata.author) result.project!.author = metadata.author;
+
+      return {
+        success: true,
+        project: result.project,
+        chapters: result.chapters,
+        metadata: { importFormat: 'scrivener', importTime: new Date() }
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    } finally {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {}
+    }
+  }
+
+  private async importYWriterProject(buffer: Buffer): Promise<ImportResult> {
+    try {
+      const content = buffer.toString('utf-8');
+      return this.parseYWriter(content);
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  private getAllFiles(dir: string): string[] {
+    const files: string[] = [];
+    const items = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const item of items) {
+      const fullPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        files.push(...this.getAllFiles(fullPath));
+      } else {
+        files.push(fullPath);
+      }
+    }
+
+    return files;
+  }
+
+  private parseScrivenerMetadata(xml: string): any {
+    const metadata: any = {};
+
+    const titleMatch = xml.match(/<Title>([^<]*)<\/Title>/i);
+    if (titleMatch) metadata.title = titleMatch[1];
+
+    const authorMatch = xml.match(/<Author>([^<]*)<\/Author>/i);
+    if (authorMatch) metadata.author = authorMatch[1];
+
+    const synopsisMatch = xml.match(/<Description>([^<]*)<\/Description>/i);
+    if (synopsisMatch) metadata.synopsis = synopsisMatch[1];
+
+    return metadata;
   }
 
   detectFormatContent(content: string, options?: Partial<ImportOptions>): FormatDetector {
@@ -265,6 +541,22 @@ export class ImportManager {
       });
     }
 
+    if (content.includes('<YWriterProject>')) {
+      detectors.push({
+        format: 'ywriter',
+        confidence: 95,
+        evidence: ['YWriter XML format detected']
+      });
+    }
+
+    if (content.includes('"book":') && content.includes('"chapters":')) {
+      detectors.push({
+        format: 'plottr',
+        confidence: 85,
+        evidence: ['Plottr JSON format detected']
+      });
+    }
+
     const markdownIndicators = [
       /^# .+$/m,
       /^\*\*.*\*\*$/m,
@@ -291,8 +583,8 @@ export class ImportManager {
     return detectors[0];
   }
 
-  private parseTxt(content: string, options: ImportOptions): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
-    const metadata: Partial<NovelProject> = {};
+  private parseTxt(content: string, options: ImportOptions): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
     const chapters: Chapter[] = [];
 
     const lines = content.split(/\r?\n/);
@@ -305,7 +597,7 @@ export class ImportManager {
       const line = lines[i].trim();
 
       if (i === 0 && options.extractMetadata && !chapterPattern.test(line)) {
-        metadata.title = line;
+        project.title = line;
         continue;
       }
 
@@ -323,7 +615,7 @@ export class ImportManager {
       } else if (currentChapter) {
         currentContent.push(lines[i]);
       } else if (options.extractMetadata) {
-        this.parseMetadataLine(line, metadata);
+        this.parseMetadataLine(line, project);
       }
     }
 
@@ -335,16 +627,16 @@ export class ImportManager {
     if (chapters.length === 0 && content.trim()) {
       chapters.push(this.createChapter({
         number: 1,
-        title: metadata.title || '第一章',
+        title: project.title || '第一章',
         content: content.trim()
       }, 1));
     }
 
-    return { metadata, chapters };
+    return { project, chapters, success: true as const };
   }
 
-  private parseMarkdown(content: string, options: ImportOptions): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
-    const metadata: Partial<NovelProject> = {};
+  private parseMarkdown(content: string, options: ImportOptions): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
     const chapters: Chapter[] = [];
 
     const lines = content.split(/\r?\n/);
@@ -357,10 +649,10 @@ export class ImportManager {
 
       if (inMetadata) {
         if (line.startsWith('# ')) {
-          metadata.title = line.substring(2).trim();
+          project.title = line.substring(2).trim();
         } else if (line.startsWith('## ')) {
-          if (!metadata.subtitle) {
-            metadata.subtitle = line.substring(3).trim();
+          if (!project.subtitle) {
+            project.subtitle = line.substring(3).trim();
           } else {
             inMetadata = false;
           }
@@ -368,8 +660,8 @@ export class ImportManager {
           const match = line.match(/\*\*([^*]+)\*\*:\s*(.+)/);
           if (match) {
             const [, key, value] = match;
-            if (key === '作者') (metadata as any).author = value;
-            if (key === '题材') metadata.genre = value as any;
+            if (key === '作者') (project as any).author = value;
+            if (key === '题材') project.genre = value as any;
           }
         } else if (line.startsWith('---')) {
           inMetadata = false;
@@ -416,44 +708,46 @@ export class ImportManager {
     if (chapters.length === 0 && currentContent.length > 0) {
       chapters.push(this.createChapter({
         number: 1,
-        title: metadata.title || '第一章',
+        title: project.title || '第一章',
         content: currentContent.join('\n').trim()
       }, 1));
     }
 
-    return { metadata, chapters };
+    return { project, chapters, success: true as const };
   }
 
-  private parseJson(content: string): { project: Partial<NovelProject>; chapters: Chapter[] } {
+  private parseJson(content: string): ImportParseResultWithSuccess {
     const data = JSON.parse(content);
 
     if (data.metadata || data.project) {
       const project = data.metadata || data.project;
       const chapters = Array.isArray(data.chapters) ? data.chapters : (data.project?.chapters || []);
-      return { project, chapters };
+      return { project, chapters, success: true as const };
     }
 
     if (Array.isArray(data)) {
       return {
         project: {},
-        chapters: data.map((c: any, i: number) => this.normalizeChapter(c, i + 1))
+        chapters: data.map((c: any, i: number) => this.normalizeChapter(c, i + 1)),
+        success: true as const
       };
     }
 
     return {
       project: data,
-      chapters: Array.isArray(data.chapters) ? data.chapters : []
+      chapters: Array.isArray(data.chapters) ? data.chapters : [],
+      success: true as const
     };
   }
 
-  private parseHtml(content: string): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
-    const metadata: Partial<NovelProject> = {};
+  private parseHtml(content: string): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
 
     const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
-    if (titleMatch) metadata.title = titleMatch[1];
+    if (titleMatch) project.title = titleMatch[1];
 
     const h1Match = content.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    if (h1Match) metadata.title = h1Match[1];
+    if (h1Match) project.title = h1Match[1];
 
     const chapters: Chapter[] = [];
     const chapterRegex = /<h[23][^>]*id=["']?chapter(\d+)["']?[^>]*>([^<]+)<\/h[23]>/gi;
@@ -488,32 +782,32 @@ export class ImportManager {
           .trim();
         chapters.push(this.createChapter({
           number: 1,
-          title: metadata.title || '内容',
+          title: project.title || '内容',
           content: textContent
         }, 1));
       }
     }
 
-    return { metadata, chapters };
+    return { project, chapters, success: true as const };
   }
 
-  private parseEpub(content: string): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
-    const metadata: Partial<NovelProject> = {};
+  private async parseEpub(content: string): Promise<ImportParseResultWithSuccess> {
+    const project: Partial<NovelProject> = {};
     const chapters: Chapter[] = [];
 
     const titleMatch = content.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
-    if (titleMatch) metadata.title = titleMatch[1];
+    if (titleMatch) project.title = titleMatch[1];
 
     const authorMatch = content.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i);
-    if (authorMatch) (metadata as any).author = authorMatch[1];
+    if (authorMatch) (project as any).author = authorMatch[1];
 
     const descMatch = content.match(/<dc:description[^>]*>([^<]+)<\/dc:description>/i);
-    if (descMatch) metadata.corePremise = descMatch[1];
+    if (descMatch) project.corePremise = descMatch[1];
 
     const subjectMatch = content.match(/<dc:subject[^>]*>([^<]+)<\/dc:subject>/gi);
     if (subjectMatch) {
       const subjects = subjectMatch.map(s => s.replace(/<[^>]+>/g, ''));
-      (metadata as any).tags = subjects;
+      (project as any).tags = subjects;
     }
 
     const chapterMatches = content.match(/<item[^>]+href="([^"]+\.xhtml)"[^>]*>/gi);
@@ -530,18 +824,18 @@ export class ImportManager {
       });
     }
 
-    return { metadata, chapters };
+    return { project, chapters, success: true as const };
   }
 
-  private parseDocx(content: string): { metadata: Partial<NovelProject>; chapters: Chapter[] } {
-    const metadata: Partial<NovelProject> = {};
+  private async parseDocx(content: string): Promise<ImportParseResultWithSuccess> {
+    const project: Partial<NovelProject> = {};
     const chapters: Chapter[] = [];
 
     const titleMatch = content.match(/<w:t>([^<]+)<\/w:t>/g);
     if (titleMatch && titleMatch.length > 0) {
       const firstText = titleMatch[0].replace(/<[^>]+>/g, '');
       if (firstText.length < 50) {
-        metadata.title = firstText;
+        project.title = firstText;
       }
     }
 
@@ -549,7 +843,7 @@ export class ImportManager {
     if (boldTexts && boldTexts.length > 0) {
       const firstBold = boldTexts[0].match(/<w:t[^>]*>([^<]+)<\/w:t>/);
       if (firstBold && firstBold[1].length < 100) {
-        if (!metadata.title) metadata.title = firstBold[1];
+        if (!project.title) project.title = firstBold[1];
       }
     }
 
@@ -592,12 +886,271 @@ export class ImportManager {
     if (chapters.length === 0) {
       chapters.push(this.createChapter({
         number: 1,
-        title: metadata.title || '内容',
+        title: project.title || '内容',
         content: allText.substring(0, 50000)
       }, 1));
     }
 
-    return { metadata, chapters };
+    return { project, chapters, success: true as const };
+  }
+
+  private parseScrivener(content: string): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
+
+    const lines = content.split(/\n/);
+    let currentChapter: ParseChapter | null = null;
+    let currentContent: string[] = [];
+    let chapterCount = 0;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (/^第[一二三四五六七八九十百千\d]+章/.test(trimmed) || /^Chapter\s+\d+/.test(trimmed)) {
+        if (currentChapter) {
+          currentChapter.content = currentContent.join('\n').trim();
+          chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+        }
+
+        chapterCount++;
+        currentChapter = {
+          number: chapterCount,
+          title: this.extractChapterTitle(trimmed),
+          content: ''
+        };
+        currentContent = [];
+      } else if (currentChapter) {
+        currentContent.push(line);
+      } else if (trimmed && !project.title) {
+        const titleMatch = trimmed.match(/^(.{5,50})/);
+        if (titleMatch) project.title = titleMatch[1];
+      }
+    }
+
+    if (currentChapter) {
+      currentChapter.content = currentContent.join('\n').trim();
+      chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+    }
+
+    if (chapters.length === 0 && content.trim()) {
+      chapters.push(this.createChapter({
+        number: 1,
+        title: project.title || '内容',
+        content: content.trim()
+      }, 1));
+    }
+
+    return { project, chapters, success: true as const };
+  }
+
+  private parsePlottr(content: string): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
+
+    try {
+      const data = JSON.parse(content);
+
+      if (data.book) {
+        project.title = data.book.title;
+        project.author = data.book.author;
+        project.corePremise = data.book.description;
+      }
+
+      if (Array.isArray(data.chapters)) {
+        let chapterNum = 0;
+        for (const ch of data.chapters) {
+          chapterNum++;
+          if (ch.scenes && Array.isArray(ch.scenes)) {
+            const chapterContent: string[] = [];
+            for (const scene of ch.scenes) {
+              if (scene.content) {
+                chapterContent.push(scene.content);
+              }
+            }
+            chapters.push(this.createChapter({
+              number: chapterNum,
+              title: ch.title || `第${chapterNum}章`,
+              content: chapterContent.join('\n\n'),
+              summary: ch.notes
+            }, chapterNum));
+          } else {
+            chapters.push(this.createChapter({
+              number: chapterNum,
+              title: ch.title || `第${chapterNum}章`,
+              content: ch.notes || '',
+              summary: ch.notes
+            }, chapterNum));
+          }
+        }
+      }
+
+      if (data.characters && Array.isArray(data.characters)) {
+        (project as any).characters = data.characters.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          goals: c.goals,
+          conflicts: c.conflicts
+        }));
+      }
+    } catch {
+      chapters.push(this.createChapter({
+        number: 1,
+        title: '内容',
+        content: content
+      }, 1));
+    }
+
+    return { project, chapters, success: true as const };
+  }
+
+  private parseYWriter(content: string): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
+
+    const titleMatch = content.match(/<ProjectTitle>([^<]*)<\/ProjectTitle>/i);
+    if (titleMatch) project.title = titleMatch[1];
+
+    const authorMatch = content.match(/<AuthorName>([^<]*)<\/AuthorName>/i);
+    if (authorMatch) project.author = authorMatch[1];
+
+    const sceneMatches = content.match(/<Scene>[\s\S]*?<\/Scene>/gi) || [];
+    const scenes = sceneMatches.map(scene => {
+      const idMatch = scene.match(/<ID>(\d+)<\/ID>/);
+      const titleMatch = scene.match(/<Title>([^<]*)<\/Title>/);
+      const descMatch = scene.match(/<Desc>([^<]*)<\/Desc>/);
+      const contentMatch = scene.match(/<Content>([\s\S]*?)<\/Content>/);
+
+      return {
+        id: parseInt(idMatch?.[1] || '0'),
+        title: titleMatch?.[1] || '场景',
+        desc: descMatch?.[1] || '',
+        content: contentMatch?.[1] || ''
+      };
+    });
+
+    let chapterNum = 0;
+    const chapterMap = new Map<number, Chapter>();
+
+    for (const scene of scenes) {
+      chapterNum++;
+      if (!chapterMap.has(scene.id)) {
+        chapterMap.set(scene.id, this.createChapter({
+          number: chapterNum,
+          title: scene.title,
+          content: scene.content,
+          summary: scene.desc
+        }, chapterNum));
+      } else {
+        const existing = chapterMap.get(scene.id)!;
+        existing.content += '\n\n' + scene.content;
+      }
+    }
+
+    const characterMatches = content.match(/<Character>[\s\S]*?<\/Character>/gi) || [];
+    const characters = characterMatches.map(char => {
+      const idMatch = char.match(/<ID>(\d+)<\/ID>/);
+      const nameMatch = char.match(/<Name>([^<]*)<\/Name>/);
+      const bioMatch = char.match(/<Bio>([^<]*)<\/Bio>/);
+
+      return {
+        id: idMatch?.[1] || '',
+        name: nameMatch?.[1] || '未知',
+        description: bioMatch?.[1] || ''
+      };
+    });
+
+    chapters.push(...chapterMap.values());
+    (project as any).characters = characters;
+
+    if (chapters.length === 0) {
+      chapters.push(this.createChapter({
+        number: 1,
+        title: project.title || '内容',
+        content: content
+      }, 1));
+    }
+
+    return { success: true as const, project, chapters };
+  }
+
+  private parseObsidian(content: string): ImportParseResultWithSuccess {
+    const project: Partial<NovelProject> = {};
+    const chapters: Chapter[] = [];
+
+    const lines = content.split(/\n/);
+    let currentChapter: ParseChapter | null = null;
+    let currentContent: string[] = [];
+    let inFrontmatter = false;
+    let frontmatter: string[] = [];
+    let chapterCount = 0;
+
+    for (const line of lines) {
+      if (line === '---') {
+        if (!inFrontmatter) {
+          inFrontmatter = true;
+        } else {
+          inFrontmatter = false;
+          this.parseObsidianFrontmatter(frontmatter.join('\n'), project);
+          frontmatter = [];
+        }
+        continue;
+      }
+
+      if (inFrontmatter) {
+        frontmatter.push(line);
+        continue;
+      }
+
+      if (!inFrontmatter && (line.startsWith('# ') || /^## .+章/.test(line))) {
+        if (currentChapter) {
+          currentChapter.content = currentContent.join('\n').trim();
+          chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+        }
+
+        chapterCount++;
+        currentChapter = {
+          number: chapterCount,
+          title: line.replace(/^#+\s*/, ''),
+          content: ''
+        };
+        currentContent = [];
+      } else if (currentChapter) {
+        currentContent.push(line);
+      } else if (frontmatter.length === 0 && line.trim() && !project.title) {
+        project.title = line.substring(0, 50);
+      }
+    }
+
+    if (currentChapter) {
+      currentChapter.content = currentContent.join('\n').trim();
+      chapters.push(this.createChapter(currentChapter, chapters.length + 1));
+    }
+
+    if (chapters.length === 0 && content.trim()) {
+      chapters.push(this.createChapter({
+        number: 1,
+        title: project.title || '内容',
+        content: content.trim()
+      }, 1));
+    }
+
+    return { project, chapters, success: true as const };
+  }
+
+  private parseObsidianFrontmatter(frontmatter: string, project: Partial<NovelProject>): void {
+    const lines = frontmatter.split('\n');
+
+    for (const line of lines) {
+      const match = line.match(/^(\w+):\s*(.+)$/);
+      if (match) {
+        const [, key, value] = match;
+        if (key === 'title') project.title = value;
+        else if (key === 'author') project.author = value;
+        else if (key === 'genre') project.genre = value as any;
+        else if (key === 'tags') (project as any).tags = value.split(',').map((s: string) => s.trim());
+      }
+    }
   }
 
   private createChapterPattern(lines: string[]): RegExp {
@@ -639,6 +1192,7 @@ export class ImportManager {
       status: 'imported' as any,
       wordCount: this.countWords(parse.content),
       content: parse.content,
+      summary: parse.summary,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -652,6 +1206,7 @@ export class ImportManager {
       status: 'imported' as any,
       wordCount: data.wordCount || this.countWords(data.content || ''),
       content: data.content || '',
+      summary: data.summary,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -670,15 +1225,17 @@ export class ImportManager {
       { format: 'json', extensions: ['.json'], description: 'JSON格式（Cloud Book项目文件）' },
       { format: 'html', extensions: ['.html', '.htm'], description: 'HTML网页格式' },
       { format: 'epub', extensions: ['.epub'], description: 'EPUB电子书格式' },
-      { format: 'docx', extensions: ['.docx', '.doc'], description: 'Word文档格式' }
+      { format: 'docx', extensions: ['.docx', '.doc'], description: 'Word文档格式' },
+      { format: 'scrivener', extensions: ['.scrivener'], description: 'Scrivener项目格式' },
+      { format: 'plottr', extensions: ['.plottr'], description: 'Plottr大纲软件格式' },
+      { format: 'ywriter', extensions: ['.ywriter7'], description: 'yWriter项目格式' },
+      { format: 'obsidian', extensions: ['.md', '.yaml'], description: 'Obsidian笔记格式' }
     ];
   }
 
   async importProject(filePath: string, format?: ImportFormat): Promise<NovelProject> {
-    const fs = require('fs');
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const result = await this.import(content, { format: format || 'auto' });
-    
+    const result = await this.importFromFilePath(filePath, format);
+
     if (!result.success) {
       throw new Error(result.error || 'Import failed');
     }
@@ -697,10 +1254,8 @@ export class ImportManager {
   }
 
   async importChapter(filePath: string, format?: ImportFormat): Promise<Chapter> {
-    const fs = require('fs');
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const result = await this.import(content, { format: format || 'auto' });
-    
+    const result = await this.importFromFilePath(filePath, format);
+
     if (!result.success) {
       throw new Error(result.error || 'Import failed');
     }
@@ -709,33 +1264,23 @@ export class ImportManager {
       return result.chapters[0];
     }
 
-    const contentText = typeof content === 'string' ? content : '';
+    const fs = require('fs');
+    const content = fs.readFileSync(filePath, 'utf-8');
     return {
       id: `imported_chapter_${Date.now()}`,
       number: 1,
       title: result.project?.title || '导入章节',
       status: 'draft' as const,
-      content: contentText,
-      wordCount: contentText.length,
+      content: content,
+      wordCount: content.length,
       createdAt: new Date(),
       updatedAt: new Date()
     };
   }
 
   detectFormat(filePath: string): ImportFormat {
-    const ext = filePath.split('.').pop()?.toLowerCase();
-    const formatMap: Record<string, ImportFormat> = {
-      'txt': 'txt',
-      'md': 'md',
-      'markdown': 'md',
-      'json': 'json',
-      'html': 'html',
-      'htm': 'html',
-      'epub': 'epub',
-      'docx': 'docx',
-      'doc': 'docx'
-    };
-    return formatMap[ext || ''] || 'auto';
+    const ext = path.extname(filePath).toLowerCase().slice(1);
+    return this.detectFormatFromExtension(ext);
   }
 }
 
