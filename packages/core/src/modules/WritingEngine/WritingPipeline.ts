@@ -677,6 +677,171 @@ ${context}
       resolvedHooks: []
     });
   }
+
+  /**
+   * 冒险模式 - 类似AI Dungeon的互动冒险
+   */
+  async adventureMode(
+    project: NovelProject,
+    storyPrompt: string,
+    userAction: string,
+    truthFiles: TruthFiles
+  ): Promise<{ narrative: string; newWorldInfo: string[] }> {
+    const context = this.contextManager.buildWritingContext(project, 0, truthFiles);
+    
+    const prompt = `## 冒险模式
+当前世界设定:
+${context}
+
+故事背景:
+${storyPrompt}
+
+玩家行动:
+${userAction}
+
+请以第三人称叙述这段冒险经历，描写玩家的行动结果、世界的反应、遇到的NPC等。
+保持故事的连贯性和沉浸感。
+字数控制在800-1500字。`;
+
+    const modelConfig = this.llmManager.route('writing') || this.llmManager.listModels()[0];
+    const result = await this.llmManager.generate(prompt, modelConfig?.name, {
+      temperature: 0.8,
+      maxTokens: 2000
+    });
+
+    const newWorldInfo = this.extractNewWorldInfo(result.text);
+    return { narrative: result.text, newWorldInfo };
+  }
+
+  /**
+   * 聊天机器人模式 - 与角色互动对话
+   */
+  async chatbotMode(
+    project: NovelProject,
+    characterId: string,
+    userMessage: string,
+    truthFiles: TruthFiles
+  ): Promise<{ characterName: string; response: string; emotion: string }> {
+    const character = project.characters?.find(c => c.id === characterId);
+    if (!character) {
+      return { characterName: '系统', response: '角色不存在', emotion: 'neutral' };
+    }
+
+    const context = this.contextManager.buildWritingContext(project, 0, truthFiles);
+    
+    const prompt = `## 聊天机器人模式
+当前场景:
+${context}
+
+角色信息:
+- 姓名: ${character.name}
+- 性格: ${character.personality || '暂无设定'}
+- 说话风格: ${(character as any).speakingStyle || '正常'}
+- 背景: ${character.background || '暂无背景'}
+
+对话历史:
+用户: ${userMessage}
+
+请以${character.name}的身份回复用户的对话。
+回复应该:
+1. 符合角色性格
+2. 保持说话风格一致
+3. 体现角色的情感变化
+4. 推动对话发展
+
+直接输出角色回复，不需要任何格式标记。`;
+
+    const modelConfig = this.llmManager.route('writing') || this.llmManager.listModels()[0];
+    const result = await this.llmManager.generate(prompt, modelConfig?.name, {
+      temperature: 0.9,
+      maxTokens: 500
+    });
+
+    const emotion = this.detectEmotion(result.text);
+    return { 
+      characterName: character.name, 
+      response: result.text,
+      emotion
+    };
+  }
+
+  /**
+   * 从叙事中提取新的世界信息
+   */
+  private extractNewWorldInfo(narrative: string): string[] {
+    const worldInfo: string[] = [];
+    const locationPattern = /在([^，,。]+)[发生|来到|走进]/g;
+    const npcPattern = /遇到了([^，,。]+)/g;
+    const itemPattern = /获得了([^，,。]+)/g;
+
+    let match;
+    while ((match = locationPattern.exec(narrative)) !== null) {
+      worldInfo.push(`新地点: ${match[1]}`);
+    }
+    while ((match = npcPattern.exec(narrative)) !== null) {
+      worldInfo.push(`遇到NPC: ${match[1]}`);
+    }
+    while ((match = itemPattern.exec(narrative)) !== null) {
+      worldInfo.push(`获得物品: ${match[1]}`);
+    }
+
+    return worldInfo;
+  }
+
+  /**
+   * 检测对话情感
+   */
+  private detectEmotion(text: string): string {
+    const positive = ['高兴', '开心', '微笑', '兴奋', '满意', '愉快', '欣喜', '惊喜'];
+    const negative = ['愤怒', '生气', '伤心', '难过', '失望', '沮丧', '痛苦', '悲伤'];
+    const neutral = ['平静', '淡然', '冷静', '正常', '一般'];
+
+    for (const word of positive) {
+      if (text.includes(word)) return 'positive';
+    }
+    for (const word of negative) {
+      if (text.includes(word)) return 'negative';
+    }
+    return 'neutral';
+  }
+
+  /**
+   * 多模式写作入口
+   */
+  async writeWithMode(
+    project: NovelProject,
+    mode: 'novel' | 'adventure' | 'chatbot',
+    options: {
+      chapterNumber?: number;
+      userAction?: string;
+      characterId?: string;
+      storyPrompt?: string;
+    },
+    truthFiles: TruthFiles
+  ): Promise<any> {
+    switch (mode) {
+      case 'novel':
+        return this.generateChapter(project, options.chapterNumber || 1, truthFiles);
+      
+      case 'adventure':
+        if (!options.storyPrompt || !options.userAction) {
+          throw new Error('Adventure mode requires storyPrompt and userAction');
+        }
+        return this.adventureMode(project, options.storyPrompt, options.userAction, truthFiles);
+      
+      case 'chatbot':
+        if (!options.characterId) {
+          throw new Error('Chatbot mode requires characterId');
+        }
+        if (!options.userAction) {
+          throw new Error('Chatbot mode requires userAction (message)');
+        }
+        return this.chatbotMode(project, options.characterId, options.userAction, truthFiles);
+      
+      default:
+        throw new Error(`Unknown mode: ${mode}`);
+    }
+  }
 }
 
 export default WritingPipeline;
