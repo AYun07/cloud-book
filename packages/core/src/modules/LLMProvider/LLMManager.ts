@@ -582,14 +582,14 @@ export class LLMManager {
   private textToEmbedding(text: string, dimensions: number = 1536): number[] {
     const words = this.tokenize(text);
     const wordFreq = this.calculateWordFrequency(words);
-    const idf = this.calculateIDF([text], words);
+    const wordScores = this.calculateWordImportance(words, wordFreq);
     
     const embedding = new Array(dimensions).fill(0);
     let index = 0;
     
     for (const [word, freq] of Object.entries(wordFreq)) {
       const wordHash = this.hashWord(word);
-      const tfidf = freq * idf[word] || freq;
+      const score = wordScores[word] || freq;
       
       const startIdx = Math.abs(wordHash) % dimensions;
       const spreadFactor = Math.min(5, Math.ceil(dimensions / (Object.keys(wordFreq).length * 10)));
@@ -597,7 +597,7 @@ export class LLMManager {
       for (let offset = 0; offset < spreadFactor; offset++) {
         const pos = (startIdx + offset) % dimensions;
         const sign = ((wordHash >> offset) & 1) ? 1 : -1;
-        const weight = tfidf * (1 / (1 + offset));
+        const weight = score * (1 / (1 + offset));
         
         embedding[pos] += sign * weight * 0.3;
       }
@@ -624,6 +624,38 @@ export class LLMManager {
     }
     
     return embedding;
+  }
+  
+  /**
+   * 计算词语重要性分数（结合词频、词长和停用词排除）
+   */
+  private calculateWordImportance(words: string[], wordFreq: Record<string, number>): Record<string, number> {
+    const stopWords = new Set([
+      '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个',
+      '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好',
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with'
+    ]);
+    
+    const scores: Record<string, number> = {};
+    const totalWords = words.length || 1;
+    
+    for (const [word, freq] of Object.entries(wordFreq)) {
+      let score = freq;
+      
+      // 排除停用词
+      if (stopWords.has(word.toLowerCase())) {
+        score *= 0.1;
+      }
+      
+      // 词长奖励
+      if (word.length >= 2) {
+        score *= Math.min(2, 1 + word.length * 0.1);
+      }
+      
+      scores[word] = score;
+    }
+    
+    return scores;
   }
   
   private tokenize(text: string): string[] {
