@@ -99,6 +99,7 @@ export declare class CloudBook {
     detectLanguage(text: string): {
         language: string;
         confidence: number;
+        details?: Record<string, number>;
     };
     checkGrammar(text: string): Promise<any>;
     getSupportedLanguages(): any[];

@@ -232,61 +232,240 @@ export class CloudBook {
     return this.i18nManager.getLocale();
   }
 
-  detectLanguage(text: string): { language: string; confidence: number } {
-    const chinesePattern = /[\u4e00-\u9fa5]/g;
-    const englishPattern = /[a-zA-Z]/g;
-    const japanesePattern = /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FAF]/g;
-    const koreanPattern = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g;
+  detectLanguage(text: string): { language: string; confidence: number; details?: Record<string, number> } {
+    const languageRanges: Array<{ name: string; range: [number, number]; script?: string }> = [
+      { name: 'zh-CN', range: [0x4E00, 0x9FFF] },
+      { name: 'ja', range: [0x3040, 0x309F], script: 'hiragana' },
+      { name: 'ja', range: [0x30A0, 0x30FF], script: 'katakana' },
+      { name: 'ko', range: [0xAC00, 0xD7AF], script: 'hangul' },
+      { name: 'ko', range: [0x1100, 0x11FF], script: 'jamo' },
+      { name: 'th', range: [0x0E00, 0x0E7F], script: 'thai' },
+      { name: 'vi', range: [0x1EA0, 0x1EF9], script: 'vietnamese' },
+      { name: 'ar', range: [0x0600, 0x06FF], script: 'arabic' },
+      { name: 'he', range: [0x0590, 0x05FF], script: 'hebrew' },
+      { name: 'hi', range: [0x0900, 0x097F], script: 'hindi' },
+      { name: 'th', range: [0x0E00, 0x0E7F], script: 'thai' },
+      { name: 'ru', range: [0x0400, 0x04FF], script: 'cyrillic' },
+      { name: 'el', range: [0x0370, 0x03FF], script: 'greek' },
+      { name: 'th', range: [0x0E00, 0x0E7F], script: 'thai' },
+      { name: 'en', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'en', range: [0x0061, 0x007A], script: 'latin' },
+      { name: 'es', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'fr', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'de', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'pt', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'it', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'nl', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'pl', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'tr', range: [0x0041, 0x005A], script: 'latin' },
+      { name: 'vi', range: [0x0041, 0x005A], script: 'latin' }
+    ];
     
-    const chineseCount = (text.match(chinesePattern) || []).length;
-    const englishCount = (text.match(englishPattern) || []).length;
-    const japaneseCount = (text.match(japanesePattern) || []).length - chineseCount;
-    const koreanCount = (text.match(koreanPattern) || []).length;
+    const charLangCounts: Record<string, number> = {};
+    const uniqueChars = new Set(text.slice(0, 500));
     
-    const totalChars = text.length;
-    const chineseRatio = chineseCount / Math.max(1, totalChars);
-    const englishRatio = englishCount / Math.max(1, totalChars);
-    const japaneseRatio = Math.max(0, japaneseCount) / Math.max(1, totalChars);
-    const koreanRatio = Math.max(0, koreanCount) / Math.max(1, totalChars);
-    
-    if (chineseRatio > 0.3) {
-      return { language: 'zh-CN', confidence: Math.min(0.95, chineseRatio) };
-    } else if (englishRatio > 0.3) {
-      return { language: 'en', confidence: Math.min(0.95, englishRatio) };
-    } else if (japaneseRatio > 0.3) {
-      return { language: 'ja', confidence: Math.min(0.95, japaneseRatio) };
-    } else if (koreanRatio > 0.3) {
-      return { language: 'ko', confidence: Math.min(0.95, koreanRatio) };
+    for (const char of uniqueChars) {
+      const code = char.codePointAt(0) || 0;
+      for (const lang of languageRanges) {
+        if (code >= lang.range[0] && code <= lang.range[1]) {
+          charLangCounts[lang.name] = (charLangCounts[lang.name] || 0) + 1;
+        }
+      }
     }
     
-    const locale = this.i18nManager.detectSystemLocale();
-    return { language: locale, confidence: 0.5 };
+    const englishPattern = /[a-zA-Z]/g;
+    const englishCount = (text.match(englishPattern) || []).length;
+    if (englishCount > 0) {
+      charLangCounts['en'] = (charLangCounts['en'] || 0) + englishCount * 0.5;
+    }
+    
+    const chinesePattern = /[\u4e00-\u9fa5]/g;
+    const chineseCount = (text.match(chinesePattern) || []).length;
+    if (chineseCount > 0) {
+      charLangCounts['zh-CN'] = chineseCount;
+    }
+    
+    const totalLangChars = Object.values(charLangCounts).reduce((a, b) => a + b, 0);
+    const langRatios: Record<string, number> = {};
+    for (const [lang, count] of Object.entries(charLangCounts)) {
+      langRatios[lang] = count / Math.max(totalLangChars, 1);
+    }
+    
+    const sortedLangs = Object.entries(charLangCounts)
+      .sort((a, b) => b[1] - a[1]);
+    
+    if (sortedLangs.length === 0 || sortedLangs[0][1] < 3) {
+      const locale = this.i18nManager.detectSystemLocale();
+      return { language: locale, confidence: 0.3, details: {} };
+    }
+    
+    const [primaryLang, primaryCount] = sortedLangs[0];
+    const totalChars = text.length;
+    const confidence = Math.min(0.95, primaryCount / Math.max(totalChars * 0.3, 1));
+    
+    const langNameMap: Record<string, string> = {
+      'zh-CN': 'zh-Hans',
+      'en': 'en-US',
+      'ja': 'ja-JP',
+      'ko': 'ko-KR',
+      'th': 'th-TH',
+      'vi': 'vi-VN',
+      'ar': 'ar-SA',
+      'he': 'he-IL',
+      'hi': 'hi-IN',
+      'ru': 'ru-RU',
+      'el': 'el-GR',
+      'es': 'es-ES',
+      'fr': 'fr-FR',
+      'de': 'de-DE',
+      'pt': 'pt-BR',
+      'it': 'it-IT',
+      'nl': 'nl-NL',
+      'pl': 'pl-PL',
+      'tr': 'tr-TR'
+    };
+    
+    return {
+      language: langNameMap[primaryLang] || primaryLang,
+      confidence: Math.round(confidence * 100) / 100,
+      details: langRatios
+    };
   }
 
   async checkGrammar(text: string): Promise<any> {
-    const errors: string[] = [];
+    const errors: Array<{ type: string; text: string; position: number; suggestion: string }> = [];
     const suggestions: string[] = [];
     
-    const repeatedWords = text.match(/(.+?)\1+/g);
+    const repeatedWords = text.match(/(.{2,})\1+/g);
     if (repeatedWords && repeatedWords.length > 0) {
-      errors.push(`发现 ${repeatedWords.length} 处可能的重复用词`);
+      for (const match of repeatedWords) {
+        errors.push({
+          type: 'repeatedPhrase',
+          text: match,
+          position: text.indexOf(match),
+          suggestion: `删除重复的"${match.slice(0, 4)}..."部分`
+        });
+      }
     }
     
-    const longSentences = text.split(/[。！？]/).filter(s => s.trim().length > 80);
-    if (longSentences.length > 0) {
-      suggestions.push(`发现 ${longSentences.length} 个过长句子，建议适当拆分`);
+    const chineseRepeatedChars = text.match(/(.)\1{2,}/g);
+    if (chineseRepeatedChars) {
+      for (const match of chineseRepeatedChars) {
+        errors.push({
+          type: 'repeatedChar',
+          text: match,
+          position: text.indexOf(match),
+          suggestion: `"${match[0]}"重复过多，请精简表达`
+        });
+      }
+    }
+    
+    const longSentences = text.split(/[。！？；]/).filter(s => s.trim().length > 50);
+    for (const sentence of longSentences) {
+      const pos = text.indexOf(sentence);
+      errors.push({
+        type: 'longSentence',
+        text: sentence.slice(0, 30) + '...',
+        position: pos,
+        suggestion: `句子过长（${sentence.length}字），建议拆分`
+      });
     }
     
     const emptyLines = text.match(/\n{3,}/g);
     if (emptyLines) {
-      suggestions.push('建议减少过多的空行');
+      suggestions.push('建议减少过多的空行，保持文章连贯性');
     }
+    
+    const redundantPatterns = [
+      { pattern: /白白地/g, replacement: '白白' },
+      { pattern: /慢慢地/g, replacement: '缓缓' },
+      { pattern: /非常地/g, replacement: '极为' },
+      { pattern: /不断地/g, replacement: '持续' },
+      { pattern: /各种各样/g, replacement: '各种' },
+      { pattern: /一模一样/g, replacement: '相同' },
+      { pattern: /自言自语地说/g, replacement: '说道' },
+      { pattern: /突然之间/g, replacement: '突然' },
+      { pattern: /总的来看/g, replacement: '总体来看' },
+      { pattern: /因为的原因/g, replacement: '因为' }
+    ];
+    
+    for (const { pattern, replacement } of redundantPatterns) {
+      if (pattern.test(text)) {
+        const matches = text.match(pattern);
+        if (matches) {
+          errors.push({
+            type: 'redundantExpression',
+            text: pattern.source,
+            position: text.search(pattern),
+            suggestion: `建议将"${pattern.source}"替换为"${replacement}"`
+          });
+        }
+      }
+    }
+    
+    const wrongWordPatterns = [
+      { pattern: /不孚众望/g, correct: '不负众望', note: '不负众望：不辜负大家的期望' },
+      { pattern: /首当其冲/g, correct: '冲锋在前', note: '首当其冲：指首先受到冲击，不是冲在最前' },
+      { pattern: /望其项背/g, correct: '难以企及', note: '望其项背：表示赶得上，多用于否定' },
+      { pattern: /万人空巷/g, correct: '盛况空前', note: '万人空巷：指人们都从巷子里出来庆祝，不是无人' },
+      { pattern: /不以为然/g, correct: '不以为意', note: '不以为然：不认为对。不以为意：不放在心上' },
+      { pattern: /美轮美奂/g, correct: '精美绝伦', note: '美轮美奂：形容房屋建筑高大华美，不用于其他' }
+    ];
+    
+    for (const { pattern, correct, note } of wrongWordPatterns) {
+      if (pattern.test(text)) {
+        errors.push({
+          type: 'wrongWord',
+          text: pattern.source,
+          position: text.search(pattern),
+          suggestion: `${note}，建议改为"${correct}"`
+        });
+      }
+    }
+    
+    const sentenceStarters = text.split(/[。！？]/).filter(s => s.trim().length > 10);
+    const starterCounts: Record<string, number> = {};
+    for (const starter of sentenceStarters.slice(0, 10)) {
+      const firstWords = starter.trim().slice(0, 6);
+      starterCounts[firstWords] = (starterCounts[firstWords] || 0) + 1;
+    }
+    for (const [starter, count] of Object.entries(starterCounts)) {
+      if (count >= 3) {
+        suggestions.push(`"${starter}..."开头的句子重复较多，建议变换句式`);
+        break;
+      }
+    }
+    
+    const wordCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const punctuationCount = (text.match(/[，。！？；：、""'']/g) || []).length;
+    const ratio = punctuationCount / Math.max(wordCount, 1);
+    
+    if (ratio < 0.15) {
+      suggestions.push('标点符号使用较少，建议增加句号、逗号使用以提高可读性');
+    } else if (ratio > 0.5) {
+      suggestions.push('标点符号使用过于密集，建议精简表达或合并句子');
+    }
+    
+    const totalIssues = errors.length;
+    const suggestionCount = suggestions.length;
+    const baseScore = Math.max(0.4, 1 - (totalIssues * 0.08 + suggestionCount * 0.03));
     
     return {
       errors,
       suggestions,
-      totalIssues: errors.length + suggestions.length,
-      score: Math.max(0.6, 1 - (errors.length + suggestions.length * 0.5) / 10)
+      totalIssues,
+      issueBreakdown: {
+        repeatedPhrases: repeatedWords?.length || 0,
+        longSentences: longSentences.length,
+        redundantExpressions: redundantPatterns.filter(p => p.pattern.test(text)).length,
+        wrongWords: wrongWordPatterns.filter(p => p.pattern.test(text)).length
+      },
+      statistics: {
+        wordCount,
+        punctuationCount,
+        punctuationRatio: Math.round(ratio * 100) / 100
+      },
+      score: Math.round(baseScore * 100) / 100
     };
   }
 
