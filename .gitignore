@@ -1,3 +1,38 @@
 node_modules/
 packages/*/node_modules/
 packages/core/node_modules/
+
+# Build output
+dist/
+packages/*/dist/
+
+# Test data (generated)
+packages/core/test-data/
+packages/core/data/
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Chat logs (may contain sensitive data)
+chat-logs/
+chat_history/
