@@ -56,9 +56,6 @@ class CloudBookCore {
     }
     async listProjects() {
         try {
-            const projectsDir = this.storage.exists('projects') ? 'projects' : '';
-            if (!projectsDir)
-                return [];
             const allFiles = [];
             const listDir = async (dirPath) => {
                 try {
@@ -81,7 +78,10 @@ class CloudBookCore {
                 }
                 catch { }
             };
-            await listDir('projects');
+            try {
+                await listDir('projects');
+            }
+            catch { }
             const projects = [];
             for (const file of allFiles) {
                 if (file.endsWith('meta.json') && file.includes('/projects/')) {
@@ -269,8 +269,7 @@ class CloudBookCore {
             const characters = project.characters || [];
             characters.push({
                 id: fullCharacter.id,
-                name: fullCharacter.name,
-                role: fullCharacter.role
+                name: fullCharacter.name
             });
             project.characters = characters;
             project.updatedAt = new Date();
@@ -343,6 +342,16 @@ class CloudBookCore {
                     chapters.push(fullCh);
             }
         }
+        const summaries = chapters.map(c => ({
+            chapterId: c.id,
+            chapterNumber: c.number,
+            title: c.title,
+            charactersPresent: c.characters || [],
+            keyEvents: [],
+            stateChanges: [],
+            newHooks: [],
+            resolvedHooks: []
+        }));
         return {
             currentState: {
                 protagonist: {
@@ -358,11 +367,7 @@ class CloudBookCore {
             },
             particleLedger: [],
             pendingHooks: [],
-            chapterSummaries: chapters.map(c => ({
-                index: c.number,
-                title: c.title,
-                summary: c.summary || c.content?.slice(0, 200) || ''
-            })),
+            chapterSummaries: summaries,
             subplotBoard: [],
             emotionalArcs: [],
             characterMatrix: []

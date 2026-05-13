@@ -386,12 +386,11 @@ export class CloudBookCore {
       chapterId: c.id,
       chapterNumber: c.number,
       title: c.title,
-      summary: c.summary || c.content?.slice(0, 200) || '',
       charactersPresent: c.characters || [],
       keyEvents: [],
-      worldStateChanges: [],
-      emotionalBeat: '',
-      pacingNote: ''
+      stateChanges: [],
+      newHooks: [],
+      resolvedHooks: []
     }));
 
     return {
