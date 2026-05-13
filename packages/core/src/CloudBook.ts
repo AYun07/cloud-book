@@ -1138,6 +1138,10 @@ export class CloudBook {
     return this.auditEngine.audit(chapter.content!, truthFiles);
   }
 
+  async auditContent(content: string, options?: any) {
+    return this.auditEngine.audit(content, options);
+  }
+
   async reviseChapter(
     projectId: string,
     chapterId: string,

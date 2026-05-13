@@ -230,7 +230,7 @@ program
     const cloudBook = new CloudBook(config);
 
     try {
-      const result = await cloudBook.auditChapter('temp', 'temp');
+      const result = await cloudBook.auditContent(content, { threshold: parseFloat(options.score) });
       console.log(chalk.green('\n✅ 审计完成!'));
       console.log(JSON.stringify(result, null, 2));
     } catch (error: any) {
