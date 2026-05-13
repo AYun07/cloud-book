@@ -196,11 +196,55 @@ class CloudBook {
         return this.i18nManager.getLocale();
     }
     detectLanguage(text) {
+        const chinesePattern = /[\u4e00-\u9fa5]/g;
+        const englishPattern = /[a-zA-Z]/g;
+        const japanesePattern = /[\u3040-\u30FF\u31F0-\u31FF\u4E00-\u9FAF]/g;
+        const koreanPattern = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g;
+        const chineseCount = (text.match(chinesePattern) || []).length;
+        const englishCount = (text.match(englishPattern) || []).length;
+        const japaneseCount = (text.match(japanesePattern) || []).length - chineseCount;
+        const koreanCount = (text.match(koreanPattern) || []).length;
+        const totalChars = text.length;
+        const chineseRatio = chineseCount / Math.max(1, totalChars);
+        const englishRatio = englishCount / Math.max(1, totalChars);
+        const japaneseRatio = Math.max(0, japaneseCount) / Math.max(1, totalChars);
+        const koreanRatio = Math.max(0, koreanCount) / Math.max(1, totalChars);
+        if (chineseRatio > 0.3) {
+            return { language: 'zh-CN', confidence: Math.min(0.95, chineseRatio) };
+        }
+        else if (englishRatio > 0.3) {
+            return { language: 'en', confidence: Math.min(0.95, englishRatio) };
+        }
+        else if (japaneseRatio > 0.3) {
+            return { language: 'ja', confidence: Math.min(0.95, japaneseRatio) };
+        }
+        else if (koreanRatio > 0.3) {
+            return { language: 'ko', confidence: Math.min(0.95, koreanRatio) };
+        }
         const locale = this.i18nManager.detectSystemLocale();
-        return { language: locale, confidence: 1.0 };
+        return { language: locale, confidence: 0.5 };
     }
     async checkGrammar(text) {
-        return { errors: [], suggestions: [] };
+        const errors = [];
+        const suggestions = [];
+        const repeatedWords = text.match(/(.+?)\1+/g);
+        if (repeatedWords && repeatedWords.length > 0) {
+            errors.push(`发现 ${repeatedWords.length} 处可能的重复用词`);
+        }
+        const longSentences = text.split(/[。！？]/).filter(s => s.trim().length > 80);
+        if (longSentences.length > 0) {
+            suggestions.push(`发现 ${longSentences.length} 个过长句子，建议适当拆分`);
+        }
+        const emptyLines = text.match(/\n{3,}/g);
+        if (emptyLines) {
+            suggestions.push('建议减少过多的空行');
+        }
+        return {
+            errors,
+            suggestions,
+            totalIssues: errors.length + suggestions.length,
+            score: Math.max(0.6, 1 - (errors.length + suggestions.length * 0.5) / 10)
+        };
     }
     getSupportedLanguages() {
         return this.i18nManager.getAvailableLocales();

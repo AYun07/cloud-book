@@ -352,16 +352,265 @@ export class AuditEngine {
 
   private checkGenericDimension(content: string, dimension: string): { score: number; status: 'pass' | 'warning' | 'fail' } {
     const words = content.split(/\s+/).length;
+    const sentences = content.split(/[.。!！?？]+/).filter(s => s.trim().length > 0);
+    const paragraphs = content.split(/\n\n+/).filter(p => p.trim().length > 0);
     
-    let score = 85 + Math.random() * 15;
-    let status: 'pass' | 'warning' | 'fail' = 'pass';
-
+    let score = 70;
+    
     if (words < 50) {
       score -= 20;
-      status = 'warning';
     }
+    
+    const analysis = this.analyzeDimensionSpecific(content, dimension, words, sentences, paragraphs);
+    score = Math.max(0, Math.min(100, score + analysis.bonus));
+    
+    let status: 'pass' | 'warning' | 'fail' = 'pass';
+    if (score < 60) status = 'fail';
+    else if (score < 75) status = 'warning';
 
     return { score: Math.round(score * 100) / 100, status };
+  }
+  
+  private analyzeDimensionSpecific(
+    content: string, 
+    dimension: string, 
+    wordCount: number,
+    sentences: string[],
+    paragraphs: string[]
+  ): { bonus: number } {
+    const checks: Record<string, () => number> = {
+      coherence: () => {
+        const transitions = [
+          '然而', '但是', '不过', '因此', '所以', '因为',
+          '虽然', '尽管', '即使', '然而', '接着', '然后',
+          '首先', '其次', '最后', '于是', '于是乎'
+        ];
+        const transitionCount = transitions.reduce((count, t) => 
+          count + (content.match(new RegExp(t, 'g')) || []).length, 0);
+        const ratio = transitionCount / Math.max(sentences.length, 1);
+        return ratio > 0.3 ? 15 : ratio > 0.1 ? 8 : -5;
+      },
+      
+      consistency: () => {
+        const entityPattern = /[""]([^""]+)[""]/g;
+        const entities = [...content.matchAll(entityPattern)].map(m => m[1]);
+        const uniqueEntities = new Set(entities);
+        const ratio = uniqueEntities.size / Math.max(entities.length, 1);
+        return ratio > 0.7 ? 12 : ratio > 0.4 ? 5 : -8;
+      },
+      
+      characterVoice: () => {
+        const dialoguePattern = /[""]([^""]+)[""]/g;
+        const dialogues = [...content.matchAll(dialoguePattern)];
+        if (dialogues.length === 0) return -10;
+        const avgLength = dialogues.reduce((sum, d) => sum + d[1].length, 0) / dialogues.length;
+        return avgLength > 15 ? 10 : avgLength > 5 ? 5 : -5;
+      },
+      
+      dialogue: () => {
+        const dialoguePattern = /[""][^""]*[""]/g;
+        const dialogues = content.match(dialoguePattern) || [];
+        const ratio = dialogues.length / Math.max(paragraphs.length, 1);
+        return ratio > 0.2 && ratio < 0.6 ? 12 : ratio > 0.1 ? 5 : -8;
+      },
+      
+      narrativeVoice: () => {
+        const firstPerson = (content.match(/我|我们|俺/g) || []).length;
+        const thirdPerson = (content.match(/他|她|它|他们|她们/g) || []).length;
+        const ratio = firstPerson / Math.max(firstPerson + thirdPerson, 1);
+        return ratio > 0.1 && ratio < 0.9 ? 10 : 5;
+      },
+      
+      description: () => {
+        const adjectives = (content.match(/[的]?[一二三四五六七八九十百千万]+个?[年月日时春夏秋冬]/g) || []).length;
+        const sensoryWords = [
+          '看', '听', '闻', '尝', '感觉', '看见', '听到', '闻到',
+          '温暖', '凉爽', '炎热', '寒冷', '光滑', '粗糙', '柔软', '坚硬'
+        ];
+        const sensoryCount = sensoryWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return (adjectives + sensoryCount) > wordCount * 0.1 ? 12 : (adjectives + sensoryCount) > wordCount * 0.05 ? 6 : -5;
+      },
+      
+      emotionalImpact: () => {
+        const emotionWords = [
+          '悲伤', '快乐', '愤怒', '恐惧', '惊讶', '厌恶', '爱', '恨',
+          '心痛', '激动', '平静', '焦虑', '绝望', '希望', '喜悦', '泪水'
+        ];
+        const emotionCount = emotionWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        const exclamationCount = (content.match(/[!！]/g) || []).length;
+        return emotionCount > 3 || exclamationCount > 2 ? 12 : emotionCount > 1 ? 6 : 0;
+      },
+      
+      conflict: () => {
+        const conflictWords = [
+          '争论', '争吵', '打架', '对抗', '冲突', '矛盾', '对立',
+          '质疑', '挑战', '威胁', '陷阱', '阴谋'
+        ];
+        const conflictCount = conflictWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return conflictCount > 2 ? 10 : conflictCount > 0 ? 5 : 0;
+      },
+      
+      tension: () => {
+        const tensionWords = [
+          '紧张', '危机', '危险', '悬疑', '不安', '担忧', '害怕',
+          '心跳', '屏住', '呼吸急促', '颤抖', '冷汗'
+        ];
+        const tensionCount = tensionWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        const questionCount = (content.match(/[?？]/g) || []).length;
+        return tensionCount > 2 || questionCount > 1 ? 10 : tensionCount > 0 ? 5 : -3;
+      },
+      
+      resolution: () => {
+        const resolutionWords = [
+          '终于', '最终', '最后', '解决', '和解', '明白', '理解',
+          '释然', '释怀', '平静下来', '达成', '成功'
+        ];
+        const resolutionCount = resolutionWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return resolutionCount > 0 ? 8 : 0;
+      },
+      
+      plotHoles: () => {
+        const contradictionPatterns = [
+          /明明说了[^\n]+[^\n]+但是[^\n]+没有[^\n]+/g,
+          /之前[^\n]+[^\n]+后来[^\n]+却[^\n]+不[^\n]+/g
+        ];
+        const contradictions = contradictionPatterns.reduce((count, p) => 
+          count + (content.match(p) || []).length, 0);
+        return contradictions > 0 ? -15 : 10;
+      },
+      
+      timeline: () => {
+        const timeWords = content.match(/[一二三四五六七八九十百千0-9]+[年月日天周]|昨天|今天|明天|去年|今年|明年|刚才|不久|很快|突然|随后|之前|之后/g) || [];
+        const uniqueTimes = new Set(timeWords);
+        const sequenceIndicators = (content.match(/然后|接着|随后|之后|最后|最终/g) || []).length;
+        return uniqueTimes.size > 2 && sequenceIndicators > 0 ? 10 : uniqueTimes.size > 1 ? 5 : 0;
+      },
+      
+      worldbuilding: () => {
+        const worldElements = [
+          '世界', '大陆', '王国', '帝国', '宗门', '家族', '城市', '城镇',
+          '森林', '山脉', '海洋', '天空', '大陆', '疆域', '领地'
+        ];
+        const elementCount = worldElements.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return elementCount > 3 ? 12 : elementCount > 1 ? 6 : 0;
+      },
+      
+      motivation: () => {
+        const motivationWords = [
+          '因为', '为了', '目的', '希望', '梦想', '追求', '渴望',
+          '不得不', '被迫', '必须', '想要', '决定', '选择'
+        ];
+        const motivationCount = motivationWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return motivationCount > 1 ? 10 : motivationCount > 0 ? 5 : -5;
+      },
+      
+      stakes: () => {
+        const stakesWords = [
+          '生死', '生命', '死亡', '牺牲', '代价', '失去', '一切',
+          '命运', '毁灭', '灭亡', '存亡', '至关重要', '生死攸关'
+        ];
+        const stakesCount = stakesWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return stakesCount > 2 ? 12 : stakesCount > 0 ? 6 : -3;
+      },
+      
+      themes: () => {
+        const themeWords = [
+          '爱', '恨', '正义', '邪恶', '自由', '命运', '选择',
+          '成长', '救赎', '复仇', '牺牲', '勇气', '智慧'
+        ];
+        const themeCount = themeWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return themeCount > 2 ? 10 : themeCount > 0 ? 5 : 0;
+      },
+      
+      symbolism: () => {
+        const symbolPatterns = [
+          /像[^\n]+一样/g,
+          /仿佛[^\n]+/g,
+          /如同[^\n]+/g,
+          /犹如[^\n]+/g
+        ];
+        const symbols = symbolPatterns.reduce((count, p) => 
+          count + (content.match(p) || []).length, 0);
+        return symbols > 1 ? 10 : symbols > 0 ? 5 : 0;
+      },
+      
+      prose: () => {
+        const punctuationCount = (content.match(/[，。、；：""'']/g) || []).length;
+        const ratio = punctuationCount / Math.max(wordCount, 1);
+        return ratio > 0.3 && ratio < 0.6 ? 10 : ratio > 0.2 ? 5 : -5;
+      },
+      
+      readability: () => {
+        const avgSentenceLength = wordCount / Math.max(sentences.length, 1);
+        return avgSentenceLength > 10 && avgSentenceLength < 40 ? 10 : avgSentenceLength < 50 ? 5 : -5;
+      },
+      
+      authenticity: () => {
+        const colloquialWords = [
+          '其实', '说实话', '真的', '简直', '不过', '还好',
+          '差不多', '好像', '大概', '应该', '也许'
+        ];
+        const colloquialCount = colloquialWords.reduce((count, w) => 
+          count + (content.match(new RegExp(w, 'g')) || []).length, 0);
+        return colloquialCount > 2 ? 8 : colloquialCount > 0 ? 4 : -3;
+      },
+      
+      clarity: () => {
+        const longSentences = sentences.filter(s => s.length > 100);
+        const ratio = longSentences.length / Math.max(sentences.length, 1);
+        return ratio < 0.3 ? 10 : ratio < 0.5 ? 5 : -8;
+      },
+      
+      wordChoice: () => {
+        const rareWords = content.match(/[生僻罕见][字词]/g) || [];
+        const vagueWords = (content.match(/好像|大概|也许|可能/g) || []).length;
+        return rareWords.length > vagueWords ? 8 : vagueWords > 3 ? -5 : 0;
+      },
+      
+      sentenceVariation: () => {
+        const lengths = sentences.map(s => s.length);
+        const avg = lengths.reduce((a, b) => a + b, 0) / Math.max(lengths.length, 1);
+        const variance = lengths.reduce((sum, l) => sum + Math.pow(l - avg, 2), 0) / Math.max(lengths.length, 1);
+        const stdDev = Math.sqrt(variance);
+        const coeffVar = stdDev / Math.max(avg, 1);
+        return coeffVar > 0.5 ? 10 : coeffVar > 0.2 ? 5 : 0;
+      },
+      
+      punctuation: () => {
+        const periodCount = (content.match(/[.。]/g) || []).length;
+        const commaCount = (content.match(/[,，]/g) || []).length;
+        const ratio = commaCount / Math.max(periodCount, 1);
+        return ratio > 1 && ratio < 5 ? 10 : ratio > 0.5 ? 5 : -5;
+      },
+      
+      sentenceStructure: () => {
+        const questionCount = (content.match(/[?？]/g) || []).length;
+        const exclamationCount = (content.match(/[!！]/g) || []).length;
+        const total = sentences.length;
+        const variation = (questionCount + exclamationCount) / Math.max(total, 1);
+        return variation > 0.1 && variation < 0.4 ? 10 : 5;
+      },
+      
+      paragraphStructure: () => {
+        const avgParaLength = wordCount / Math.max(paragraphs.length, 1);
+        return avgParaLength > 30 && avgParaLength < 150 ? 10 : avgParaLength < 200 ? 5 : -5;
+      },
+      
+      genreConvention: () => 5,
+      targetAudience: () => 5
+    };
+    
+    const checker = checks[dimension];
+    return { bonus: checker ? checker() : 0 };
   }
 
   private dimensionToIssues(dimension: AuditDimension): AuditIssue[] {

@@ -1,8 +1,8 @@
 "use strict";
 /**
- * Cloud Book - 多模型支持模块 V3
+ * Cloud Book - 多模型支持模块 V4
  * 支持所有主流大模型和本地部署
- * 新增：Gemini系列模型、Embedding功能
+ * 新增：真实OpenAI Embedding API、缓存、流式处理、结构化日志
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LLMManager = exports.SUPPORTED_MODELS = void 0;
@@ -11,9 +11,25 @@ exports.SUPPORTED_MODELS = [
         name: 'deepseek-v4-flash',
         provider: 'deepseek',
         streamingMode: 'true',
-        supportsEmbedding: false,
+        supportsEmbedding: true,
         maxTokens: 8192,
         description: 'DeepSeek V4 Flash - 主写作模型(中文强)'
+    },
+    {
+        name: 'text-embedding-3-small',
+        provider: 'openai',
+        streamingMode: 'false',
+        supportsEmbedding: true,
+        maxTokens: 8192,
+        description: 'OpenAI Embedding - 语义向量模型'
+    },
+    {
+        name: 'text-embedding-3-large',
+        provider: 'openai',
+        streamingMode: 'false',
+        supportsEmbedding: true,
+        maxTokens: 8192,
+        description: 'OpenAI Embedding Large - 高质量语义向量'
     },
     {
         name: 'gemini-2.5-flash[真流]',
@@ -45,8 +61,40 @@ class LLMManager {
     routes = [];
     defaultProvider;
     modelConfigs = new Map();
+    embeddingCache = new Map();
+    cacheTTL = 3600000; // 1 hour
+    logs = [];
     constructor() {
         this.registerBuiltinProviders();
+    }
+    log(level, component, message, metadata) {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            level,
+            component,
+            message,
+            metadata
+        };
+        this.logs.push(entry);
+        if (this.logs.length > 1000) {
+            this.logs.shift();
+        }
+        if (level === 'error' || level === 'warn') {
+            console[level](`[${component}] ${message}`, metadata || '');
+        }
+    }
+    getLogs() {
+        return [...this.logs];
+    }
+    clearLogs() {
+        this.logs = [];
+    }
+    setCacheTTL(ttlMs) {
+        this.cacheTTL = ttlMs;
+    }
+    clearCache() {
+        this.embeddingCache.clear();
+        this.log('info', 'LLMManager', 'Embedding cache cleared');
     }
     /**
      * 获取模型信息
@@ -85,6 +133,12 @@ class LLMManager {
                 if (!config)
                     throw new Error('OpenAI config not found');
                 await this.streamOpenAICompatibleAPI(config, prompt, options, onChunk);
+            },
+            embed: async (text, options) => {
+                const config = this.getConfig('openai');
+                if (!config)
+                    throw new Error('OpenAI config not found');
+                return this.callOpenAIEmbeddingAPI(config, text, options);
             }
         });
         // Anthropic
@@ -113,6 +167,12 @@ class LLMManager {
                 if (!config)
                     throw new Error('DeepSeek config not found');
                 await this.streamOpenAICompatibleAPI(config, prompt, options, onChunk);
+            },
+            embed: async (text, options) => {
+                const config = this.getConfig('deepseek');
+                if (!config)
+                    throw new Error('DeepSeek config not found');
+                return this.callOpenAIEmbeddingAPI(config, text, options);
             }
         });
         // Gemini (通用处理)
@@ -171,6 +231,12 @@ class LLMManager {
                 if (!config)
                     throw new Error('Custom config not found');
                 await this.streamOpenAICompatibleAPI(config, prompt, options, onChunk);
+            },
+            embed: async (text, options) => {
+                const config = this.getConfig('custom');
+                if (!config)
+                    throw new Error('Custom config not found');
+                return this.callOpenAIEmbeddingAPI(config, text, options);
             }
         });
     }
@@ -193,6 +259,12 @@ class LLMManager {
             },
             stream: async (prompt, options, onChunk) => {
                 await this.streamModelAPI(config, prompt, options, onChunk);
+            },
+            embed: async (text, options) => {
+                if (['openai', 'deepseek', 'custom'].includes(config.provider)) {
+                    return this.callOpenAIEmbeddingAPI(config, text, options);
+                }
+                throw new Error(`Embedding not supported for ${config.provider}`);
             }
         };
         this.providers.set(config.name, wrappedProvider);
@@ -240,7 +312,6 @@ class LLMManager {
                 await this.streamGeminiAPI(config, prompt, options, onChunk);
                 break;
             default:
-                // 对于不支持流式的provider，回退到非流式
                 const result = await this.callModelAPI(config, prompt, options);
                 onChunk(result.text);
         }
@@ -264,8 +335,10 @@ class LLMManager {
         const name = modelName || this.defaultProvider;
         const provider = this.providers.get(name || '');
         if (!provider) {
+            this.log('error', 'LLMManager', `Provider not found: ${name}`);
             throw new Error(`Provider not found: ${name}`);
         }
+        this.log('debug', 'LLMManager', 'Generating text', { model: name, promptLength: prompt.length });
         return provider.generate(prompt, options);
     }
     /**
@@ -285,8 +358,10 @@ class LLMManager {
         const name = modelName || this.defaultProvider;
         const provider = this.providers.get(name || '');
         if (!provider?.stream) {
+            this.log('error', 'LLMManager', `Streaming not supported for: ${name}`);
             throw new Error(`Streaming not supported for: ${name}`);
         }
+        this.log('debug', 'LLMManager', 'Streaming generation', { model: name });
         return provider.stream(prompt, options, onChunk);
     }
     /**
@@ -307,49 +382,137 @@ class LLMManager {
         }
     }
     /**
-     * 生成Embeddings（使用LLM模拟）
+     * 生成Embeddings（支持真实API和回退模拟）
      */
     async generateEmbedding(text, modelName, options) {
+        const cacheKey = `${text}:${modelName || 'default'}:${options?.dimensions || 1536}`;
+        const cached = this.embeddingCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+            this.log('debug', 'LLMManager', 'Embedding cache hit');
+            return cached.embedding;
+        }
         const name = modelName || this.defaultProvider;
-        const response = await this.generate(`请将以下文本转换为一个简短的语义描述（30个字以内）：\n\n${text}`, name, { maxTokens: 100 });
-        const embedding = this.textToEmbedding(response.text, options?.dimensions || 1536);
+        const provider = this.providers.get(name || '');
+        if (provider?.embed) {
+            try {
+                this.log('debug', 'LLMManager', 'Calling real embedding API');
+                const response = await provider.embed(text, options);
+                this.embeddingCache.set(cacheKey, {
+                    embedding: response.embedding,
+                    timestamp: Date.now()
+                });
+                return response.embedding;
+            }
+            catch (error) {
+                this.log('warn', 'LLMManager', 'Embedding API failed, falling back', { error });
+            }
+        }
+        this.log('debug', 'LLMManager', 'Using TF-IDF fallback for embeddings');
+        const embedding = this.textToEmbedding(text, options?.dimensions || 1536);
+        this.embeddingCache.set(cacheKey, {
+            embedding,
+            timestamp: Date.now()
+        });
         return embedding;
     }
     /**
-     * 批量生成Embeddings
+     * 批量生成Embeddings（并行优化）
      */
     async generateEmbeddings(texts, modelName, options) {
-        const embeddings = [];
-        for (const text of texts) {
-            const embedding = await this.generateEmbedding(text, modelName, options);
-            embeddings.push(embedding);
+        const concurrency = 3;
+        const results = [];
+        for (let i = 0; i < texts.length; i += concurrency) {
+            const batch = texts.slice(i, i + concurrency);
+            const batchResults = await Promise.all(batch.map(text => this.generateEmbedding(text, modelName, options)));
+            results.push(...batchResults);
         }
-        return embeddings;
+        return results;
     }
     /**
-     * 将文本转换为模拟embedding向量
+     * 将文本转换为语义embedding向量（基于TF-IDF加权词向量 - 回退方案）
      */
     textToEmbedding(text, dimensions = 1536) {
+        const words = this.tokenize(text);
+        const wordFreq = this.calculateWordFrequency(words);
+        const idf = this.calculateIDF([text], words);
         const embedding = new Array(dimensions).fill(0);
-        const hash = this.simpleHash(text);
+        let index = 0;
+        for (const [word, freq] of Object.entries(wordFreq)) {
+            const wordHash = this.hashWord(word);
+            const tfidf = freq * idf[word] || freq;
+            const startIdx = Math.abs(wordHash) % dimensions;
+            const spreadFactor = Math.min(5, Math.ceil(dimensions / (Object.keys(wordFreq).length * 10)));
+            for (let offset = 0; offset < spreadFactor; offset++) {
+                const pos = (startIdx + offset) % dimensions;
+                const sign = ((wordHash >> offset) & 1) ? 1 : -1;
+                const weight = tfidf * (1 / (1 + offset));
+                embedding[pos] += sign * weight * 0.3;
+            }
+            index++;
+            if (index >= 50)
+                break;
+        }
         for (let i = 0; i < dimensions; i++) {
-            const seed = hash + i * 31;
-            embedding[i] = (Math.sin(seed) * 0.5 + 0.5);
+            const charCode = text.charCodeAt(i % text.length);
+            const ngram = this.hashWord(text.slice(Math.max(0, i - 2), i + 3));
+            embedding[i] += ((charCode % 100) / 100 - 0.5) * 0.1;
+            embedding[i] += (ngram % 100) / 500;
         }
-        const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-        return embedding.map(val => val / magnitude);
+        let magnitude = 0;
+        for (let i = 0; i < dimensions; i++) {
+            magnitude += embedding[i] * embedding[i];
+        }
+        magnitude = Math.sqrt(magnitude) || 1;
+        for (let i = 0; i < dimensions; i++) {
+            embedding[i] = embedding[i] / magnitude;
+        }
+        return embedding;
     }
-    /**
-     * 简单哈希函数
-     */
-    simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+    tokenize(text) {
+        const chinese = text.match(/[\u4e00-\u9fa5]+/g) || [];
+        const english = text.toLowerCase().match(/[a-z]{2,}/g) || [];
+        const tokens = [];
+        for (const chars of chinese) {
+            for (let i = 0; i < chars.length; i++) {
+                tokens.push(chars[i]);
+                if (i < chars.length - 1) {
+                    tokens.push(chars.slice(i, i + 2));
+                }
+            }
         }
-        return Math.abs(hash);
+        return [...tokens, ...english];
+    }
+    calculateWordFrequency(words) {
+        const freq = {};
+        const total = words.length || 1;
+        for (const word of words) {
+            freq[word] = (freq[word] || 0) + 1;
+        }
+        for (const key in freq) {
+            freq[key] = freq[key] / total;
+        }
+        return freq;
+    }
+    calculateIDF(documents, vocabulary) {
+        const idf = {};
+        const n = documents.length || 1;
+        for (const word of vocabulary) {
+            let docFreq = 0;
+            for (const doc of documents) {
+                if (doc.includes(word))
+                    docFreq++;
+            }
+            idf[word] = Math.log((n + 1) / (docFreq + 1)) + 1;
+        }
+        return idf;
+    }
+    hashWord(word) {
+        let hash = 5381;
+        for (let i = 0; i < word.length; i++) {
+            hash = ((hash << 5) + hash) ^ word.charCodeAt(i);
+            hash = hash >>> 0;
+        }
+        return hash;
     }
     /**
      * 计算余弦相似度
@@ -388,6 +551,44 @@ class LLMManager {
         this.defaultProvider = modelName;
     }
     /**
+     * 调用 OpenAI Embedding API
+     */
+    async callOpenAIEmbeddingAPI(config, text, options) {
+        const endpoint = config.endpoint || config.baseURL || 'https://api.openai.com/v1';
+        const model = options?.model || config.model;
+        this.log('debug', 'LLMManager', 'Calling OpenAI Embedding API', { endpoint, model });
+        const response = await fetch(`${endpoint}/embeddings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: model,
+                input: text,
+                dimensions: options?.dimensions
+            })
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            this.log('error', 'LLMManager', 'Embedding API failed', {
+                status: response.status,
+                error: errorText
+            });
+            throw new Error(`Embedding API Error: ${response.status}`);
+        }
+        const data = await response.json();
+        const embedding = data.data?.[0]?.embedding || this.textToEmbedding(text);
+        return {
+            embedding,
+            model: data.model || model,
+            usage: data.usage ? {
+                promptTokens: data.usage.prompt_tokens || 0,
+                totalTokens: data.usage.total_tokens || 0
+            } : undefined
+        };
+    }
+    /**
      * 调用 OpenAI 兼容 API
      */
     async callOpenAICompatibleAPI(config, prompt, options) {
@@ -412,6 +613,10 @@ class LLMManager {
         });
         if (!response.ok) {
             const errorText = await response.text();
+            this.log('error', 'LLMManager', 'OpenAI API failed', {
+                status: response.status,
+                error: errorText
+            });
             throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
         }
         const data = await response.json();
@@ -446,6 +651,7 @@ class LLMManager {
             })
         });
         if (!response.ok) {
+            this.log('error', 'LLMManager', 'OpenAI stream failed', { status: response.status });
             throw new Error(`API Error: ${response.status}`);
         }
         const reader = response.body?.getReader();
@@ -507,6 +713,7 @@ class LLMManager {
             })
         });
         if (!response.ok) {
+            this.log('error', 'LLMManager', 'Gemini API failed', { status: response.status });
             throw new Error(`Gemini API Error: ${response.status}`);
         }
         const data = await response.json();
@@ -535,6 +742,7 @@ class LLMManager {
             })
         });
         if (!response.ok) {
+            this.log('error', 'LLMManager', 'Gemini stream failed', { status: response.status });
             throw new Error(`Gemini Stream Error: ${response.status}`);
         }
         const reader = response.body?.getReader();
@@ -570,85 +778,81 @@ class LLMManager {
      * 调用 Anthropic API
      */
     async callAnthropicAPI(config, prompt, options) {
-        const endpoint = config.endpoint || 'https://api.anthropic.com/v1';
+        const endpoint = config.endpoint || config.baseURL || 'https://api.anthropic.com/v1';
         const response = await fetch(`${endpoint}/messages`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': config.apiKey || '',
+                'x-api-key': config.apiKey,
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
                 model: config.model,
-                max_tokens: options?.maxTokens ?? 1024,
-                messages: [{ role: 'user', content: prompt }]
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: options?.maxTokens ?? 2000,
+                temperature: options?.temperature ?? 0.7
             })
         });
         if (!response.ok) {
+            this.log('error', 'LLMManager', 'Anthropic API failed', { status: response.status });
             throw new Error(`Anthropic API Error: ${response.status}`);
         }
         const data = await response.json();
         return {
-            text: data.content?.[0]?.text || '',
-            usage: {
-                promptTokens: data.usage?.input_tokens || 0,
-                completionTokens: data.usage?.output_tokens || 0,
-                totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)
-            },
-            model: config.model,
-            finishReason: data.stop_reason
+            text: data.content?.find(c => c.type === 'text')?.text || '',
+            model: data.model || config.model,
+            usage: data.usage ? {
+                promptTokens: data.usage.input_tokens || 0,
+                completionTokens: data.usage.output_tokens || 0,
+                totalTokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
+            } : undefined
         };
     }
     /**
      * 调用 Ollama API
      */
     async callOllamaAPI(config, prompt, options) {
-        const endpoint = config.endpoint || 'http://localhost:11434';
-        const response = await fetch(`${endpoint}/api/generate`, {
+        const endpoint = config.endpoint || 'http://localhost:11434/api';
+        const response = await fetch(`${endpoint}/generate`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: config.model,
-                prompt,
+                prompt: prompt,
                 stream: false,
                 options: {
                     temperature: options?.temperature ?? 0.7,
-                    num_predict: options?.maxTokens ?? 2000,
-                    top_p: options?.topP
+                    num_predict: options?.maxTokens ?? 2000
                 }
             })
         });
         if (!response.ok) {
+            this.log('error', 'LLMManager', 'Ollama API failed', { status: response.status });
             throw new Error(`Ollama API Error: ${response.status}`);
         }
         const data = await response.json();
         return {
             text: data.response || '',
-            model: config.model
+            model: data.model || config.model
         };
     }
     /**
-     * 调用 KoboldAPI
+     * 调用 KoboldCPP API
      */
     async callKoboldAPI(config, prompt, options) {
-        const endpoint = config.endpoint || 'http://localhost:5000';
-        const response = await fetch(`${endpoint}/api/v1/generate`, {
+        const endpoint = config.endpoint || 'http://localhost:5001/api';
+        const response = await fetch(`${endpoint}/v1/generate`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt,
-                max_length: options?.maxTokens ?? 512,
+                prompt: prompt,
                 temperature: options?.temperature ?? 0.7,
-                top_p: options?.topP ?? 0.9,
-                rep_pen: options?.frequencyPenalty ?? 1.1
+                max_length: options?.maxTokens ?? 2000
             })
         });
         if (!response.ok) {
-            throw new Error(`KoboldAPI Error: ${response.status}`);
+            this.log('error', 'LLMManager', 'Kobold API failed', { status: response.status });
+            throw new Error(`Kobold API Error: ${response.status}`);
         }
         const data = await response.json();
         return {
@@ -658,5 +862,4 @@ class LLMManager {
     }
 }
 exports.LLMManager = LLMManager;
-exports.default = LLMManager;
 //# sourceMappingURL=LLMManager.js.map

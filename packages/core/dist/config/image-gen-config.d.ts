@@ -1,6 +1,6 @@
 /**
  * Cloud Book - 图像生成配置
- * 2026年5月12日 04:55
+ * 所有API密钥必须通过环境变量配置
  */
 export interface ImageGenConfig {
     provider: 'siliconflow' | 'openai' | 'midjourney' | 'local';

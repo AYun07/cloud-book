@@ -1,7 +1,7 @@
 /**
- * Cloud Book - 多模型支持模块 V3
+ * Cloud Book - 多模型支持模块 V4
  * 支持所有主流大模型和本地部署
- * 新增：Gemini系列模型、Embedding功能
+ * 新增：真实OpenAI Embedding API、缓存、流式处理、结构化日志
  */
 import { LLMConfig, ModelRoute } from '../../types';
 export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'gemini' | 'custom';
@@ -57,12 +57,27 @@ export interface LLMProvider {
     }, onChunk: (chunk: string) => void): Promise<void>;
     embed?(text: string, options?: EmbeddingOptions): Promise<EmbeddingResponse>;
 }
+interface LogEntry {
+    timestamp: string;
+    level: 'debug' | 'info' | 'warn' | 'error';
+    component: string;
+    message: string;
+    metadata?: Record<string, any>;
+}
 export declare class LLMManager {
     private providers;
     private routes;
     private defaultProvider?;
     private modelConfigs;
+    private embeddingCache;
+    private cacheTTL;
+    private logs;
     constructor();
+    private log;
+    getLogs(): LogEntry[];
+    clearLogs(): void;
+    setCacheTTL(ttlMs: number): void;
+    clearCache(): void;
     /**
      * 获取模型信息
      */
@@ -126,21 +141,21 @@ export declare class LLMManager {
      */
     streamGenerate(prompt: string, modelName: string | undefined, options: GenerationOptions, onChunk: (chunk: string) => void): Promise<string>;
     /**
-     * 生成Embeddings（使用LLM模拟）
+     * 生成Embeddings（支持真实API和回退模拟）
      */
     generateEmbedding(text: string, modelName?: string, options?: EmbeddingOptions): Promise<number[]>;
     /**
-     * 批量生成Embeddings
+     * 批量生成Embeddings（并行优化）
      */
     generateEmbeddings(texts: string[], modelName?: string, options?: EmbeddingOptions): Promise<number[][]>;
     /**
-     * 将文本转换为模拟embedding向量
+     * 将文本转换为语义embedding向量（基于TF-IDF加权词向量 - 回退方案）
      */
     private textToEmbedding;
-    /**
-     * 简单哈希函数
-     */
-    private simpleHash;
+    private tokenize;
+    private calculateWordFrequency;
+    private calculateIDF;
+    private hashWord;
     /**
      * 计算余弦相似度
      */
@@ -157,6 +172,10 @@ export declare class LLMManager {
      * 设置默认模型
      */
     setDefault(modelName: string): void;
+    /**
+     * 调用 OpenAI Embedding API
+     */
+    private callOpenAIEmbeddingAPI;
     /**
      * 调用 OpenAI 兼容 API
      */
@@ -182,9 +201,9 @@ export declare class LLMManager {
      */
     private callOllamaAPI;
     /**
-     * 调用 KoboldAPI
+     * 调用 KoboldCPP API
      */
     private callKoboldAPI;
 }
-export default LLMManager;
+export {};
 //# sourceMappingURL=LLMManager.d.ts.map

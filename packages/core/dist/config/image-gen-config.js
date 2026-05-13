@@ -1,7 +1,7 @@
 "use strict";
 /**
  * Cloud Book - 图像生成配置
- * 2026年5月12日 04:55
+ * 所有API密钥必须通过环境变量配置
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_IMAGE_CONFIG = exports.IMAGE_GEN_PROVIDERS = void 0;
@@ -10,8 +10,8 @@ exports.buildCoverPrompt = buildCoverPrompt;
 exports.IMAGE_GEN_PROVIDERS = {
     siliconflow: {
         provider: 'siliconflow',
-        baseURL: 'https://api.siliconflow.cn/v1',
-        apiKey: 'sk-gupfftfqutmuenznbuwwhypiilvgwiesezridcrvdsmiyfkl',
+        baseURL: process.env.IMAGE_API_BASE_URL || 'https://api.siliconflow.cn/v1',
+        apiKey: process.env.IMAGE_API_KEY || '',
         model: 'Kwai-Kolors/Kolors',
         defaultSize: '1024x1024',
         defaultSteps: 20
@@ -19,6 +19,9 @@ exports.IMAGE_GEN_PROVIDERS = {
 };
 exports.DEFAULT_IMAGE_CONFIG = exports.IMAGE_GEN_PROVIDERS.siliconflow;
 async function generateImage(prompt, config = exports.DEFAULT_IMAGE_CONFIG, options) {
+    if (!config.apiKey) {
+        return { success: false, error: '未设置 IMAGE_API_KEY 环境变量' };
+    }
     try {
         const response = await fetch(`${config.baseURL}/images/generations`, {
             method: 'POST',

@@ -26,6 +26,8 @@ export declare class MemoryManager {
     getSystemPrompts(projectId: string): Promise<Memory[]>;
     getAllMemories(projectId: string): Promise<Memory[]>;
     getRelevantMemories(projectId: string, context: MemoryContext): Promise<Memory[]>;
+    private calculateMemoryScore;
+    private calculateAuthorsNoteScore;
     buildMemoryContext(projectId: string, context?: MemoryContext): Promise<string>;
     consolidateMemories(projectId: string, summary: string): Promise<void>;
     searchMemories(projectId: string, query: string, limit?: number): Promise<Memory[]>;

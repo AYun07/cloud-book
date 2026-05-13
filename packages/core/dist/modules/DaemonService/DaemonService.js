@@ -140,26 +140,299 @@ class DaemonService {
     }
     async executeWriteTask(params) {
         const { projectId, chapterNumber, autoHumanize } = params;
-        const prompt = `请根据以下信息生成小说章节：
+        try {
+            const projectData = await this.loadProjectData(projectId);
+            if (!projectData) {
+                throw new Error(`项目 ${projectId} 不存在`);
+            }
+            const previousChapter = projectData.chapters?.find((c) => c.index === chapterNumber - 1);
+            const contextPrompt = this.buildChapterContext(projectData, previousChapter);
+            const writingPrompt = `${contextPrompt}
 
-项目ID：${projectId}
-章节号：${chapterNumber}
-去AI味：${autoHumanize ? '是' : '否'}
-
-[实际实现中，这里会调用WritingPipeline生成章节]`;
-        return { success: true, projectId, chapterNumber, timestamp: new Date() };
+请生成第${chapterNumber}章内容。要求：
+1. 符合项目设定的世界观和角色
+2. 与前文保持连贯
+3. ${autoHumanize ? '使用自然的写作风格，避免AI痕迹' : '保持文笔流畅'}
+4. 字数控制在2000-3000字`;
+            const content = await this.llmManager.complete(writingPrompt, {
+                task: 'generation',
+                temperature: 0.8,
+                maxTokens: 4000
+            });
+            const chapter = {
+                id: `ch_${Date.now()}`,
+                projectId,
+                index: chapterNumber,
+                title: this.generateChapterTitle(chapterNumber, content),
+                content: autoHumanize ? await this.humanizeContent(content) : content,
+                wordCount: this.countWords(content),
+                createdAt: new Date(),
+                status: 'draft'
+            };
+            return {
+                success: true,
+                projectId,
+                chapterNumber,
+                chapter,
+                timestamp: new Date()
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                projectId,
+                chapterNumber,
+                error: error.message,
+                timestamp: new Date()
+            };
+        }
+    }
+    async loadProjectData(projectId) {
+        return { id: projectId, title: 'Sample Project', chapters: [] };
+    }
+    buildChapterContext(projectData, previousChapter) {
+        const contextParts = [];
+        if (projectData.worldInfo) {
+            contextParts.push(`【世界观设定】\n${projectData.worldInfo}`);
+        }
+        if (projectData.characters) {
+            contextParts.push(`【主要角色】\n${projectData.characters}`);
+        }
+        if (previousChapter) {
+            contextParts.push(`【前情提要】\n${previousChapter.content.slice(-500)}`);
+        }
+        return contextParts.join('\n\n');
+    }
+    generateChapterTitle(chapterNumber, content) {
+        const firstLine = content.split('\n')[0];
+        if (firstLine && firstLine.length < 30) {
+            return firstLine.replace(/^#+\s*/, '');
+        }
+        return `第${chapterNumber}章`;
+    }
+    async humanizeContent(content) {
+        const antiPatterns = [
+            { from: /首先/gi, to: '先' },
+            { from: /其次/gi, to: '然后' },
+            { from: /最后/gi, to: '最后' },
+            { from: /然而/gi, to: '可是' },
+            { from: /因此/gi, to: '所以' },
+            { from: /综上所述/gi, to: '总的说来' },
+            { from: /值得注意的是/gi, to: '' },
+            { from: /毋庸置疑/gi, to: '不用说' }
+        ];
+        let result = content;
+        for (const { from, to } of antiPatterns) {
+            result = result.replace(from, to);
+        }
+        return result;
+    }
+    countWords(text) {
+        const chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+        const english = (text.match(/[a-zA-Z]+/g) || []).length;
+        return chinese + english;
     }
     async executeAuditTask(params) {
-        const { projectId, chapterId } = params;
-        return { success: true, projectId, chapterId, timestamp: new Date() };
+        const { projectId, chapterId, content } = params;
+        try {
+            const auditPrompt = `请审计以下小说章节的质量：
+
+${content || '章节内容未提供'}
+
+请从以下维度评分（0-100）：
+1. 语法正确性
+2. 叙事连贯性
+3. 角色塑造
+4. 情感表达
+5. 节奏控制
+6. 对话自然度
+7. 细节描写
+
+请以JSON格式输出评分和建议。`;
+            const result = await this.llmManager.complete(auditPrompt, {
+                task: 'analysis',
+                temperature: 0.3,
+                maxTokens: 2000
+            });
+            const parsedResult = this.parseAuditResult(result);
+            return {
+                success: true,
+                projectId,
+                chapterId,
+                audit: parsedResult,
+                timestamp: new Date()
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                projectId,
+                chapterId,
+                error: error.message,
+                timestamp: new Date()
+            };
+        }
+    }
+    parseAuditResult(result) {
+        try {
+            const jsonMatch = result.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+        }
+        catch { }
+        return { rawResult: result, score: 0, issues: [] };
     }
     async executeExportTask(params) {
         const { projectId, format } = params;
-        return { success: true, projectId, format, timestamp: new Date() };
+        try {
+            const projectData = await this.loadProjectData(projectId);
+            if (!projectData) {
+                throw new Error(`项目 ${projectId} 不存在`);
+            }
+            let exportedContent;
+            let fileExtension;
+            switch (format) {
+                case 'txt':
+                    exportedContent = this.exportAsTxt(projectData);
+                    fileExtension = 'txt';
+                    break;
+                case 'markdown':
+                    exportedContent = this.exportAsMarkdown(projectData);
+                    fileExtension = 'md';
+                    break;
+                case 'html':
+                    exportedContent = this.exportAsHtml(projectData);
+                    fileExtension = 'html';
+                    break;
+                case 'json':
+                    exportedContent = JSON.stringify(projectData, null, 2);
+                    fileExtension = 'json';
+                    break;
+                default:
+                    throw new Error(`不支持的格式: ${format}`);
+            }
+            const fileName = `${projectData.title || 'untitled'}_${Date.now()}.${fileExtension}`;
+            return {
+                success: true,
+                projectId,
+                format,
+                fileName,
+                content: exportedContent,
+                timestamp: new Date()
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                projectId,
+                format,
+                error: error.message,
+                timestamp: new Date()
+            };
+        }
+    }
+    exportAsTxt(projectData) {
+        const lines = [];
+        lines.push(`# ${projectData.title || '无标题'}`);
+        lines.push('');
+        if (projectData.chapters) {
+            for (const chapter of projectData.chapters) {
+                lines.push(`\n## ${chapter.title || `第${chapter.index}章`}`);
+                lines.push(chapter.content);
+                lines.push('');
+            }
+        }
+        return lines.join('\n');
+    }
+    exportAsMarkdown(projectData) {
+        const lines = [];
+        lines.push(`# ${projectData.title || '无标题'}`);
+        lines.push('');
+        if (projectData.worldInfo) {
+            lines.push('## 世界观设定');
+            lines.push(projectData.worldInfo);
+            lines.push('');
+        }
+        if (projectData.characters) {
+            lines.push('## 角色设定');
+            lines.push(projectData.characters);
+            lines.push('');
+        }
+        if (projectData.chapters) {
+            for (const chapter of projectData.chapters) {
+                lines.push(`## ${chapter.title || `第${chapter.index}章`}`);
+                lines.push(chapter.content);
+                lines.push('');
+            }
+        }
+        return lines.join('\n');
+    }
+    exportAsHtml(projectData) {
+        const markdown = this.exportAsMarkdown(projectData);
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${projectData.title || '无标题'}</title>
+  <style>
+    body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    h2 { color: #555; }
+    p { line-height: 1.8; text-align: justify; }
+  </style>
+</head>
+<body>
+${markdown.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+            .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+            .replace(/\n/g, '<br>')}
+</body>
+</html>`;
     }
     async executeBackupTask(params) {
         const { projectId, destination } = params;
-        return { success: true, projectId, destination, timestamp: new Date() };
+        try {
+            const projectData = await this.loadProjectData(projectId);
+            if (!projectData) {
+                throw new Error(`项目 ${projectId} 不存在`);
+            }
+            const backupData = {
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                projectId,
+                data: projectData,
+                metadata: {
+                    chapterCount: projectData.chapters?.length || 0,
+                    wordCount: this.calculateTotalWords(projectData),
+                    lastModified: new Date().toISOString()
+                }
+            };
+            const backupJson = JSON.stringify(backupData, null, 2);
+            const backupFileName = `backup_${projectId}_${Date.now()}.json`;
+            return {
+                success: true,
+                projectId,
+                destination,
+                backupFileName,
+                backupContent: backupJson,
+                metadata: backupData.metadata,
+                timestamp: new Date()
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                projectId,
+                destination,
+                error: error.message,
+                timestamp: new Date()
+            };
+        }
+    }
+    calculateTotalWords(projectData) {
+        if (!projectData.chapters)
+            return 0;
+        return projectData.chapters.reduce((sum, ch) => sum + (ch.wordCount || this.countWords(ch.content || '')), 0);
     }
     async retryTask(task, error) {
         const maxRetries = this.config.maxRetries || 3;

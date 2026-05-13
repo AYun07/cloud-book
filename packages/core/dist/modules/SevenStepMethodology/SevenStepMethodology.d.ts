@@ -36,6 +36,9 @@ export declare class SevenStepMethodology {
     private parseSpec;
     private parsePlan;
     private parseTasks;
+    private tryParseJSON;
+    private looksLikeChapter;
+    private toChineseNumber;
     private extractSection;
     private extractList;
     private extractField;

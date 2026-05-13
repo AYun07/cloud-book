@@ -60,7 +60,7 @@ export class ImitationEngine {
    */
   extractSourceStyle(): StyleFingerprint {
     const parseResult = this.config.sourceParseResult;
-    const content = parseResult.fullText || this.reconstructFromParseResult(parseResult);
+    const content = this.reconstructFromParseResult(parseResult);
     const analysis = this.performStyleAnalysis(content);
     
     return {
@@ -69,12 +69,15 @@ export class ImitationEngine {
       dialogueRatio: analysis.dialogueRatio,
       descriptionDensity: analysis.descriptionDensity,
       emotionalWordFrequency: analysis.emotionalWords,
+      emotionalWords: Object.keys(analysis.emotionalWords),
       signaturePhrases: analysis.signaturePhrases,
       tabooWords: analysis.tabooWords,
       punctuationPatterns: analysis.punctuationPatterns,
+      punctuationPattern: JSON.stringify(analysis.punctuationPatterns),
       narrativeVoice: analysis.narrativeVoice,
       tense: analysis.tense,
-      paragraphStructure: analysis.paragraphStructure
+      paragraphStructure: analysis.paragraphStructure,
+      wordFrequency: {}
     };
   }
   

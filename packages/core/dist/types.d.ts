@@ -38,6 +38,16 @@ export interface Memory {
     content: string;
     type: 'memory' | 'authorsNote' | 'systemPrompt';
     score?: number;
+    metadata?: {
+        chapterNumber?: number;
+        keywords?: string[];
+        createdAt?: Date;
+        importance?: number;
+        emotionalTone?: string;
+        characterStates?: Record<string, string>;
+        priority?: 'high' | 'low' | 'normal';
+        scope?: 'global' | 'local';
+    };
 }
 export interface GenerationSettings {
     temperature: number;
@@ -256,13 +266,20 @@ export interface StyleFingerprint {
     sentenceLengthDistribution: number[];
     wordFrequency: Record<string, number>;
     punctuationPattern: string;
+    punctuationPatterns?: Record<string, number>;
     dialogueRatio: number;
     descriptionDensity: number;
-    narrativeVoice: 'first_person' | 'second_person' | 'third_person';
-    tense: 'past' | 'present' | 'future';
+    narrativeVoice: 'first_person' | 'second_person' | 'third_person' | 'mixed';
+    tense: 'past' | 'present' | 'future' | 'mixed';
     emotionalWords: string[];
+    emotionalWordFrequency?: Record<string, number>;
     signaturePhrases: string[];
     tabooWords: string[];
+    averageSentenceLength?: number;
+    paragraphStructure?: {
+        avgLength: number;
+        variance: number;
+    };
 }
 export interface DaemonConfig {
     enabled: boolean;

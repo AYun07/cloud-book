@@ -1,6 +1,6 @@
 /**
  * Cloud Book - 图像生成配置
- * 2026年5月12日 04:55
+ * 所有API密钥必须通过环境变量配置
  */
 
 export interface ImageGenConfig {
@@ -15,8 +15,8 @@ export interface ImageGenConfig {
 export const IMAGE_GEN_PROVIDERS: Record<string, ImageGenConfig> = {
   siliconflow: {
     provider: 'siliconflow',
-    baseURL: 'https://api.siliconflow.cn/v1',
-    apiKey: 'sk-gupfftfqutmuenznbuwwhypiilvgwiesezridcrvdsmiyfkl',
+    baseURL: process.env.IMAGE_API_BASE_URL || 'https://api.siliconflow.cn/v1',
+    apiKey: process.env.IMAGE_API_KEY || '',
     model: 'Kwai-Kolors/Kolors',
     defaultSize: '1024x1024',
     defaultSteps: 20
@@ -34,6 +34,10 @@ export async function generateImage(
     negativePrompt?: string;
   }
 ): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  if (!config.apiKey) {
+    return { success: false, error: '未设置 IMAGE_API_KEY 环境变量' };
+  }
+
   try {
     const response = await fetch(`${config.baseURL}/images/generations`, {
       method: 'POST',

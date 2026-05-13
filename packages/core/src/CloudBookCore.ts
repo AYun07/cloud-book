@@ -94,7 +94,7 @@ export class CloudBookCore {
 
   async listProjects(): Promise<Project[]> {
     try {
-      const files = await this.storage.list('projects', { recursive: false });
+      const files = await this.storage.list('projects', { recursive: true });
       const projects: Project[] = [];
 
       for (const file of files) {
@@ -140,6 +140,7 @@ export class CloudBookCore {
       for (const file of files) {
         await this.storage.delete(file, { createBackup: false });
       }
+      await this.storage.delete(`projects/${projectId}`, { createBackup: false });
     } catch (error) {
       throw handleError(error, 'CloudBook.deleteProject');
     }

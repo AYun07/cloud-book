@@ -211,7 +211,13 @@ class UnifiedStorage {
                 if (options.createBackup !== false && this.enableBackup) {
                     this.createBackup(filePath);
                 }
-                fs.unlinkSync(filePath);
+                const stat = fs.statSync(filePath);
+                if (stat.isDirectory()) {
+                    fs.rmSync(filePath, { recursive: true, force: true });
+                }
+                else {
+                    fs.unlinkSync(filePath);
+                }
             }
             finally {
                 lock.release();

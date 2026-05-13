@@ -53,12 +53,14 @@ describe('CloudBookCore', () => {
     });
 
     it('should list all projects', async () => {
-      await cloudBook.createProject('Project 1', 'fantasy');
-      await cloudBook.createProject('Project 2', 'sci-fi');
+      const project1 = await cloudBook.createProject('Project 1', 'fantasy');
+      const project2 = await cloudBook.createProject('Project 2', 'sci-fi');
       
       const projects = await cloudBook.listProjects();
       
-      expect(projects.length).toBeGreaterThanOrEqual(2);
+      const ids = projects.map(p => p.id);
+      expect(ids).toContain(project1.id);
+      expect(ids).toContain(project2.id);
     });
 
     it('should update a project', async () => {
@@ -217,8 +219,8 @@ describe('UnifiedStorage', () => {
       const files = await storage.list('dir');
       
       expect(files.length).toBe(2);
-      expect(files).toContain('file1.txt');
-      expect(files).toContain('file2.txt');
+      expect(files).toContain('dir/file1.txt');
+      expect(files).toContain('dir/file2.txt');
     });
   });
 

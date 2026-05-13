@@ -33,9 +33,27 @@ export declare class ImitationEngine {
      */
     setLLMProvider(provider: any): void;
     /**
-     * 提取原作风格
+     * 提取原作风格（真实分析算法）
      */
     extractSourceStyle(): StyleFingerprint;
+    private reconstructFromParseResult;
+    private performStyleAnalysis;
+    private splitSentences;
+    private countWords;
+    private calculateLengthDistribution;
+    private extractDialogueSegments;
+    private calculateWordDensity;
+    private extractEmotionalWords;
+    private extractSignaturePhrases;
+    private extractTabooWords;
+    private analyzePunctuation;
+    private detectNarrativeVoice;
+    private detectTense;
+    private calculateVariance;
+    measureStyleSimilarity(style1: StyleFingerprint, style2: StyleFingerprint): number;
+    private compareNumeric;
+    private comparePunctuation;
+    private compareEmotionalWords;
     /**
      * 生成仿写内容
      */

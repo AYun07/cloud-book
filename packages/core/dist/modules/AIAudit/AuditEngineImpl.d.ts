@@ -43,6 +43,7 @@ export declare class AuditEngine {
     private checkPacing;
     private checkShowDontTell;
     private checkGenericDimension;
+    private analyzeDimensionSpecific;
     private dimensionToIssues;
     private getSuggestionsForDimension;
     private generateSummary;
