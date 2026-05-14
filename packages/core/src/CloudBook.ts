@@ -174,6 +174,8 @@ export class CloudBook {
       extractSetting: true
     });
 
+    const storagePath = config.storagePath || './cloud-book-data';
+    
     this.auditEngine = new AIAuditEngine(config.auditConfig);
     this.antiDetectionEngine = new AntiDetectionEngine(config.antiDetectionConfig);
     this.truthFileManager = new TruthFileManager(path.join(storagePath, 'truth-files'));
@@ -183,8 +185,6 @@ export class CloudBook {
       this.auditEngine,
       this.antiDetectionEngine
     );
-
-    const storagePath = config.storagePath || './cloud-book-data';
     
     this.worldInfoManager = new WorldInfoManager(path.join(storagePath, 'worldinfo'));
     this.memoryManager = new MemoryManager(path.join(storagePath, 'memory'));
