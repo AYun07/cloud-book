@@ -21,6 +21,42 @@ export { OfflineModeManager, offlineModeManager, OfflineAuditor, OfflineConsiste
 export { AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { AuditEngine, AuditResult, AuditDimension, AuditIssue } from './modules/AIAudit/AuditEngineImpl';
 export { TruthFileManager } from './modules/TruthFiles/TruthFileManager';
+export { 
+  AdvancedTruthFileManager,
+  VolumeSnapshot,
+  CharacterStateSnapshot,
+  RelationshipState,
+  RelationshipEvent,
+  TimelineNode,
+  TimelineEvent,
+  StateChange,
+  ConsistencyIssue,
+  ConsistencyReport,
+  CharacterNetworkNode,
+  CharacterNetworkEdge,
+  RelationshipEvolution,
+  EmotionalTrajectory,
+  EmotionalArcType,
+  EmotionalKeyMoment,
+  EmotionalPhase,
+  EmotionalPrediction,
+  AdvancedHook,
+  Foreshadowing,
+  ThemeTrack,
+  ThemeManifestation,
+  ThemeEvolution,
+  SymbolReference,
+  Symbol,
+  SymbolAppearance,
+  NarrativeStructure,
+  NarrativeArc,
+  NarrativePhase,
+  ChapterBeat,
+  PacingAnalysis,
+  PacingSegment,
+  TensionPoint,
+  ClimaxPoint
+} from './modules/TruthFiles/AdvancedTruthFileManager';
 export { ExportManager, ExportOptions, ExportResult, ExportTemplate, ExportFormat } from './modules/ExportManager/ExportManager';
 export { ImportManager, ImportOptions, ImportResult, ImportFormat } from './modules/ImportManager/ImportManager';
 export { WritingPipeline } from './modules/WritingEngine/WritingPipeline';
