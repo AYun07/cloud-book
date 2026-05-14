@@ -1626,6 +1626,35 @@ export class TruthFileManager {
     const english = (text.match(/[a-zA-Z]+/g) || []).length;
     return chinese + english;
   }
+
+  async updateWorldState(projectId: string, state: Partial<WorldState>): Promise<void> {
+    const truthFiles = await this.getTruthFiles(projectId);
+    truthFiles.currentState = { ...truthFiles.currentState, ...state };
+    await this.saveTruthFiles(projectId, truthFiles);
+  }
+
+  async getContextSummary(projectId: string, chapterNumber: number): Promise<string> {
+    const truthFiles = await this.getTruthFiles(projectId);
+    const recentChapters = truthFiles.chapterSummaries
+      .filter(s => s.chapterNumber < chapterNumber)
+      .sort((a, b) => b.chapterNumber - a.chapterNumber)
+      .slice(0, 3);
+
+    let summary = '## 近期情节\n';
+    for (const chapter of recentChapters) {
+      summary += `- ${chapter.title}: ${chapter.keyEvents.join('; ')}\n`;
+    }
+
+    const pendingHooks = truthFiles.pendingHooks.filter(h => h.status !== 'paid_off');
+    if (pendingHooks.length > 0) {
+      summary += '\n## 待回收伏笔\n';
+      for (const hook of pendingHooks.slice(0, 5)) {
+        summary += `- ${hook.description} (设置于第${hook.setInChapter}章)\n`;
+      }
+    }
+
+    return summary;
+  }
 }
 
 export default TruthFileManager;
