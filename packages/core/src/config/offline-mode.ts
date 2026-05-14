@@ -1,10 +1,11 @@
 /**
  * Cloud Book - 离线模式完整方案
- * 2026年5月12日 04:58
- * 脱离大模型情况下所有功能可用
+ * 2026年5月14日
+ * 脱离大模型情况下所有功能可用，包含完整创作系统
  */
 
 import { BasicVectorizer } from './basic-vectorizer';
+import { CompleteOfflineSystem, completeOfflineSystem } from './complete-offline-system';
 
 export interface OfflineCapabilities {
   feature: string;
@@ -17,24 +18,28 @@ export const OFFLINE_CAPABILITIES: OfflineCapabilities[] = [
   // 数据管理类 - 完全离线可用
   { feature: '项目管理', onlineMode: 'LLM辅助', offlineMode: '手动操作', fullyFunctional: true },
   { feature: '章节管理', onlineMode: 'LLM辅助', offlineMode: '手动编辑', fullyFunctional: true },
-  { feature: '角色管理', onlineMode: 'LLM生成', offlineMode: '手动创建', fullyFunctional: true },
-  { feature: '世界设定', onlineMode: 'LLM生成', offlineMode: '手动创建', fullyFunctional: true },
-  { feature: '大纲管理', onlineMode: 'LLM辅助', offlineMode: '手动编辑', fullyFunctional: true },
+  { feature: '角色管理', onlineMode: 'LLM生成', offlineMode: '智能提示+模板', fullyFunctional: true },
+  { feature: '世界设定', onlineMode: 'LLM生成', offlineMode: '模板引导', fullyFunctional: true },
+  { feature: '大纲管理', onlineMode: 'LLM辅助', offlineMode: '模板+结构建议', fullyFunctional: true },
   
   // 导入导出 - 完全离线可用
   { feature: '导入功能', onlineMode: '相同', offlineMode: '相同', fullyFunctional: true },
   { feature: '导出功能', onlineMode: '相同', offlineMode: '相同', fullyFunctional: true },
   { feature: '版本历史', onlineMode: '相同', offlineMode: '相同', fullyFunctional: true },
   
-  // 创作辅助 - 部分离线可用
+  // 创作辅助 - 完全离线可用
   { feature: '七步创作法', onlineMode: 'LLM引导', offlineMode: '交互式表单', fullyFunctional: true },
   { feature: '雪花创作法', onlineMode: 'LLM引导', offlineMode: '交互式表单', fullyFunctional: true },
   { feature: '思维导图', onlineMode: '相同', offlineMode: '相同', fullyFunctional: true },
+  { feature: '情节生成', onlineMode: 'LLM生成', offlineMode: '模板引擎', fullyFunctional: true },
+  { feature: '创意提示', onlineMode: 'LLM创意', offlineMode: '创意库', fullyFunctional: true },
+  { feature: '角色建议', onlineMode: 'LLM建议', offlineMode: '角色模板', fullyFunctional: true },
+  { feature: '对话帮助', onlineMode: 'LLM对话', offlineMode: '对话模板库', fullyFunctional: true },
   
-  // 写作功能 - 离线需要用户输入
-  { feature: '章节生成', onlineMode: 'LLM生成', offlineMode: '用户手动编写', fullyFunctional: false },
-  { feature: '章节续写', onlineMode: 'LLM续写', offlineMode: '用户手动编写', fullyFunctional: false },
-  { feature: '情节构思', onlineMode: 'LLM创意', offlineMode: '用户自行构思', fullyFunctional: false },
+  // 写作功能 - 离线有智能辅助
+  { feature: '章节生成', onlineMode: 'LLM生成', offlineMode: '场景模板', fullyFunctional: true },
+  { feature: '章节续写', onlineMode: 'LLM续写', offlineMode: '情节模板', fullyFunctional: true },
+  { feature: '标题创作', onlineMode: 'LLM创意', offlineMode: '标题模板库', fullyFunctional: true },
   
   // 审计功能 - 离线使用规则匹配
   { feature: '内容审计', onlineMode: 'LLM分析', offlineMode: '规则匹配', fullyFunctional: true },
@@ -152,18 +157,20 @@ export class OfflineConsistencyChecker {
 }
 
 /**
- * 离线模式管理器
+ * 离线模式管理器（增强版）
  */
 export class OfflineModeManager {
   private vectorizer: BasicVectorizer;
   private auditor: OfflineAuditor;
   private consistencyChecker: OfflineConsistencyChecker;
   private isOffline: boolean = false;
+  private completeSystem: CompleteOfflineSystem;
 
   constructor() {
     this.vectorizer = new BasicVectorizer();
     this.auditor = new OfflineAuditor();
     this.consistencyChecker = new OfflineConsistencyChecker();
+    this.completeSystem = completeOfflineSystem;
   }
 
   setOfflineMode(enabled: boolean) {
@@ -201,6 +208,33 @@ export class OfflineModeManager {
    */
   audit(content: string) {
     return this.auditor.audit(content);
+  }
+
+  /**
+   * 获取完全离线创作系统
+   */
+  getCompleteSystem(): CompleteOfflineSystem {
+    return this.completeSystem;
+  }
+
+  /**
+   * 检查本地模型是否可用（如果用户没有配置，自动降级到完全离线）
+   */
+  hasLocalModelConfigured(configs: any[] = []): boolean {
+    // 检查是否配置了本地模型（Ollama等）
+    const localProviders = ['ollama', 'koboldcpp', 'lmstudio', 'localai'];
+    return configs.some(config => 
+      localProviders.some(provider => 
+        config.provider.toLowerCase().includes(provider)
+      )
+    );
+  }
+
+  /**
+   * 获取系统状态（包括完全离线功能）
+   */
+  getSystemStatus() {
+    return this.completeSystem.getStatus();
   }
 }
 
