@@ -31,7 +31,7 @@ import { AutoDirector, DirectorConfig } from './modules/AutoDirector/AutoDirecto
 import CreativeHub from './modules/CreativeHub/CreativeHub';
 import { CardManager } from './modules/Card/CardManager';
 import KnowledgeGraphManager from './modules/KnowledgeGraphManager/KnowledgeGraphManager';
-import { BaseAgent, ArchitectAgent, WriterAgent, AuditorAgent, ReviserAgent, StyleEngineerAgent, RadarAgent, AgentCoordinator, AgentSystem, AgentMessage, AgentState, AgentTask } from './modules/AgentSystem/AgentSystem';
+import { AgentMode, BaseAgent, OnlineArchitectAgent, OnlineWriterAgent, OnlineAuditorAgent, OnlineReviserAgent, OnlineStyleEngineerAgent, OnlineRadarAgent, OfflineArchitectAgent, OfflineWriterAgent, OfflineAuditorAgent, OfflineReviserAgent, OfflineStyleEngineerAgent, OfflineRadarAgent, AgentSystem, AgentCoordinator, AgentCoordinatorConfig, AgentMessage, AgentState, AgentTask, AgentCapability, PipelineStep, PipelineResult } from './modules/AgentSystem/AgentSystem';
 import { DaemonService, ScheduledTask, Notification } from './modules/DaemonService/DaemonService';
 import { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
 import { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';

@@ -173,7 +173,7 @@ export declare class CloudBook {
     findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGPath>;
     getCharacterNetwork(projectId: string, characterId: string, depth?: number): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode[]>;
     exportGraph(projectId: string): Promise<string>;
-    getAgents(): BaseAgent[];
+    getAgents(): Record<string, BaseAgent>;
     executeArchitectTask(project: NovelProject, task: 'world_building' | 'character_design' | 'plot_planning' | 'outline_generation', params?: Record<string, any>): Promise<any>;
     executeWriterTask(project: NovelProject, chapterNumber: number, options?: {
         outline?: string;

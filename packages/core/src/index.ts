@@ -34,7 +34,7 @@ export { CreativeHub } from './modules/CreativeHub/CreativeHub';
 export { CreativeHub as CreativeHubImpl } from './modules/CreativeHub/CreativeHubImpl';
 export { CardManager } from './modules/Card/CardManager';
 export { KnowledgeGraphManager } from './modules/KnowledgeGraphManager/KnowledgeGraphManager';
-export { BaseAgent, ArchitectAgent, WriterAgent, AuditorAgent, ReviserAgent, StyleEngineerAgent, RadarAgent, AgentCoordinator, AgentMessage, AgentState, AgentTask } from './modules/AgentSystem/AgentSystem';
+export { AgentMode, AgentConfig, AgentMessage, AgentState, AgentTask, AgentCapability, BaseAgent, OnlineArchitectAgent, OnlineWriterAgent, OnlineAuditorAgent, OnlineReviserAgent, OnlineStyleEngineerAgent, OnlineRadarAgent, OfflineArchitectAgent, OfflineWriterAgent, OfflineAuditorAgent, OfflineReviserAgent, OfflineStyleEngineerAgent, OfflineRadarAgent, AgentSystem, AgentCoordinator, AgentCoordinatorConfig, PipelineStep, PipelineResult } from './modules/AgentSystem/AgentSystem';
 export { DaemonService } from './modules/DaemonService/DaemonService';
 export { SevenStepMethodology } from './modules/SevenStepMethodology/SevenStepMethodology';
 export { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
