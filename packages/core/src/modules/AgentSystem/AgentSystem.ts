@@ -473,7 +473,20 @@ export class AgentSystem {
   }
 
   private getCurrentAgentType(): AgentType | undefined {
-    return undefined;
+    if (!this.currentAgent) {
+      return undefined;
+    }
+    
+    const agentTypeMap: Record<string, AgentType> = {
+      'architect': 'architect',
+      'writer': 'writer',
+      'auditor': 'auditor',
+      'revisionist': 'revisionist',
+      'style_engineer': 'style_engineer',
+      'radar': 'radar'
+    };
+    
+    return agentTypeMap[this.currentAgent.type] || undefined;
   }
 
   private extractTruthInfo(truthFiles: TruthFiles, checkType: string): any {

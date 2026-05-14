@@ -83,6 +83,22 @@ export interface CloudBookConfig {
     enabled?: boolean;
     budgets?: CostBudget;
   };
+  creativeHubConfig?: {
+    provider?: string;
+    embeddingConfig?: Partial<{
+      provider: string;
+      apiKey?: string;
+      endpoint?: string;
+      model?: string;
+      dimension?: number;
+    }>;
+    vectorStoreConfig?: Partial<{
+      type: string;
+      endpoint?: string;
+      apiKey?: string;
+      indexName?: string;
+    }>;
+  };
 }
 
 export interface WritingOptions {
@@ -168,17 +184,23 @@ export class CloudBook {
       this.antiDetectionEngine
     );
 
-    this.worldInfoManager = new WorldInfoManager(config.storagePath + '/worldinfo');
-    this.memoryManager = new MemoryManager(config.storagePath + '/memory');
+    const storagePath = config.storagePath || './cloud-book-data';
+    
+    this.worldInfoManager = new WorldInfoManager(path.join(storagePath, 'worldinfo'));
+    this.memoryManager = new MemoryManager(path.join(storagePath, 'memory'));
     this.autoDirector = new AutoDirector(this.llmManager);
-    this.creativeHub = new CreativeHub({ provider: 'openai' });
+    this.creativeHub = new CreativeHub(
+      config.creativeHubConfig?.embeddingConfig,
+      undefined,
+      config.creativeHubConfig?.vectorStoreConfig as any
+    );
     this.creativeHub.setLLMProvider(this.llmManager);
-    this.cardManager = new CardManager(config.storagePath + '/cards');
+    this.cardManager = new CardManager(path.join(storagePath, 'cards'));
     this.knowledgeGraphManager = new KnowledgeGraphManager();
     this.agentSystem = new AgentSystem(this.llmManager, this.auditEngine);
     this.sevenStepMethodology = new SevenStepMethodology(this.llmManager);
     this.genreConfigManager = new GenreConfigManager();
-    this.pluginSystem = new PluginSystem(config.storagePath + '/plugins');
+    this.pluginSystem = new PluginSystem(path.join(storagePath, 'plugins'));
     this.coverGenerator = new CoverGenerator(this.llmManager);
     this.mindMapGenerator = new MindMapGenerator();
     this.trendAnalyzer = new TrendAnalyzer({ enabled: true, platforms: ['qidian', 'jjwxc', 'zongheng'] });
@@ -190,8 +212,8 @@ export class CloudBook {
       switchDebounceMs: 2000
     });
     this.cacheManager = new CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
-    this.versionHistoryManager = new VersionHistoryManager(config.storagePath + '/versioning');
-    this.localStorage = new LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
+    this.versionHistoryManager = new VersionHistoryManager(path.join(storagePath, 'versioning'));
+    this.localStorage = new LocalStorage({ basePath: storagePath });
     
     this.networkManager.onModeSwitch((newMode, reason) => {
       console.log(`[CloudBook] 模式切换: ${newMode}, 原因: ${reason}`);
@@ -236,7 +258,7 @@ export class CloudBook {
           maxRetries: 3
         },
         this.llmManager,
-        config.storagePath + '/daemon'
+        path.join(storagePath, 'daemon')
       );
     }
   }

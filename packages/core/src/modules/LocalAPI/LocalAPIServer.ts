@@ -129,27 +129,31 @@ export class LocalAPIServer {
         }
       }
 
-      let body = '';
-      req.on('data', chunk => { body += chunk; });
-      req.on('end', async () => {
-        try {
-          const request: ProxyRequest = JSON.parse(body);
-          const response = await this.handleProxyRequest(request);
-          
-          res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'X-Response-Time': `${Date.now() - startTime}ms`
-          });
-          res.end(JSON.stringify(response));
-        } catch (error: any) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: error.message }));
-        }
+      const body = await this.readRequestBody(req);
+      const request: ProxyRequest = JSON.parse(body);
+      const response = await this.handleProxyRequest(request);
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'X-Response-Time': `${Date.now() - startTime}ms`
       });
+      res.end(JSON.stringify(response));
     } catch (error: any) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
+      const statusCode = error.message?.includes('Rate limit') ? 429 : 
+                        error.message?.includes('No API key') ? 401 :
+                        error.message?.includes('Invalid') ? 400 : 500;
+      res.writeHead(statusCode, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: error.message }));
     }
+  }
+
+  private readRequestBody(req: http.IncomingMessage): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => resolve(body));
+      req.on('error', (err) => reject(err));
+    });
   }
 
   private async handleProxyRequest(request: ProxyRequest): Promise<ProxyResponse> {

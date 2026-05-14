@@ -815,53 +815,111 @@ export class LLMManager {
   private async callOpenAIEmbeddingAPI(
     config: LLMConfig,
     text: string,
-    options?: EmbeddingOptions
+    options?: EmbeddingOptions,
+    retryCount: number = 0
   ): Promise<EmbeddingResponse> {
     const endpoint = config.endpoint || config.baseURL || 'https://api.openai.com/v1';
     const model = options?.model || config.model;
+    const maxRetries = 2;
     
     this.log('debug', 'LLMManager', 'Calling OpenAI Embedding API', { endpoint, model });
     
-    const response = await fetch(`${endpoint}/embeddings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`
-      },
-      body: JSON.stringify({
-        model: model,
-        input: text,
-        dimensions: options?.dimensions
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.log('error', 'LLMManager', 'Embedding API failed', {
-        status: response.status,
-        error: errorText
+    try {
+      const response = await fetch(`${endpoint}/embeddings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          input: text,
+          dimensions: options?.dimensions
+        }),
+        timeout: 60000
       });
-      throw new Error(`Embedding API Error: ${response.status}`);
-    }
 
-    const data = await response.json() as {
-      data?: Array<{ embedding: number[] }>;
-      model?: string;
-      usage?: {
-        prompt_tokens?: number;
-        total_tokens?: number;
+      if (!response.ok) {
+        const errorText = await response.text();
+        const errorData = this.parseErrorResponse(errorText);
+        
+        this.log('error', 'LLMManager', 'Embedding API failed', {
+          status: response.status,
+          error: errorData.message || errorText
+        });
+        
+        if (this.shouldRetry(response.status) && retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.callOpenAIEmbeddingAPI(config, text, options, retryCount + 1);
+        }
+        
+        throw new Error(`Embedding API Error ${response.status}: ${errorData.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json() as {
+        data?: Array<{ embedding: number[] }>;
+        model?: string;
+        usage?: {
+          prompt_tokens?: number;
+          total_tokens?: number;
+        };
       };
-    };
-    
-    const embedding = data.data?.[0]?.embedding || this.textToEmbedding(text);
+      
+      const embedding = data.data?.[0]?.embedding;
+      if (!embedding) {
+        this.log('warn', 'LLMManager', 'No embedding returned, using fallback', { model });
+        return this.createFallbackEmbedding(text, model);
+      }
+      
+      return {
+        embedding,
+        model: data.model || model,
+        usage: data.usage ? {
+          promptTokens: data.usage.prompt_tokens || 0,
+          totalTokens: data.usage.total_tokens || 0
+        } : undefined
+      };
+    } catch (error: any) {
+      if (error.name === 'AbortError' && retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.callOpenAIEmbeddingAPI(config, text, options, retryCount + 1);
+      }
+      
+      this.log('error', 'LLMManager', 'Embedding API request failed', {
+        error: error.message,
+        retryCount
+      });
+      
+      return this.createFallbackEmbedding(text, model);
+    }
+  }
+
+  private parseErrorResponse(errorText: string): { message: string; type?: string; code?: string } {
+    try {
+      const errorData = JSON.parse(errorText);
+      return {
+        message: errorData.error?.message || errorText,
+        type: errorData.error?.type,
+        code: errorData.error?.code
+      };
+    } catch {
+      return { message: errorText };
+    }
+  }
+
+  private shouldRetry(status: number): boolean {
+    return status >= 500 || status === 429;
+  }
+
+  private createFallbackEmbedding(text: string, model: string): EmbeddingResponse {
+    const embedding = this.textToEmbedding(text);
+    this.log('warn', 'LLMManager', 'Using fallback embedding', { model, length: embedding.length });
     
     return {
       embedding,
-      model: data.model || model,
-      usage: data.usage ? {
-        promptTokens: data.usage.prompt_tokens || 0,
-        totalTokens: data.usage.total_tokens || 0
-      } : undefined
+      model,
+      usage: undefined
     };
   }
 

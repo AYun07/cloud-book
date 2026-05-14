@@ -66,8 +66,8 @@ export class WorldInfoManager {
   private storagePath: string;
   private llmManager?: any;
 
-  constructor(storagePath: string = './data/worldinfo', llmManager?: any) {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string, llmManager?: any) {
+    this.storagePath = storagePath || './data/worldinfo';
     this.llmManager = llmManager;
     this.loadBuiltinTemplates();
   }
