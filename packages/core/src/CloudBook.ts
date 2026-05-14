@@ -3,14 +3,14 @@
  * 完全原创，整合所有创作功能
  */
 
-import {
-  NovelProject,
-  Chapter,
-  TruthFiles,
-  LLMConfig,
-  ModelRoute,
-  AuditConfig,
-  AntiDetectionConfig,
+import { 
+  NovelProject, 
+  Chapter, 
+  TruthFiles, 
+  LLMConfig, 
+  ModelRoute, 
+  AuditConfig, 
+  AntiDetectionConfig, 
   Genre
 } from './types';
 
@@ -22,6 +22,7 @@ import { LLMManager } from './modules/LLMProvider/LLMManager';
 import { AIAuditEngine } from './modules/AIAudit/AIAuditEngine';
 import { TruthFileManager } from './modules/TruthFiles/TruthFileManager';
 import { WritingPipeline } from './modules/WritingEngine/WritingPipeline';
+import { CompleteWritingPipeline, SevenStepResult, EnhancedTruthFiles, WorldState, ResourceLedger, Hook, Subplot, EmotionalArc, CharacterRelationship } from './modules/WritingEngine/CompleteWritingPipeline';
 import { ContextManager } from './modules/ContextManager/ContextManager';
 
 import { WorldInfoManager } from './modules/WorldInfo/WorldInfoManager';
@@ -30,7 +31,7 @@ import { AutoDirector, DirectorConfig } from './modules/AutoDirector/AutoDirecto
 import CreativeHub from './modules/CreativeHub/CreativeHub';
 import { CardManager } from './modules/Card/CardManager';
 import KnowledgeGraphManager from './modules/KnowledgeGraphManager/KnowledgeGraphManager';
-import { AgentSystem, AgentTask, AgentResponse } from './modules/AgentSystem/AgentSystem';
+import { BaseAgent, ArchitectAgent, WriterAgent, AuditorAgent, ReviserAgent, StyleEngineerAgent, RadarAgent, AgentCoordinator, AgentSystem, AgentMessage, AgentState, AgentTask } from './modules/AgentSystem/AgentSystem';
 import { DaemonService, ScheduledTask, Notification } from './modules/DaemonService/DaemonService';
 import { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
 import { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
@@ -105,6 +106,7 @@ export class CloudBook {
   private truthFileManager: TruthFileManager;
   private contextManager: ContextManager;
   private writingPipeline: WritingPipeline;
+  private completeWritingPipeline: CompleteWritingPipeline;
 
   private worldInfoManager: WorldInfoManager;
   private memoryManager: MemoryManager;
@@ -165,6 +167,11 @@ export class CloudBook {
     this.truthFileManager = new TruthFileManager();
     this.contextManager = new ContextManager();
     this.writingPipeline = new WritingPipeline(
+      this.llmManager,
+      this.auditEngine,
+      this.antiDetectionEngine
+    );
+    this.completeWritingPipeline = new CompleteWritingPipeline(
       this.llmManager,
       this.auditEngine,
       this.antiDetectionEngine
@@ -1226,6 +1233,329 @@ export class CloudBook {
 
   async humanize(text: string): Promise<string> {
     return this.antiDetectionEngine.humanize(text, this.llmManager);
+  }
+
+  // ============================================
+  // 七步创作法 - 核心功能
+  // ============================================
+
+  async runSevenStepCreation(
+    projectId: string,
+    chapterNumber: number
+  ): Promise<SevenStepResult> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    return this.completeWritingPipeline.runSevenStepCreation(
+      project,
+      chapterNumber,
+      enhancedTruthFiles
+    );
+  }
+
+  private convertToEnhancedTruthFiles(truthFiles: TruthFiles): EnhancedTruthFiles {
+    const currentProtagonist = truthFiles.currentState?.protagonist;
+    return {
+      protagonist: currentProtagonist ? {
+        name: currentProtagonist.name || '',
+        location: currentProtagonist.location || '',
+        status: currentProtagonist.status
+      } : undefined,
+      currentState: truthFiles.currentState,
+      worldState: {
+        currentTime: currentProtagonist?.name || '第一章开始',
+        currentLocation: currentProtagonist?.location || '未设定',
+        worldStatus: {},
+        lastUpdated: new Date()
+      },
+      resourceLedger: {
+        items: {},
+        abilities: {},
+        resources: {},
+        lastUpdated: new Date()
+      },
+      pendingHooks: (truthFiles.pendingHooks || []).map((h: any) => ({
+        id: h.id || this.generateId(),
+        description: h.description || '',
+        setInChapter: h.setInChapter || 0,
+        status: (h.status as any) || 'pending',
+        priority: h.priority || 'medium',
+        type: h.type || 'plot'
+      })),
+      subplots: (truthFiles.subplotBoard || []).map((s: any) => ({
+        id: s.id || this.generateId(),
+        title: s.name || '',
+        description: s.description || '',
+        status: (s.status as any) || 'planned',
+        currentProgress: 0,
+        chaptersInvolved: s.chapters || [],
+        charactersInvolved: [],
+        lastUpdated: new Date()
+      })),
+      emotionalArcs: (truthFiles.emotionalArcs || []).map((e: any) => ({
+        characterName: e.characterId || '',
+        arc: [],
+        lastUpdated: new Date()
+      })),
+      characterMatrix: (truthFiles.characterMatrix || []).map((r: any) => ({
+        character1: r.character1 || '',
+        character2: r.character2 || '',
+        currentRelationship: r.currentRelationship || '',
+        history: [],
+        lastUpdated: new Date()
+      }))
+    };
+  }
+
+  // ============================================
+  // 流式生成
+  // ============================================
+
+  async streamGenerateChapter(
+    projectId: string,
+    chapterNumber: number,
+    onChunk: (chunk: string) => void,
+    options?: WritingOptions
+  ): Promise<Chapter> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    const chapter = await this.completeWritingPipeline.streamGenerate(
+      project,
+      chapterNumber,
+      enhancedTruthFiles,
+      onChunk,
+      options
+    );
+
+    await this.localStorage.updateChapter(projectId, chapter.id, {
+      number: chapter.number,
+      title: chapter.title,
+      content: chapter.content,
+      status: chapter.status as 'draft' | 'revised' | 'final',
+      wordCount: chapter.wordCount
+    });
+
+    return chapter;
+  }
+
+  // ============================================
+  // 高级创作功能
+  // ============================================
+
+  async writeFanfiction(
+    projectId: string,
+    chapterNumber: number,
+    premise: string
+  ): Promise<Chapter> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    return this.completeWritingPipeline.writeFanfiction(
+      project,
+      chapterNumber,
+      premise,
+      enhancedTruthFiles
+    );
+  }
+
+  async writeSideStory(
+    projectId: string,
+    sideStoryTitle: string,
+    viewpointCharacter: string,
+    timelinePosition: string
+  ): Promise<Chapter> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    return this.completeWritingPipeline.writeSideStory(
+      project,
+      sideStoryTitle,
+      viewpointCharacter,
+      timelinePosition,
+      enhancedTruthFiles
+    );
+  }
+
+  async writeMultiPOV(
+    projectId: string,
+    chapterNumber: number,
+    viewpoints: string[]
+  ): Promise<Chapter[]> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    return this.completeWritingPipeline.writeMultiPOV(
+      project,
+      chapterNumber,
+      viewpoints,
+      enhancedTruthFiles
+    );
+  }
+
+  async continueWriting(
+    projectId: string,
+    lastChapterNumber: number,
+    additionalChapters: number,
+    options?: WritingOptions
+  ): Promise<Chapter[]> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    const chapters = await this.completeWritingPipeline.continueWriting(
+      project,
+      lastChapterNumber,
+      additionalChapters,
+      enhancedTruthFiles,
+      options
+    );
+
+    for (const chapter of chapters) {
+      await this.localStorage.updateChapter(projectId, chapter.id, {
+        number: chapter.number,
+        title: chapter.title,
+        content: chapter.content,
+        status: chapter.status as 'draft' | 'revised' | 'final',
+        wordCount: chapter.wordCount
+      });
+    }
+
+    return chapters;
+  }
+
+  // ============================================
+  // 自动化整本创作
+  // ============================================
+
+  async autoGenerateNovel(
+    projectId: string,
+    totalChapters: number,
+    onPhase?: (phase: string, progress: number) => void
+  ): Promise<{ chapters: Chapter[]; truthFiles: EnhancedTruthFiles }> {
+    const project = this.projects.get(projectId);
+    if (!project) throw new Error('Project not found');
+    
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    const result = await this.completeWritingPipeline.autoGenerateNovel(
+      project,
+      totalChapters,
+      enhancedTruthFiles,
+      onPhase
+    );
+
+    for (const chapter of result.chapters) {
+      await this.localStorage.updateChapter(projectId, chapter.id, {
+        number: chapter.number,
+        title: chapter.title,
+        content: chapter.content,
+        status: chapter.status as 'draft' | 'revised' | 'final',
+        wordCount: chapter.wordCount
+      });
+    }
+
+    return result;
+  }
+
+  // ============================================
+  // 真相文件增强功能
+  // ============================================
+
+  async updateWorldState(projectId: string, worldState: Partial<WorldState>): Promise<void> {
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const enhancedTruthFiles = this.convertToEnhancedTruthFiles(truthFiles);
+    
+    enhancedTruthFiles.worldState = {
+      ...enhancedTruthFiles.worldState,
+      ...worldState,
+      lastUpdated: new Date()
+    };
+    
+    await this.truthFileManager.saveTruthFiles(projectId, truthFiles);
+  }
+
+  async addPendingHook(
+    projectId: string,
+    hook: Omit<Hook, 'id'>
+  ): Promise<Hook> {
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    const newHook: Hook = {
+      ...hook,
+      id: this.generateId()
+    };
+    
+    truthFiles.pendingHooks = truthFiles.pendingHooks || [];
+    truthFiles.pendingHooks.push(newHook as any);
+    
+    await this.truthFileManager.saveTruthFiles(projectId, truthFiles);
+    
+    return newHook;
+  }
+
+  async resolveHook(projectId: string, hookId: string, chapterNumber: number): Promise<void> {
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    
+    const hook = truthFiles.pendingHooks?.find((h: any) => h.id === hookId);
+    if (hook) {
+      hook.status = 'paid_off';
+      (hook as any).resolvedInChapter = chapterNumber;
+    }
+    
+    await this.truthFileManager.saveTruthFiles(projectId, truthFiles);
+  }
+
+  async updateResourceLedger(
+    projectId: string,
+    itemId: string,
+    change: number,
+    reason: string,
+    chapterNumber: number
+  ): Promise<void> {
+    const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
+    
+    truthFiles.particleLedger = truthFiles.particleLedger || [];
+    let resource = truthFiles.particleLedger.find((r: any) => r.id === itemId);
+    
+    if (!resource) {
+      resource = {
+        id: itemId,
+        name: itemId,
+        owner: '',
+        type: 'item',
+        quantity: 0,
+        changeLog: [],
+        lastUpdatedChapter: 0
+      };
+      truthFiles.particleLedger.push(resource);
+    }
+    
+    resource.quantity += change;
+    resource.changeLog.push({
+      chapter: chapterNumber,
+      change: `${change > 0 ? '+' : ''}${change} - ${reason}`
+    });
+    resource.lastUpdatedChapter = chapterNumber;
+    
+    await this.truthFileManager.saveTruthFiles(projectId, truthFiles);
   }
 
   // ============================================

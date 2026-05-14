@@ -25,6 +25,38 @@ export interface ContextSyncOptions {
     waitForAuditResult: boolean;
     enableConsistencyCheck: boolean;
     maxWaitTimeMs: number;
+    syncIntervalMs: number;
+    maxRetries: number;
+    retryDelayMs: number;
+}
+export interface BatchOptions {
+    mode: 'sequential' | 'parallel' | 'adaptive';
+    parallelCount: number;
+    enableContextSync: boolean;
+    enableAutoRetry: boolean;
+    enableProgressReport: boolean;
+    onChapterStart?: (chapterNumber: number) => void;
+    onChapterComplete?: (chapter: Chapter, chapterNumber: number) => void;
+    onBatchProgress?: (completed: number, total: number, currentChapter?: number) => void;
+    onBatchError?: (error: Error, chapterNumber: number) => void;
+}
+export interface AdaptiveBatchConfig {
+    enabled: boolean;
+    initialParallelCount: number;
+    maxParallelCount: number;
+    minParallelCount: number;
+    slowChapterThreshold: number;
+    speedUpIncrement: number;
+    slowDownDecrement: number;
+    measurementWindow: number;
+}
+export interface WritingStrategy {
+    type: 'fast' | 'balanced' | 'quality';
+    autoAudit: boolean;
+    autoHumanize: boolean;
+    maxRevisionIterations: number;
+    enableStyleTransfer: boolean;
+    enableConsistencyBoost: boolean;
 }
 export declare class WritingPipeline {
     private llmManager;
@@ -34,7 +66,43 @@ export declare class WritingPipeline {
     private chapterStates;
     private chapterLocks;
     private syncOptions;
-    constructor(llmManager: LLMManager, auditEngine: AIAuditEngine, antiDetectionEngine: AntiDetectionEngine, syncOptions?: Partial<ContextSyncOptions>);
+    private adaptiveConfig;
+    private writingStrategy;
+    private abortControllers;
+    private isAborted;
+    private chapterTimings;
+    constructor(llmManager: LLMManager, auditEngine: AIAuditEngine, antiDetectionEngine: AntiDetectionEngine, syncOptions?: Partial<ContextSyncOptions>, adaptiveConfig?: Partial<AdaptiveBatchConfig>, writingStrategy?: Partial<WritingStrategy>);
+    /**
+     * 设置自适应批次配置
+     */
+    setAdaptiveConfig(config: Partial<AdaptiveBatchConfig>): void;
+    /**
+     * 设置写作策略
+     */
+    setWritingStrategy(strategy: Partial<WritingStrategy>): void;
+    /**
+     * 中止当前所有章节生成
+     */
+    abortAll(): void;
+    /**
+     * 中止特定章节的生成
+     */
+    abortChapter(chapterNumber: number): void;
+    /**
+     * 重置中止状态
+     */
+    resetAbort(): void;
+    /**
+     * 获取章节生成统计
+     */
+    getChapterStatistics(): {
+        totalChapters: number;
+        completed: number;
+        failed: number;
+        pending: number;
+        averageTimingMs: number;
+        estimatedRemainingTimeMs: number;
+    };
     /**
      * 获取章节上下文状态
      */
@@ -47,6 +115,14 @@ export declare class WritingPipeline {
      * 清除章节状态（用于新项目）
      */
     clearChapterStates(): void;
+    /**
+     * 智能等待前面的章节完成（带重试机制）
+     */
+    private waitForPreviousChaptersWithRetry;
+    /**
+     * 延迟工具函数
+     */
+    private delay;
     /**
      * 等待前面的章节完成
      */
@@ -142,7 +218,7 @@ export declare class WritingPipeline {
     private countWords;
     /**
      * 批量生成章节
-     * 支持跨章节上下文同步
+     * 支持顺序同步、并行、及自适应模式
      */
     generateChaptersBatch(project: NovelProject, startChapter: number, endChapter: number, truthFiles: TruthFiles, options?: WritingOptions, onProgress?: (current: number, total: number, chapter?: Chapter) => void): Promise<Chapter[]>;
     /**
@@ -151,8 +227,18 @@ export declare class WritingPipeline {
     private executeSequentialBatch;
     /**
      * 并行执行批次（保持有限并行）
+     * 注意：同批次内无上下文同步
      */
     private executeParallelBatch;
+    /**
+     * 自适应批次执行（根据性能动态调整并行数）
+     */
+    private executeAdaptiveBatch;
+    /**
+     * 智能批次执行（结合顺序和并行优点）
+     * 使用流水线模式：主线程顺序生成，同时预热下一批
+     */
+    private executeIntelligentBatch;
     /**
      * 续写现有小说
      */

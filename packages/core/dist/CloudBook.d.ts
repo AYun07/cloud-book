@@ -5,8 +5,9 @@
 import { NovelProject, Chapter, TruthFiles, LLMConfig, ModelRoute, AuditConfig, AntiDetectionConfig, Genre } from './types';
 import type { ParseResult } from './types';
 import { DetectionResult } from './modules/AntiDetection/AntiDetectionEngine';
+import { SevenStepResult, EnhancedTruthFiles, WorldState, Hook } from './modules/WritingEngine/CompleteWritingPipeline';
 import { DirectorConfig } from './modules/AutoDirector/AutoDirector';
-import { AgentResponse } from './modules/AgentSystem/AgentSystem';
+import { BaseAgent } from './modules/AgentSystem/AgentSystem';
 import { ScheduledTask, Notification } from './modules/DaemonService/DaemonService';
 import { StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
 import { GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
@@ -56,6 +57,8 @@ export interface WritingOptions {
     autoAudit?: boolean;
     autoHumanize?: boolean;
     parallelCount?: number;
+    batchMode?: 'sequential' | 'parallel' | 'adaptive' | 'intelligent';
+    stopOnError?: boolean;
 }
 export declare class CloudBook {
     private config;
@@ -66,6 +69,7 @@ export declare class CloudBook {
     private truthFileManager;
     private contextManager;
     private writingPipeline;
+    private completeWritingPipeline;
     private worldInfoManager;
     private memoryManager;
     private autoDirector;
@@ -169,17 +173,14 @@ export declare class CloudBook {
     findPath(projectId: string, from: string, to: string): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGPath>;
     getCharacterNetwork(projectId: string, characterId: string, depth?: number): Promise<import("./modules/KnowledgeGraphManager/KnowledgeGraphManager").KGNode[]>;
     exportGraph(projectId: string): Promise<string>;
-    getAgents(): import("./types").Agent[];
-    executeArchitectTask(project: NovelProject, task: 'world_building' | 'character_design' | 'plot_planning' | 'outline_generation', params?: Record<string, any>): Promise<AgentResponse>;
+    getAgents(): BaseAgent[];
+    executeArchitectTask(project: NovelProject, task: 'world_building' | 'character_design' | 'plot_planning' | 'outline_generation', params?: Record<string, any>): Promise<any>;
     executeWriterTask(project: NovelProject, chapterNumber: number, options?: {
         outline?: string;
         guidance?: string;
-    }): Promise<AgentResponse>;
-    executeAuditorTask(content: string, truthFiles: TruthFiles, autoFix?: boolean): Promise<AgentResponse>;
-    executePipeline(project: NovelProject, chapterNumber: number): Promise<{
-        chapter?: Chapter;
-        issues?: any[];
-    }>;
+    }): Promise<any>;
+    executeAuditorTask(content: string, truthFiles: TruthFiles, autoFix?: boolean): Promise<any>;
+    executePipeline(project: NovelProject, chapterNumber: number): Promise<any>;
     executeMethodologyStep(projectId: string, step: 'constitution' | 'specify' | 'clarify' | 'plan' | 'tasks' | 'write' | 'analyze', params?: Record<string, any>): Promise<StepResult>;
     getMethodologyProgress(projectId: string): import("./modules/SevenStepMethodology/SevenStepMethodology").MethodologyProgress;
     getMethodologyNextAction(projectId: string): "constitution" | "specify" | "clarify" | "plan" | "tasks" | "write" | "analyze";
@@ -222,6 +223,21 @@ export declare class CloudBook {
     reviseChapter(projectId: string, chapterId: string, auditResult?: any): Promise<Chapter>;
     detectAI(text: string): DetectionResult;
     humanize(text: string): Promise<string>;
+    runSevenStepCreation(projectId: string, chapterNumber: number): Promise<SevenStepResult>;
+    private convertToEnhancedTruthFiles;
+    streamGenerateChapter(projectId: string, chapterNumber: number, onChunk: (chunk: string) => void, options?: WritingOptions): Promise<Chapter>;
+    writeFanfiction(projectId: string, chapterNumber: number, premise: string): Promise<Chapter>;
+    writeSideStory(projectId: string, sideStoryTitle: string, viewpointCharacter: string, timelinePosition: string): Promise<Chapter>;
+    writeMultiPOV(projectId: string, chapterNumber: number, viewpoints: string[]): Promise<Chapter[]>;
+    continueWriting(projectId: string, lastChapterNumber: number, additionalChapters: number, options?: WritingOptions): Promise<Chapter[]>;
+    autoGenerateNovel(projectId: string, totalChapters: number, onPhase?: (phase: string, progress: number) => void): Promise<{
+        chapters: Chapter[];
+        truthFiles: EnhancedTruthFiles;
+    }>;
+    updateWorldState(projectId: string, worldState: Partial<WorldState>): Promise<void>;
+    addPendingHook(projectId: string, hook: Omit<Hook, 'id'>): Promise<Hook>;
+    resolveHook(projectId: string, hookId: string, chapterNumber: number): Promise<void>;
+    updateResourceLedger(projectId: string, itemId: string, change: number, reason: string, chapterNumber: number): Promise<void>;
     private buildContext;
     saveProject(projectId: string, storagePath?: string): Promise<void>;
     getProject(projectId: string): NovelProject | undefined;

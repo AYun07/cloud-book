@@ -2616,6 +2616,12 @@ export class LLMManager {
     this.registerProvider({
       name: 'voyage',
       provider: 'voyage',
+      generate: async (prompt, options) => {
+        throw new Error('Voyage AI does not support text generation, only embeddings');
+      },
+      stream: async (prompt, options, onChunk) => {
+        throw new Error('Voyage AI does not support streaming');
+      },
       embed: async (text, options) => {
         const config = this.getConfig('voyage');
         if (!config) throw new Error('Voyage config not found');
@@ -2627,6 +2633,12 @@ export class LLMManager {
     this.registerProvider({
       name: 'nomic',
       provider: 'nomic',
+      generate: async (prompt, options) => {
+        throw new Error('Nomic does not support text generation, only embeddings');
+      },
+      stream: async (prompt, options, onChunk) => {
+        throw new Error('Nomic does not support streaming');
+      },
       embed: async (text, options) => {
         const config = this.getConfig('nomic');
         if (!config) throw new Error('Nomic config not found');

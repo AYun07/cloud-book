@@ -80,11 +80,21 @@ class MemoryManager {
             totalCompressions: 0
         });
     }
-    async addMemory(projectId, content, type = 'memory') {
+    async addMemory(projectId, content, type = 'memory', metadata) {
         const memory = {
             id: this.generateId(),
             content,
-            type
+            type,
+            metadata: {
+                keywords: this.extractKeywords(content, 5),
+                priority: metadata?.priority || 'normal',
+                createdAt: new Date(),
+                chapterNumber: metadata?.chapterNumber,
+                emotionalTone: metadata?.emotionalTone,
+                scope: metadata?.scope,
+                characterStates: metadata?.characterStates,
+                ...metadata
+            }
         };
         switch (type) {
             case 'memory':

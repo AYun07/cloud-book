@@ -5,7 +5,7 @@
  */
 import { LLMConfig, ModelRoute } from '../../types';
 import { CostTracker } from '../CostTracker/CostTracker';
-export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom';
+export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom' | 'azure' | 'mistral' | 'cohere' | 'groq' | 'together' | 'fireworks' | 'perplexity' | 'cloudflare' | 'replicate' | 'huggingface' | 'voyage' | 'nomic' | 'baidu' | 'alibaba' | 'tencent' | 'bytedance' | 'huawei' | 'zhipu' | 'minimax' | 'doubao' | 'moonshot' | 'modal' | 'banana' | 'lambda' | 'modalabs' | 'falcon' | 'ai21' | 'stablelm' | 'mpt';
 export type StreamingMode = 'true' | 'false' | 'auto';
 export interface ModelInfo {
     name: string;
@@ -215,6 +215,158 @@ export declare class LLMManager {
      * 调用 KoboldCPP API
      */
     private callKoboldAPI;
+    /**
+     * 调用 Mistral AI API
+     */
+    private callMistralAPI;
+    /**
+     * 流式调用 Mistral AI API
+     */
+    private streamMistralAPI;
+    /**
+     * 调用 Cohere API
+     */
+    private callCohereAPI;
+    /**
+     * 流式调用 Cohere API
+     */
+    private streamCohereAPI;
+    /**
+     * 调用 Cohere Embedding API
+     */
+    private callCohereEmbeddingAPI;
+    /**
+     * 调用 Groq API
+     */
+    private callGroqAPI;
+    /**
+     * 流式调用 Groq API
+     */
+    private streamGroqAPI;
+    /**
+     * 调用 Together AI API
+     */
+    private callTogetherAPI;
+    /**
+     * 流式调用 Together AI API
+     */
+    private streamTogetherAPI;
+    /**
+     * 调用 Perplexity API
+     */
+    private callPerplexityAPI;
+    /**
+     * 流式调用 Perplexity API
+     */
+    private streamPerplexityAPI;
+    /**
+     * 调用 Cloudflare Workers AI API
+     */
+    private callCloudflareAPI;
+    /**
+     * 流式调用 Cloudflare Workers AI API
+     */
+    private streamCloudflareAPI;
+    /**
+     * 调用 Azure OpenAI API
+     */
+    private callAzureAPI;
+    /**
+     * 流式调用 Azure OpenAI API
+     */
+    private streamAzureAPI;
+    /**
+     * 流式调用 Anthropic API
+     */
+    private streamAnthropicAPI;
+    /**
+     * 调用 Voyage AI Embedding API
+     */
+    private callVoyageEmbeddingAPI;
+    /**
+     * 调用 Nomic Embedding API
+     */
+    private callNomicEmbeddingAPI;
+    /**
+     * 调用百度文心一言 API
+     */
+    private callBaiduAPI;
+    /**
+     * 流式调用百度文心一言 API
+     */
+    private streamBaiduAPI;
+    /**
+     * 调用阿里通义千问 API
+     */
+    private callAlibabaAPI;
+    /**
+     * 流式调用阿里通义千问 API
+     */
+    private streamAlibabaAPI;
+    /**
+     * 调用腾讯混元 API
+     */
+    private callTencentAPI;
+    /**
+     * 流式调用腾讯混元 API
+     */
+    private streamTencentAPI;
+    /**
+     * 调用字节跳动豆包 API
+     */
+    private callByteDanceAPI;
+    /**
+     * 流式调用字节跳动豆包 API
+     */
+    private streamByteDanceAPI;
+    /**
+     * 调用华为盘古 API
+     */
+    private callHuaweiAPI;
+    /**
+     * 流式调用华为盘古 API
+     */
+    private streamHuaweiAPI;
+    /**
+     * 调用智谱清言 API
+     */
+    private callZhipuAPI;
+    /**
+     * 流式调用智谱清言 API
+     */
+    private streamZhipuAPI;
+    /**
+     * 调用 MiniMax API
+     */
+    private callMiniMaxAPI;
+    /**
+     * 流式调用 MiniMax API
+     */
+    private streamMiniMaxAPI;
+    /**
+     * 调用 AI21 API
+     */
+    private callAI21API;
+    /**
+     * 流式调用 AI21 API
+     */
+    private streamAI21API;
+    /**
+     * 调用 Fireworks API
+     */
+    private callFireworksAPI;
+    /**
+     * 流式调用 Fireworks API
+     */
+    private streamFireworksAPI;
+    /**
+     * 调用 Moonshot (月之暗面) API
+     */
+    private callMoonshotAPI;
+    /**
+     * 流式调用 Moonshot (月之暗面) API
+     */
+    private streamMoonshotAPI;
 }
 export {};
 //# sourceMappingURL=LLMManager.d.ts.map

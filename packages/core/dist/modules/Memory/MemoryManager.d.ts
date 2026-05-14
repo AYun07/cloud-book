@@ -52,7 +52,7 @@ export declare class MemoryManager {
     private compressionMetadata;
     constructor(storagePath?: string, config?: Partial<CompressionConfig>);
     initialize(projectId: string): Promise<void>;
-    addMemory(projectId: string, content: string, type?: Memory['type']): Promise<Memory>;
+    addMemory(projectId: string, content: string, type?: Memory['type'], metadata?: Partial<Memory['metadata']>): Promise<Memory>;
     updateMemory(projectId: string, memoryId: string, updates: Partial<Memory>): Promise<Memory | null>;
     deleteMemory(projectId: string, memoryId: string): Promise<boolean>;
     getMemories(projectId: string): Promise<Memory[]>;

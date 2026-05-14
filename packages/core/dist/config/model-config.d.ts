@@ -20,8 +20,8 @@ export declare const MODEL_CAPABILITIES: Record<ModelName, {
 export declare function createModelConfigs(): LLMConfig[];
 export declare function createModelRoutes(): ModelRoute[];
 export declare const API_CONFIG_INFO: {
-    endpoint: any;
-    apiKey: any;
+    endpoint: string;
+    apiKey: string;
     status: "ready";
 };
 export declare function getDefaultLLMConfig(): LLMConfig;

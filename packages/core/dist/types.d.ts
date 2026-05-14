@@ -545,7 +545,7 @@ export interface NovelProject {
     updatedAt: Date;
 }
 export interface LLMConfig {
-    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom';
+    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom' | 'baidu' | 'ali' | 'tencent' | 'bytedance' | 'huawei' | 'zhipu' | 'minimax' | 'moonshot' | 'cloudflare' | 'azure' | 'voyage' | 'nomic';
     name: string;
     endpoint?: string;
     baseURL?: string;
@@ -554,6 +554,9 @@ export interface LLMConfig {
     temperature?: number;
     maxTokens?: number;
     topP?: number;
+    accountId?: string;
+    deployment?: string;
+    apiVersion?: string;
 }
 export interface ModelRoute {
     task: 'planning' | 'writing' | 'revision' | 'audit' | 'style' | 'analysis';
@@ -898,6 +901,8 @@ export interface WritingOptions {
     autoAudit?: boolean;
     autoHumanize?: boolean;
     parallelCount?: number;
+    batchMode?: 'sequential' | 'parallel' | 'adaptive' | 'intelligent';
+    stopOnError?: boolean;
 }
 export interface CreativeHubConfig {
     contextWindow?: number;
