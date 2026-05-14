@@ -12,14 +12,15 @@ import { StepResult } from './modules/SevenStepMethodology/SevenStepMethodology'
 import { GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
 import { CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 import { MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
-import { TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+import { CompetitiveAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+import type { TrendReport } from './types';
 import { APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';
 import { ProjectData } from './modules/LocalStorage/LocalStorage';
 import { ExportFormat, ExportConfig } from './modules/ExportManager/ExportManager';
 import { ImportFormat } from './modules/ImportManager/ImportManager';
 import { Shortcut } from './modules/KeyboardShortcuts/KeyboardShortcuts';
 import { WritingGoal, GoalStats, GoalStreak } from './modules/GoalManager/GoalManager';
-import { CostRecord, CostBudget, CostStats } from './modules/CostTracker/CostTracker';
+import { CostRecord, CostBudget, CostStats, CostAlert } from './modules/CostTracker/CostTracker';
 import { SnowflakeStep } from './modules/SnowflakeMethodology/SnowflakeMethodology';
 import { ScrapedContent } from './modules/WebScraper/WebScraper';
 export interface CloudBookConfig {
@@ -43,6 +44,10 @@ export interface CloudBookConfig {
         apiKeys?: APIKeyConfig[];
     };
     useDefaultModels?: boolean;
+    costTracking?: {
+        enabled?: boolean;
+        budgets?: CostBudget;
+    };
 }
 export interface WritingOptions {
     targetWordCount?: number;
@@ -110,6 +115,10 @@ export declare class CloudBook {
     getNetworkStatus(): Promise<any>;
     checkConnection(): Promise<boolean>;
     onNetworkChange(callback: (status: any) => void): () => void;
+    setConnectionMode(mode: 'online' | 'offline' | 'hybrid'): Promise<void>;
+    getConnectionMode(): 'online' | 'offline' | 'hybrid';
+    setAutoNetworkSwitch(enabled: boolean): void;
+    onModeSwitch(callback: (mode: 'online' | 'offline' | 'hybrid', reason: string) => void): () => void;
     getCacheStats(): Promise<any>;
     clearCache(): void;
     createVersion(projectId: string, content: string, summary?: string): Promise<any>;
@@ -191,12 +200,12 @@ export declare class CloudBook {
     generateProjectMindMap(project: NovelProject): Promise<MindMapData>;
     generateCharacterRelationMap(characters: any[]): Promise<MindMapData>;
     generateChapterOutlineMap(chapters: any[]): Promise<MindMapData>;
-    analyzeMarketTrends(platform: string, genre: Genre): Promise<TrendReport>;
+    analyzeMarketTrends(): Promise<TrendReport>;
     analyzeCompetitor(bookInfo: {
         title?: string;
         url?: string;
         genre?: Genre;
-    }): Promise<CompetitorAnalysis>;
+    }): Promise<CompetitiveAnalysis[]>;
     generateInspiration(genre: Genre, type?: 'plot' | 'character' | 'world' | 'all'): Promise<string[]>;
     startDaemon(): Promise<void>;
     stopDaemon(): Promise<void>;
@@ -209,6 +218,7 @@ export declare class CloudBook {
     generateChapter(projectId: string, chapterNumber: number, options?: WritingOptions): Promise<Chapter>;
     batchGenerateChapters(projectId: string, startChapter: number, count: number, options?: WritingOptions): Promise<Chapter[]>;
     auditChapter(projectId: string, chapterId: string): Promise<import("./types").AuditResult>;
+    auditContent(content: string, options?: any): Promise<import("./types").AuditResult>;
     reviseChapter(projectId: string, chapterId: string, auditResult?: any): Promise<Chapter>;
     detectAI(text: string): DetectionResult;
     humanize(text: string): Promise<string>;
@@ -240,10 +250,27 @@ export declare class CloudBook {
     recordWriting(words: number, date?: Date): void;
     getGoalStats(): GoalStats;
     getStreak(): GoalStreak;
-    recordCost(record: CostRecord): void;
-    getCostStats(): CostStats;
+    recordCost(model: string, provider: string, inputTokens: number, outputTokens: number, operation: string, projectId?: string, chapterId?: string): Promise<CostRecord>;
+    recordCostFromRecord(record: CostRecord): void;
+    getCostStats(startDate?: Date, endDate?: Date, projectId?: string): CostStats;
+    predictMonthlyCost(): number;
+    checkAlerts(): CostAlert[];
     setBudget(budget: CostBudget): void;
     getBudget(): CostBudget | null;
+    estimateCost(model: string, inputTokens: number, outputTokens: number): number;
+    getCostRecords(limit?: number, offset?: number, filters?: {
+        projectId?: string;
+        model?: string;
+        operation?: string;
+        startDate?: Date;
+        endDate?: Date;
+    }): {
+        records: CostRecord[];
+        total: number;
+    };
+    onCostEvent(event: 'costRecorded' | 'alert' | 'budgetChanged', callback: (data: CostRecord | CostAlert | CostBudget) => void): void;
+    offCostEvent(event: 'costRecorded' | 'alert' | 'budgetChanged', callback: (data: CostRecord | CostAlert | CostBudget) => void): void;
+    exportCostRecords(format?: 'json' | 'csv'): string;
     executeSnowflakeStep(projectId: string, step: number, params?: Record<string, any>): Promise<{
         success: boolean;
         data?: any;

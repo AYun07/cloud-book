@@ -212,22 +212,54 @@ ${storyParagraph}
 4. 配角2
 
 每个角色需要包含：
-- 角色姓名
-- 一句话概括
-- 一段概括
-- 动机
-- 目标
-- 冲突
-- 领悟/成长
+- name: 角色姓名
+- role: protagonist/antagonist/side
+- oneLineSummary: 一句话概括
+- oneParagraphSummary: 一段概括
+- backstory: 背景故事
+- motivation: 动机
+- goal: 目标
+- conflict: 冲突
+- epiphany: 领悟/成长
 
-请用JSON数组格式输出：`;
+请用JSON数组格式输出，只返回JSON，不要其他内容：`;
         const response = await this.llmManager.complete(prompt, {
             temperature: 0.7,
             maxTokens: 2000
         });
-        // 解析并返回
-        const characters = [];
+        // 尝试解析 LLM 的响应
+        try {
+            // 清理响应，只保留 JSON 部分
+            let cleanedResponse = response.trim();
+            // 找到第一个 { 或 [ 和最后一个 } 或 ]
+            const firstBracket = cleanedResponse.search(/[\{\[]/);
+            const lastBracket = cleanedResponse.lastIndexOf(cleanedResponse.includes('[') ? ']' : '}');
+            if (firstBracket !== -1 && lastBracket !== -1) {
+                cleanedResponse = cleanedResponse.slice(firstBracket, lastBracket + 1);
+            }
+            const parsed = JSON.parse(cleanedResponse);
+            if (Array.isArray(parsed)) {
+                const roleTypes = ['protagonist', 'antagonist', 'side', 'side'];
+                return parsed.map((char, index) => ({
+                    id: `char_${index + 1}`,
+                    name: char.name || `角色${index + 1}`,
+                    role: char.role || roleTypes[index] || 'side',
+                    backstory: char.backstory || '',
+                    motivation: char.motivation || '',
+                    goal: char.goal || '',
+                    conflict: char.conflict || '',
+                    epiphany: char.epiphany || '',
+                    oneLineSummary: char.oneLineSummary || '',
+                    oneParagraphSummary: char.oneParagraphSummary || ''
+                }));
+            }
+        }
+        catch (parseError) {
+            console.warn('解析角色设定失败，使用默认角色');
+        }
+        // 解析失败时返回默认角色，但至少填充一些默认值
         const roleTypes = ['protagonist', 'antagonist', 'side', 'side'];
+        const characters = [];
         for (let i = 0; i < 4; i++) {
             characters.push({
                 id: `char_${i + 1}`,
@@ -384,11 +416,47 @@ ${outline.oneLine}
         }
     }
     async executeStep8(projectId, params) {
-        return {
-            success: true,
-            data: { ready: true, message: '雪花创作法完成，可以开始写作' },
-            message: '准备好开始写作'
-        };
+        try {
+            const project = this.projects.get(projectId);
+            if (!project) {
+                return { success: false, message: 'Project not found' };
+            }
+            const step7 = project.steps.find(s => s.step === 7);
+            const step4 = project.steps.find(s => s.step === 4);
+            const step2 = project.steps.find(s => s.step === 2);
+            const detailedScenes = step7?.data?.chapterOutlines || [];
+            const chapters = [];
+            for (const scene of detailedScenes) {
+                let prompt = `请根据以下信息，为第 ${scene.chapterNumber} 章创作完整的小说内容:\n\n`;
+                if (step2?.data?.summary) {
+                    prompt += `故事概要: ${step2.data.summary}\n\n`;
+                }
+                if (scene.oneLine) {
+                    prompt += `章节概要: ${scene.oneLine}\n\n`;
+                }
+                if (scene.detailedScene) {
+                    prompt += `详细场景: ${scene.detailedScene}\n\n`;
+                }
+                prompt += '要求:\n1. 语言流畅，有画面感\n2. 对话自然\n3. 适当的环境描写和心理描写\n4. 字数在 2000-3000 字';
+                const response = await this.llmManager.complete(prompt, {
+                    temperature: 0.7,
+                    maxTokens: 3000
+                });
+                chapters.push({
+                    chapterNumber: scene.chapterNumber,
+                    oneLine: scene.oneLine || '',
+                    content: response
+                });
+            }
+            return {
+                success: true,
+                data: { chapters, message: '章节内容生成完成' },
+                message: '雪花创作法完成，章节已生成'
+            };
+        }
+        catch (error) {
+            return { success: false, message: error.message };
+        }
     }
     getProject(projectId) {
         return this.projects.get(projectId);

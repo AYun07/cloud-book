@@ -3,15 +3,67 @@
  * 版本历史管理器
  * 管理项目和章节的版本历史
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VersionHistoryManager = void 0;
+const fs = __importStar(require("fs"));
 class VersionHistoryManager {
     versions = new Map();
     branches = new Map();
     currentBranch = new Map();
     storagePath;
-    constructor(storagePath = './data/versioning') {
+    autoSaveConfig = {
+        enabled: true,
+        intervalMs: 30000,
+        watchChanges: true
+    };
+    autoSaveState = {
+        isRunning: false,
+        lastSaveTime: null,
+        lastSaveProjectId: null,
+        pendingChanges: new Set(),
+        saveInProgress: false,
+        errorCount: 0
+    };
+    autoSaveTimers = new Map();
+    fileWatchers = new Map();
+    constructor(storagePath = './data/versioning', autoSaveConfig) {
         this.storagePath = storagePath;
+        if (autoSaveConfig) {
+            this.autoSaveConfig = { ...this.autoSaveConfig, ...autoSaveConfig };
+        }
     }
     async initialize(projectId) {
         this.versions.set(projectId, []);
@@ -36,7 +88,7 @@ class VersionHistoryManager {
         };
         projectVersions.push(version);
         this.versions.set(projectId, projectVersions);
-        this.save(projectId);
+        this.markPendingChange(projectId);
         return version;
     }
     getVersion(projectId, versionId) {
@@ -92,7 +144,7 @@ class VersionHistoryManager {
         };
         projectBranches.push(branch);
         this.branches.set(projectId, projectBranches);
-        this.save(projectId);
+        this.markPendingChange(projectId);
         return branch;
     }
     switchBranch(projectId, branchName) {
@@ -102,7 +154,7 @@ class VersionHistoryManager {
             throw new Error(`Branch ${branchName} not found`);
         }
         this.currentBranch.set(projectId, branchName);
-        this.save(projectId);
+        this.markPendingChange(projectId);
     }
     getBranches(projectId) {
         return this.branches.get(projectId) || [];
@@ -126,7 +178,7 @@ class VersionHistoryManager {
         if (this.currentBranch.get(projectId) === branchName) {
             this.currentBranch.set(projectId, 'main');
         }
-        this.save(projectId);
+        this.markPendingChange(projectId);
         return true;
     }
     compareVersions(projectId, versionId1, versionId2) {
@@ -256,14 +308,14 @@ class VersionHistoryManager {
         if (!version.tags.includes(tag)) {
             version.tags.push(tag);
         }
-        this.save(projectId);
+        this.markPendingChange(projectId);
     }
     removeTag(projectId, versionId, tag) {
         const projectVersions = this.versions.get(projectId) || [];
         const version = projectVersions.find(v => v.id === versionId);
         if (version && version.tags) {
             version.tags = version.tags.filter(t => t !== tag);
-            this.save(projectId);
+            this.markPendingChange(projectId);
         }
     }
     getVersionsByTag(projectId, tag) {
@@ -273,9 +325,107 @@ class VersionHistoryManager {
     generateId() {
         return `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
+    markPendingChange(projectId) {
+        if (!this.autoSaveState.pendingChanges.has(projectId)) {
+            this.autoSaveState.pendingChanges.add(projectId);
+        }
+    }
+    startAutoSave(projectId) {
+        if (!this.autoSaveConfig.enabled) {
+            return;
+        }
+        if (this.autoSaveTimers.has(projectId)) {
+            this.stopAutoSave(projectId);
+        }
+        if (this.autoSaveConfig.watchChanges) {
+            this.startFileWatcher(projectId);
+        }
+        const timer = setInterval(async () => {
+            if (this.autoSaveState.pendingChanges.has(projectId)) {
+                await this.performAutoSave(projectId);
+            }
+        }, this.autoSaveConfig.intervalMs);
+        this.autoSaveTimers.set(projectId, timer);
+        this.autoSaveState.isRunning = true;
+    }
+    stopAutoSave(projectId) {
+        const timer = this.autoSaveTimers.get(projectId);
+        if (timer) {
+            clearInterval(timer);
+            this.autoSaveTimers.delete(projectId);
+        }
+        this.stopFileWatcher(projectId);
+    }
+    stopAllAutoSave() {
+        Array.from(this.autoSaveTimers.keys()).forEach(projectId => {
+            this.stopAutoSave(projectId);
+        });
+        this.autoSaveState.isRunning = false;
+    }
+    async performAutoSave(projectId) {
+        if (this.autoSaveState.saveInProgress) {
+            return;
+        }
+        try {
+            this.autoSaveState.saveInProgress = true;
+            this.autoSaveState.pendingChanges.delete(projectId);
+            if (this.autoSaveConfig.onAutoSaveStart) {
+                this.autoSaveConfig.onAutoSaveStart();
+            }
+            await this.save(projectId);
+            this.autoSaveState.lastSaveTime = new Date();
+            this.autoSaveState.lastSaveProjectId = projectId;
+            if (this.autoSaveConfig.onAutoSaveComplete) {
+                this.autoSaveConfig.onAutoSaveComplete(projectId);
+            }
+        }
+        catch (error) {
+            this.autoSaveState.errorCount++;
+            if (this.autoSaveConfig.onAutoSaveError) {
+                this.autoSaveConfig.onAutoSaveError(projectId, error);
+            }
+            console.error(`Auto-save failed for project ${projectId}:`, error);
+        }
+        finally {
+            this.autoSaveState.saveInProgress = false;
+        }
+    }
+    startFileWatcher(projectId) {
+        const dir = `${this.storagePath}/${projectId}`;
+        if (!fs.existsSync(dir)) {
+            return;
+        }
+        if (this.fileWatchers.has(projectId)) {
+            return;
+        }
+        try {
+            const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
+                if (filename && (filename.endsWith('.json') || filename.endsWith('.md'))) {
+                    this.handleExternalChange(projectId, filename, eventType);
+                }
+            });
+            this.fileWatchers.set(projectId, watcher);
+        }
+        catch (error) {
+            console.error(`Failed to start file watcher for project ${projectId}:`, error);
+        }
+    }
+    stopFileWatcher(projectId) {
+        const watcher = this.fileWatchers.get(projectId);
+        if (watcher) {
+            watcher.close();
+            this.fileWatchers.delete(projectId);
+        }
+    }
+    handleExternalChange(projectId, filename, eventType) {
+        if (eventType === 'change' || eventType === 'rename') {
+            if (this.autoSaveConfig.onExternalChange) {
+                this.autoSaveConfig.onExternalChange(projectId);
+            }
+        }
+    }
     async save(projectId) {
         try {
-            const fs = require('fs');
             const dir = `${this.storagePath}/${projectId}`;
             if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true });
@@ -286,11 +436,11 @@ class VersionHistoryManager {
         }
         catch (error) {
             console.error('Failed to save version history:', error);
+            throw error;
         }
     }
     async load(projectId) {
         try {
-            const fs = require('fs');
             const dir = `${this.storagePath}/${projectId}`;
             if (fs.existsSync(`${dir}/versions.json`)) {
                 const data = fs.readFileSync(`${dir}/versions.json`, 'utf-8');
@@ -307,7 +457,30 @@ class VersionHistoryManager {
         }
         catch (error) {
             console.error('Failed to load version history:', error);
+            throw error;
         }
+    }
+    getAutoSaveConfig() {
+        return { ...this.autoSaveConfig };
+    }
+    updateAutoSaveConfig(config) {
+        this.autoSaveConfig = { ...this.autoSaveConfig, ...config };
+    }
+    getAutoSaveState() {
+        return {
+            ...this.autoSaveState,
+            pendingChanges: new Set(this.autoSaveState.pendingChanges)
+        };
+    }
+    triggerAutoSave(projectId) {
+        this.markPendingChange(projectId);
+    }
+    destroy() {
+        this.stopAllAutoSave();
+        Array.from(this.fileWatchers.values()).forEach(watcher => {
+            watcher.close();
+        });
+        this.fileWatchers.clear();
     }
 }
 exports.VersionHistoryManager = VersionHistoryManager;

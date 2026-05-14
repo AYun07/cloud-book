@@ -4,7 +4,8 @@
  * 新增：真实OpenAI Embedding API、缓存、流式处理、结构化日志
  */
 import { LLMConfig, ModelRoute } from '../../types';
-export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'gemini' | 'custom';
+import { CostTracker } from '../CostTracker/CostTracker';
+export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom';
 export type StreamingMode = 'true' | 'false' | 'auto';
 export interface ModelInfo {
     name: string;
@@ -72,12 +73,18 @@ export declare class LLMManager {
     private embeddingCache;
     private cacheTTL;
     private logs;
+    private costTracker?;
+    private costTrackingEnabled;
     constructor();
+    setCostTracker(tracker: CostTracker): void;
+    isCostTrackingEnabled(): boolean;
+    private recordCost;
     private log;
     getLogs(): LogEntry[];
     clearLogs(): void;
     setCacheTTL(ttlMs: number): void;
     clearCache(): void;
+    private getConfigForProvider;
     /**
      * 获取模型信息
      */
@@ -152,6 +159,10 @@ export declare class LLMManager {
      * 将文本转换为语义embedding向量（基于TF-IDF加权词向量 - 回退方案）
      */
     private textToEmbedding;
+    /**
+     * 计算词语重要性分数（结合词频、词长和停用词排除）
+     */
+    private calculateWordImportance;
     private tokenize;
     private calculateWordFrequency;
     private calculateIDF;

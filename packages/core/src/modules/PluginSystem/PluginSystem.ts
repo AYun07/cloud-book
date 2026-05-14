@@ -53,6 +53,8 @@ export class PluginSystem {
     this.setupLuaBridge();
   }
 
+  private currentContext: PluginContext = {};
+  
   private setupLuaBridge(): void {
     this.registerLuaBridgeFunction('log', (args: any[]) => {
       const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
@@ -61,22 +63,42 @@ export class PluginSystem {
     });
 
     this.registerLuaBridgeFunction('getContext', () => {
-      return {};
+      return this.currentContext;
     });
 
     this.registerLuaBridgeFunction('setContext', (args: any[]) => {
       const [key, value] = args;
-      return { key, value, success: true };
+      if (typeof key === 'string') {
+        this.currentContext[key] = value;
+        return { key, value, success: true };
+      }
+      return { success: false, error: 'Key must be a string' };
     });
 
-    this.registerLuaBridgeFunction('executeCommand', (args: any[]) => {
+    this.registerLuaBridgeFunction('executeCommand', async (args: any[]) => {
       const [commandName, params] = args;
-      return { commandName, params, success: true, simulated: true };
+      if (typeof commandName !== 'string') {
+        return { success: false, error: 'Command name must be a string' };
+      }
+      try {
+        const result = await this.executeCommand(commandName, params || {}, this.currentContext);
+        return result;
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
     });
 
-    this.registerLuaBridgeFunction('triggerHook', (args: any[]) => {
+    this.registerLuaBridgeFunction('triggerHook', async (args: any[]) => {
       const [hookName, data] = args;
-      return { hookName, data, success: true };
+      if (typeof hookName !== 'string') {
+        return { success: false, error: 'Hook name must be a string' };
+      }
+      try {
+        await this.triggerHook(hookName, { ...this.currentContext, data });
+        return { success: true, hookName };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
     });
   }
 

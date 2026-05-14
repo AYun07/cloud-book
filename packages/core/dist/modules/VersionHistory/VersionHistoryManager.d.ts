@@ -33,12 +33,33 @@ export interface ChangeStats {
     deletions: number;
     modifications: number;
 }
+export interface AutoSaveConfig {
+    enabled: boolean;
+    intervalMs: number;
+    watchChanges: boolean;
+    onAutoSaveStart?: () => void;
+    onAutoSaveComplete?: (projectId: string) => void;
+    onAutoSaveError?: (projectId: string, error: Error) => void;
+    onExternalChange?: (projectId: string) => void;
+}
+export interface AutoSaveState {
+    isRunning: boolean;
+    lastSaveTime: Date | null;
+    lastSaveProjectId: string | null;
+    pendingChanges: Set<string>;
+    saveInProgress: boolean;
+    errorCount: number;
+}
 export declare class VersionHistoryManager {
     private versions;
     private branches;
     private currentBranch;
     private storagePath;
-    constructor(storagePath?: string);
+    private autoSaveConfig;
+    private autoSaveState;
+    private autoSaveTimers;
+    private fileWatchers;
+    constructor(storagePath?: string, autoSaveConfig?: Partial<AutoSaveConfig>);
     initialize(projectId: string): Promise<void>;
     createVersion(projectId: string, content: string, options?: {
         summary?: string;
@@ -69,8 +90,21 @@ export declare class VersionHistoryManager {
     removeTag(projectId: string, versionId: string, tag: string): void;
     getVersionsByTag(projectId: string, tag: string): Version[];
     private generateId;
-    private save;
+    private markPendingChange;
+    startAutoSave(projectId: string): void;
+    stopAutoSave(projectId: string): void;
+    stopAllAutoSave(): void;
+    private performAutoSave;
+    private startFileWatcher;
+    private stopFileWatcher;
+    private handleExternalChange;
+    save(projectId: string): Promise<void>;
     load(projectId: string): Promise<void>;
+    getAutoSaveConfig(): Readonly<AutoSaveConfig>;
+    updateAutoSaveConfig(config: Partial<AutoSaveConfig>): void;
+    getAutoSaveState(): Readonly<AutoSaveState>;
+    triggerAutoSave(projectId: string): void;
+    destroy(): void;
 }
 export default VersionHistoryManager;
 //# sourceMappingURL=VersionHistoryManager.d.ts.map

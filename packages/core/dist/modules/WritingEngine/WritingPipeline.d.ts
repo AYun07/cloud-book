@@ -2,7 +2,7 @@
  * Cloud Book - 写作管线
  * 整合写作、审计、修订的完整流程
  */
-import { NovelProject, Chapter, AuditResult, WritingOptions, TruthFiles } from '../../types';
+import { NovelProject, Chapter, AuditResult, WritingOptions, TruthFiles, ChapterSummary } from '../../types';
 import { LLMManager } from '../LLMProvider/LLMManager';
 import { AIAuditEngine } from '../AIAudit/AIAuditEngine';
 import { AntiDetectionEngine } from '../AntiDetection/AntiDetectionEngine';
@@ -11,12 +11,74 @@ export interface PipelineStep {
     execute: (input: any) => Promise<any>;
     onError?: (error: Error) => Promise<any>;
 }
+export interface ChapterContextState {
+    chapterNumber: number;
+    auditResult?: AuditResult;
+    contextSnapshot?: string;
+    completedAt?: Date;
+    summary?: ChapterSummary;
+    status: 'pending' | 'writing' | 'auditing' | 'completed' | 'failed';
+    error?: string;
+}
+export interface ContextSyncOptions {
+    enableSequentialSync: boolean;
+    waitForAuditResult: boolean;
+    enableConsistencyCheck: boolean;
+    maxWaitTimeMs: number;
+}
 export declare class WritingPipeline {
     private llmManager;
     private auditEngine;
     private antiDetectionEngine;
     private contextManager;
-    constructor(llmManager: LLMManager, auditEngine: AIAuditEngine, antiDetectionEngine: AntiDetectionEngine);
+    private chapterStates;
+    private chapterLocks;
+    private syncOptions;
+    constructor(llmManager: LLMManager, auditEngine: AIAuditEngine, antiDetectionEngine: AntiDetectionEngine, syncOptions?: Partial<ContextSyncOptions>);
+    /**
+     * 获取章节上下文状态
+     */
+    getChapterContextState(chapterNumber: number): ChapterContextState | undefined;
+    /**
+     * 获取所有章节状态
+     */
+    getAllChapterStates(): Map<number, ChapterContextState>;
+    /**
+     * 清除章节状态（用于新项目）
+     */
+    clearChapterStates(): void;
+    /**
+     * 等待前面的章节完成
+     */
+    private waitForPreviousChapters;
+    /**
+     * 获取前面章节的审计结果
+     */
+    private getPreviousAuditResults;
+    /**
+     * 获取前面章节的摘要
+     */
+    private getPreviousChapterSummaries;
+    /**
+     * 上下文一致性检查
+     */
+    private checkContextConsistency;
+    /**
+     * 更新章节上下文状态
+     */
+    private updateChapterState;
+    /**
+     * 注册章节锁
+     */
+    private registerChapterLock;
+    /**
+     * 释放章节锁
+     */
+    private releaseChapterLock;
+    /**
+     * 构建增强的上下文（包含前面章节的审计结果）
+     */
+    private buildEnhancedContext;
     /**
      * 执行完整写作流程
      */
@@ -25,6 +87,17 @@ export declare class WritingPipeline {
         auditResult?: AuditResult;
         humanized?: string;
     }>;
+    /**
+     * 检查审计结果一致性
+     */
+    private checkAuditConsistency;
+    /**
+     * 生成章节摘要
+     */
+    private generateChapterSummary;
+    private extractKeyEvents;
+    private extractCharacters;
+    private extractNewHooks;
     /**
      * 生成草稿
      */
@@ -69,8 +142,17 @@ export declare class WritingPipeline {
     private countWords;
     /**
      * 批量生成章节
+     * 支持跨章节上下文同步
      */
     generateChaptersBatch(project: NovelProject, startChapter: number, endChapter: number, truthFiles: TruthFiles, options?: WritingOptions, onProgress?: (current: number, total: number, chapter?: Chapter) => void): Promise<Chapter[]>;
+    /**
+     * 顺序执行批次（确保跨章节上下文同步）
+     */
+    private executeSequentialBatch;
+    /**
+     * 并行执行批次（保持有限并行）
+     */
+    private executeParallelBatch;
     /**
      * 续写现有小说
      */
@@ -103,6 +185,38 @@ export declare class WritingPipeline {
     private getOrCreateTruthFiles;
     private generateBatchOutlines;
     private updateTruthFilesAfterChapter;
+    /**
+     * 冒险模式 - 类似AI Dungeon的互动冒险
+     */
+    adventureMode(project: NovelProject, storyPrompt: string, userAction: string, truthFiles: TruthFiles): Promise<{
+        narrative: string;
+        newWorldInfo: string[];
+    }>;
+    /**
+     * 聊天机器人模式 - 与角色互动对话
+     */
+    chatbotMode(project: NovelProject, characterId: string, userMessage: string, truthFiles: TruthFiles): Promise<{
+        characterName: string;
+        response: string;
+        emotion: string;
+    }>;
+    /**
+     * 从叙事中提取新的世界信息
+     */
+    private extractNewWorldInfo;
+    /**
+     * 检测对话情感
+     */
+    private detectEmotion;
+    /**
+     * 多模式写作入口
+     */
+    writeWithMode(project: NovelProject, mode: 'novel' | 'adventure' | 'chatbot', options: {
+        chapterNumber?: number;
+        userAction?: string;
+        characterId?: string;
+        storyPrompt?: string;
+    }, truthFiles: TruthFiles): Promise<any>;
 }
 export default WritingPipeline;
 //# sourceMappingURL=WritingPipeline.d.ts.map

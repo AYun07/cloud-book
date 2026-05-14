@@ -1,294 +1,486 @@
 "use strict";
 /**
- * Trend Analyzer - 扫榜分析模块
- * 分析平台趋势和竞品
+ * 趋势分析器
+ * 支持市场趋势分析和数据展示
+ *
+ * 注意：此模块目前不包含真实的网络爬虫功能，仅提供静态分析和样本数据展示
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TrendAnalyzer = void 0;
+// 真实的样本数据，基于常见的网络文学市场情况
+const SAMPLE_TREND_DATA = [
+    {
+        platform: '起点中文网',
+        category: '玄幻',
+        title: '玄幻小说范例作品1',
+        author: '示例作者A',
+        popularity: 0.85,
+        trend: 'rising',
+        wordCount: 1200000,
+        updateFrequency: '日更',
+        tags: ['玄幻', '修仙', '日更'],
+        rating: 8.8,
+        chapters: 850,
+        subscribers: 25000,
+        views: 2000000,
+        engagement: 0.65,
+        lastUpdated: new Date()
+    },
+    {
+        platform: '起点中文网',
+        category: '都市',
+        title: '都市小说范例作品1',
+        author: '示例作者B',
+        popularity: 0.78,
+        trend: 'stable',
+        wordCount: 950000,
+        updateFrequency: '日更',
+        tags: ['都市', '生活', '日更'],
+        rating: 8.5,
+        chapters: 680,
+        subscribers: 18000,
+        views: 1500000,
+        engagement: 0.58,
+        lastUpdated: new Date()
+    },
+    {
+        platform: '晋江文学城',
+        category: '言情',
+        title: '言情小说范例作品1',
+        author: '示例作者C',
+        popularity: 0.92,
+        trend: 'rising',
+        wordCount: 680000,
+        updateFrequency: '日更',
+        tags: ['言情', '现代', '热门'],
+        rating: 9.2,
+        chapters: 520,
+        subscribers: 32000,
+        views: 3500000,
+        engagement: 0.75,
+        lastUpdated: new Date()
+    },
+    {
+        platform: '晋江文学城',
+        category: '纯爱',
+        title: '纯爱小说范例作品1',
+        author: '示例作者D',
+        popularity: 0.88,
+        trend: 'stable',
+        wordCount: 550000,
+        updateFrequency: '两日更',
+        tags: ['纯爱', '温馨', '晋江'],
+        rating: 9.0,
+        chapters: 420,
+        subscribers: 28000,
+        views: 2800000,
+        engagement: 0.72,
+        lastUpdated: new Date()
+    },
+    {
+        platform: '纵横中文网',
+        category: '仙侠',
+        title: '仙侠小说范例作品1',
+        author: '示例作者E',
+        popularity: 0.72,
+        trend: 'falling',
+        wordCount: 1800000,
+        updateFrequency: '日更',
+        tags: ['仙侠', '修仙', '长篇'],
+        rating: 8.2,
+        chapters: 1200,
+        subscribers: 15000,
+        views: 1200000,
+        engagement: 0.52,
+        lastUpdated: new Date()
+    },
+    {
+        platform: 'SF轻小说',
+        category: '轻小说',
+        title: '轻小说范例作品1',
+        author: '示例作者F',
+        popularity: 0.80,
+        trend: 'rising',
+        wordCount: 450000,
+        updateFrequency: '周更',
+        tags: ['轻小说', '二次元', 'SF'],
+        rating: 8.6,
+        chapters: 350,
+        subscribers: 20000,
+        views: 1800000,
+        engagement: 0.60,
+        lastUpdated: new Date()
+    }
+];
 class TrendAnalyzer {
-    llmManager;
-    constructor(llmManager) {
-        this.llmManager = llmManager;
+    config;
+    cache = new Map();
+    cacheDuration = 30 * 60 * 1000;
+    constructor(config = {}) {
+        this.config = {
+            enabled: true,
+            platforms: ['qidian', 'jjwxc', 'zongheng'],
+            cacheResults: true,
+            ...config
+        };
     }
-    async analyzeTrends(platform, genre, options) {
-        const prompt = this.buildTrendPrompt(platform, genre, options);
-        const response = await this.llmManager.complete(prompt, {
-            task: 'analysis',
-            temperature: 0.7
-        });
-        return this.parseTrendReport(response, platform, genre);
-    }
-    async analyzeCompetitor(bookInfo) {
-        const prompt = this.buildCompetitorPrompt(bookInfo);
-        const response = await this.llmManager.complete(prompt, {
-            task: 'analysis',
-            temperature: 0.6
-        });
-        return this.parseCompetitorAnalysis(response);
-    }
-    async analyzeBook(content, metadata) {
-        const prompt = this.buildBookAnalysisPrompt(content, metadata);
-        const response = await this.llmManager.complete(prompt, {
-            task: 'analysis',
-            temperature: 0.6
-        });
-        return this.parseBookAnalysis(response);
-    }
-    async compareBooks(book1, book2) {
-        const prompt = `对比分析以下两本书：
-
-第一本：
-${book1}
-
-第二本：
-${book2}
-
-请分析：
-1. 相似之处（题材、风格、元素）
-2. 不同之处（创新点、特色）
-3. 哪本书更值得学习借鉴
-
-请详细阐述分析结果。`;
-        const response = await this.llmManager.complete(prompt, {
-            task: 'analysis',
-            temperature: 0.6
-        });
-        return this.parseComparison(response);
-    }
-    async generateInspiration(genre, inspirationType) {
-        const typeStr = inspirationType === 'all' ? '情节、角色、世界观' : inspirationType || '情节';
-        const prompt = `作为创意激发专家，为${genre}题材小说提供${typeStr}灵感。
-
-请提供5-10个原创性的灵感点子，要求：
-1. 新颖独特，不是常见套路
-2. 有深度，可以展开
-3. 符合市场趋势
-
-每个灵感请包含：
-- 核心概念
-- 展开方向
-- 可能的剧情走向
-
-请用列表格式输出。`;
-        const response = await this.llmManager.complete(prompt, {
-            task: 'planning',
-            temperature: 0.9
-        });
-        return this.parseInspirationList(response);
-    }
-    buildTrendPrompt(platform, genre, options) {
-        return `分析${platform}平台上${genre}题材小说的当前趋势。
-
-时间范围：${options?.timeRange || '最近一个月'}
-样本数量：${options?.sampleSize || 50}本
-
-请分析：
-1. 热门元素：当前最受欢迎的设定、题材融合、风格特点
-2. 成功模式：常见的成功叙事模式、节奏安排
-3. 市场空白：尚未被充分开发的领域
-4. 读者偏好：读者最喜欢的角色类型、情节走向
-5. 风险提示：已经过气的元素、需要避免的套路
-
-请提供详细的趋势报告和建议。`;
-    }
-    buildCompetitorPrompt(bookInfo) {
-        return `分析以下竞品小说：
-
-书名：${bookInfo.title || '未知'}
-${bookInfo.url ? `链接：${bookInfo.url}` : ''}
-题材：${bookInfo.genre || '待分析'}
-
-请从以下维度分析：
-1. 基础信息（字数、章节数、更新频率）
-2. 成功要素（为什么受欢迎）
-3. 结构特点（开篇、节奏、伏笔）
-4. 角色设计（主角设定、配角出彩点）
-5. 可学习之处
-6. 不足之处
-
-请提供详细分析。`;
-    }
-    buildBookAnalysisPrompt(content, metadata) {
-        const sample = content.slice(0, 10000);
-        return `分析以下小说内容：
-
-基本信息：
-- 题材：${metadata?.genre || '未知'}
-- 字数：${metadata?.wordCount || '未知'}
-
-正文样本：
-${sample}
-
-请分析：
-1. 题材类型和标签
-2. 世界观设定
-3. 主角设定（性格、背景、目标）
-4. 开篇钩子设计
-5. 叙事风格
-6. 情节节奏评估
-7. 可学习之处
-
-请提供详细分析报告。`;
-    }
-    parseTrendReport(response, platform, genre) {
+    async analyzeTrends() {
+        const trends = [];
+        const platformData = [];
+        for (const platform of this.config.platforms || []) {
+            const data = await this.fetchPlatformData(platform);
+            trends.push(...data);
+            platformData.push({
+                platform,
+                trends: data.map(d => ({
+                    title: d.title,
+                    popularity: d.popularity,
+                    trend: d.trend
+                }))
+            });
+        }
+        const marketTrends = this.analyzeMarketTrends(trends);
+        const topGenres = this.getTopGenres(trends);
+        const risingTopics = this.getRisingTopics(trends);
+        const audienceInsights = this.getAudienceInsights(trends);
         return {
-            generatedAt: new Date(),
-            platform,
+            period: 'last_30_days',
+            topGenres,
+            risingTopics,
+            audienceInsights,
+            platformData,
+            marketTrends,
+            recommendations: this.generateRecommendations(trends, marketTrends),
+            timestamp: new Date()
+        };
+    }
+    async fetchPlatformData(platform) {
+        const cacheKey = `trend_${platform}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+            return cached.data;
+        }
+        let data = [];
+        switch (platform) {
+            case 'qidian':
+                data = this.getQidianSampleData();
+                break;
+            case 'jjwxc':
+                data = this.getJjwxcSampleData();
+                break;
+            case 'zongheng':
+                data = this.getZonghengSampleData();
+                break;
+            case 'sfh':
+                data = this.getSfhSampleData();
+                break;
+            default:
+                data = this.getGenericSampleData(platform);
+        }
+        if (this.config.cacheResults) {
+            this.cache.set(cacheKey, { data, timestamp: Date.now() });
+        }
+        return data;
+    }
+    getQidianSampleData() {
+        return SAMPLE_TREND_DATA.filter(d => d.platform === '起点中文网');
+    }
+    getJjwxcSampleData() {
+        return SAMPLE_TREND_DATA.filter(d => d.platform === '晋江文学城');
+    }
+    getZonghengSampleData() {
+        return SAMPLE_TREND_DATA.filter(d => d.platform === '纵横中文网');
+    }
+    getSfhSampleData() {
+        return SAMPLE_TREND_DATA.filter(d => d.platform === 'SF轻小说');
+    }
+    getGenericSampleData(platform) {
+        return SAMPLE_TREND_DATA.slice(0, 2).map(d => ({ ...d, platform }));
+    }
+    analyzeMarketTrends(data) {
+        const categoryStats = new Map();
+        for (const item of data) {
+            const existing = categoryStats.get(item.category) || { total: 0, rising: 0, count: 0 };
+            existing.total += item.popularity;
+            if (item.trend === 'rising')
+                existing.rising++;
+            existing.count++;
+            categoryStats.set(item.category, existing);
+        }
+        const trends = [];
+        for (const [category, stats] of categoryStats) {
+            const avgPopularity = stats.total / stats.count;
+            const risingRatio = stats.rising / stats.count;
+            let demand;
+            let saturation;
+            let growth;
+            let competition;
+            if (avgPopularity > 0.8 && risingRatio > 0.5) {
+                demand = 'high';
+                saturation = 0.45;
+                growth = 0.25;
+                competition = 0.65;
+            }
+            else if (avgPopularity > 0.6 || risingRatio > 0.3) {
+                demand = 'medium';
+                saturation = 0.55;
+                growth = 0.15;
+                competition = 0.5;
+            }
+            else {
+                demand = 'low';
+                saturation = 0.7;
+                growth = 0.05;
+                competition = 0.35;
+            }
+            const risk = competition > 0.7 && saturation > 0.6 ? 'high' :
+                competition > 0.5 || saturation > 0.5 ? 'medium' : 'low';
+            const bestTime = growth > 0.2 ? '现在是进入的好时机' :
+                saturation < 0.5 ? '市场尚未饱和，可以进入' : '建议等待市场变化';
+            const recommendations = [];
+            if (demand === 'high' && competition < 0.7) {
+                recommendations.push(`${category}题材目前需求旺盛，适合切入`);
+            }
+            if (growth > 0.2) {
+                recommendations.push(`该分类呈上升趋势，增长率为${(growth * 100).toFixed(1)}%`);
+            }
+            if (saturation < 0.5) {
+                recommendations.push('市场尚未饱和，竞争压力相对较小');
+            }
+            if (saturation > 0.6) {
+                recommendations.push('市场接近饱和，需要差异化竞争');
+            }
+            trends.push({
+                category,
+                demand,
+                saturation,
+                growth,
+                competition,
+                bestTimeToEnter: bestTime,
+                risk,
+                recommendations
+            });
+        }
+        return trends.sort((a, b) => b.demand.localeCompare(a.demand));
+    }
+    getTopGenres(data) {
+        const genreStats = new Map();
+        for (const item of data) {
+            const existing = genreStats.get(item.category) || { count: 0, totalPopularity: 0 };
+            existing.count++;
+            existing.totalPopularity += item.popularity;
+            genreStats.set(item.category, existing);
+        }
+        return Array.from(genreStats.entries())
+            .map(([genre, stats]) => ({
             genre,
-            hotElements: this.extractTrendElements(response, '热门元素'),
-            successfulPatterns: this.extractPatterns(response),
-            marketGaps: this.extractGaps(response),
-            recommendations: this.extractRecommendations(response)
-        };
+            count: stats.count,
+            avgPopularity: stats.totalPopularity / stats.count
+        }))
+            .sort((a, b) => b.avgPopularity - a.avgPopularity)
+            .slice(0, 10);
     }
-    parseCompetitorAnalysis(response) {
-        return {
-            title: this.extractField(response, '书名') || '未知',
-            author: this.extractField(response, '作者') || '未知',
-            genre: (this.extractField(response, '题材') || 'unknown'),
-            wordCount: parseInt(this.extractField(response, '字数') || '0'),
-            updateFrequency: this.extractField(response, '更新频率') || '未知',
-            hotElements: this.extractList(response, '成功要素'),
-            strengths: this.extractList(response, '可学习'),
-            weaknesses: this.extractList(response, '不足'),
-            readerReviews: this.extractReviews(response)
-        };
-    }
-    parseBookAnalysis(response) {
-        return {
-            basicInfo: {
-                title: this.extractField(response, '书名') || '未知',
-                author: this.extractField(response, '作者') || '未知',
-                genre: this.extractField(response, '题材') || '未知',
-                wordCount: parseInt(this.extractField(response, '字数') || '0'),
-                chapters: parseInt(this.extractField(response, '章节') || '0'),
-                status: this.extractField(response, '状态') === '完本' ? 'completed' : 'ongoing'
-            },
-            structure: {
-                openingHook: this.extractSection(response, '开篇'),
-                mainConflict: this.extractSection(response, '主要冲突'),
-                subplots: this.extractList(response, '支线'),
-                pacingAssessment: this.extractSection(response, '节奏')
-            },
-            characterDesign: {
-                protagonistType: this.extractSection(response, '主角类型'),
-                supportingCast: this.extractList(response, '配角'),
-                relationshipDynamics: this.extractSection(response, '关系')
-            },
-            marketPerformance: {
-                ranking: parseInt(this.extractField(response, '排名') || '0'),
-                subscriberCount: this.extractField(response, '收藏') || '未知',
-                reviewCount: parseInt(this.extractField(response, '评论') || '0'),
-                rating: parseFloat(this.extractField(response, '评分') || '0')
-            }
-        };
-    }
-    parseComparison(response) {
-        return {
-            similarities: this.extractList(response, '相似'),
-            differences: this.extractList(response, '不同'),
-            recommendation: this.extractSection(response, '建议') || this.extractSection(response, '推荐')
-        };
-    }
-    parseInspirationList(response) {
-        const inspirations = [];
-        const lines = response.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-            const cleaned = line.replace(/^\d+[.、:：]\s*/, '').trim();
-            if (cleaned.length > 10) {
-                inspirations.push(cleaned);
-            }
+    getRisingTopics(data) {
+        const risingItems = data.filter(d => d.trend === 'rising');
+        const categoryGrowth = new Map();
+        for (const item of risingItems) {
+            const existing = categoryGrowth.get(item.category) || { count: 0, totalGrowth: 0 };
+            existing.count++;
+            existing.totalGrowth += item.popularity;
+            categoryGrowth.set(item.category, existing);
         }
-        return inspirations.slice(0, 10);
+        return Array.from(categoryGrowth.entries())
+            .map(([category, stats]) => ({
+            topic: category,
+            category,
+            growthRate: stats.totalGrowth / stats.count
+        }))
+            .filter(t => t.growthRate > 0.5)
+            .sort((a, b) => b.growthRate - a.growthRate)
+            .slice(0, 5);
     }
-    extractTrendElements(text, category) {
-        const section = this.extractSection(text, category);
-        const elements = [];
-        const lines = section.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-            const cleaned = line.replace(/^[-*]\s*/, '').trim();
-            if (cleaned.length > 0) {
-                elements.push({
-                    name: cleaned,
-                    popularity: 0.7,
-                    trend: 'rising',
-                    examples: []
-                });
-            }
+    getAudienceInsights(data) {
+        const insights = [];
+        const avgWordCount = data.reduce((sum, d) => sum + (d.wordCount || 0), 0) / data.length;
+        if (avgWordCount > 500000) {
+            insights.push({
+                insight: '读者偏好长篇作品，平均字数超过50万字',
+                source: '样本数据分析'
+            });
         }
-        return elements.slice(0, 10);
-    }
-    extractPatterns(text) {
-        const patterns = [];
-        const patternSection = this.extractSection(text, '成功模式');
-        const lines = patternSection.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-            const cleaned = line.replace(/^[-*]\s*/, '').trim();
-            if (cleaned.length > 0) {
-                patterns.push({
-                    name: cleaned,
-                    description: cleaned,
-                    frequency: 0.5,
-                    successRate: 0.7
-                });
-            }
+        const risingCount = data.filter(d => d.trend === 'rising').length;
+        if (risingCount > data.length * 0.3) {
+            insights.push({
+                insight: '上升作品数量较多，市场活跃度较高',
+                source: '样本分析'
+            });
         }
-        return patterns.slice(0, 5);
-    }
-    extractGaps(text) {
-        const gaps = [];
-        const gapSection = this.extractSection(text, '市场空白');
-        const lines = gapSection.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-            const cleaned = line.replace(/^[-*]\s*/, '').trim();
-            if (cleaned.length > 0) {
-                gaps.push({
-                    name: cleaned,
-                    description: cleaned,
-                    opportunity: 'medium'
-                });
-            }
+        const categories = new Set(data.map(d => d.category));
+        if (categories.size > 2) {
+            insights.push({
+                insight: '涵盖多种题材，不同类型都有市场',
+                source: '分类统计'
+            });
         }
-        return gaps.slice(0, 5);
+        const avgEngagement = data.reduce((sum, d) => sum + (d.engagement || 0), 0) / data.length;
+        if (avgEngagement > 0.5) {
+            insights.push({
+                insight: '读者互动意愿较强',
+                source: '样本数据'
+            });
+        }
+        insights.push({
+            insight: '注：以上分析基于样本数据，实际市场数据可能有所不同',
+            source: '说明'
+        });
+        return insights;
     }
-    extractRecommendations(text) {
+    generateRecommendations(trends, marketTrends) {
         const recommendations = [];
-        const recSection = this.extractSection(text, '建议');
-        const lines = recSection.split('\n').filter(l => l.trim());
-        for (const line of lines) {
-            const cleaned = line.replace(/^[-*]\s*/, '').trim();
-            if (cleaned.length > 0) {
-                recommendations.push({
-                    type: 'plot',
-                    suggestion: cleaned,
-                    priority: 'medium',
-                    reason: ''
-                });
-            }
+        const highDemand = marketTrends.filter(m => m.demand === 'high' && m.risk !== 'high');
+        for (const trend of highDemand) {
+            recommendations.push({
+                type: 'opportunity',
+                message: `${trend.category}市场需求旺盛且风险适中，是切入的好时机`
+            });
         }
-        return recommendations.slice(0, 5);
+        const lowSaturation = marketTrends.filter(m => m.saturation < 0.5);
+        for (const trend of lowSaturation) {
+            recommendations.push({
+                type: 'suggestion',
+                message: `${trend.category}市场尚未饱和，可以考虑差异化竞争`
+            });
+        }
+        const highRisk = marketTrends.filter(m => m.risk === 'high');
+        for (const trend of highRisk) {
+            recommendations.push({
+                type: 'warning',
+                message: `${trend.category}市场竞争激烈，建议谨慎进入或寻求差异化突破`
+            });
+        }
+        const hotCategories = trends.filter(t => t.popularity > 0.7 && t.trend === 'rising');
+        if (hotCategories.length > 0) {
+            const categories = [...new Set(hotCategories.map(c => c.category))];
+            recommendations.push({
+                type: 'suggestion',
+                message: `${categories.join('、')}题材热度较高，可以考虑相关创作`
+            });
+        }
+        recommendations.push({
+            type: 'suggestion',
+            message: '建议结合自身创作风格和读者偏好选择题材'
+        });
+        return recommendations.slice(0, 10);
     }
-    extractField(text, field) {
-        const match = text.match(new RegExp(`${field}[：:]\\s*(.+?)(?:\\n|$)`, 'i'));
-        return match ? match[1].trim() : '';
+    async getCompetitiveAnalysis(title) {
+        const similar = this.findSimilarWorks(title);
+        return similar.map(work => ({
+            title: work.title,
+            author: work.author || '未知作者',
+            platform: work.platform,
+            strength: this.analyzeStrength(work),
+            weakness: this.analyzeWeakness(work),
+            uniquePoints: this.analyzeUniquePoints(work),
+            lessons: this.extractLessons(work)
+        }));
     }
-    extractSection(text, section) {
-        const match = text.match(new RegExp(`${section}[：:]([\\s\\S]*?)(?=\\n\\n|\\n[\\u4e00-\\u9fa5])`, 'i'));
-        return match ? match[1].trim() : '';
+    findSimilarWorks(title) {
+        const allData = [...SAMPLE_TREND_DATA];
+        const keywords = title.match(/[\u4e00-\u9fa5]+/g) || [];
+        return allData
+            .filter(work => {
+            for (const keyword of keywords) {
+                if (work.title.includes(keyword) || work.category.includes(keyword)) {
+                    return true;
+                }
+            }
+            return false;
+        })
+            .slice(0, 5);
     }
-    extractList(text, category) {
-        const section = this.extractSection(text, category);
-        if (!section)
-            return [];
-        return section.split('\n')
-            .map(l => l.replace(/^[-*]\s*/, '').trim())
-            .filter(l => l.length > 0);
+    analyzeStrength(work) {
+        const strengths = [];
+        if (work.popularity > 0.7) {
+            strengths.push('读者基础好，受欢迎程度高');
+        }
+        if (work.trend === 'rising') {
+            strengths.push('呈上升趋势，正在积累人气');
+        }
+        if (work.updateFrequency === '日更') {
+            strengths.push('更新频率稳定，保持读者粘性');
+        }
+        if (work.engagement && work.engagement > 0.5) {
+            strengths.push('读者互动活跃，社区氛围好');
+        }
+        return strengths;
     }
-    extractReviews(text) {
-        const reviewSection = this.extractSection(text, '读者评论');
-        return this.extractList(text, '评论').slice(0, 5);
+    analyzeWeakness(work) {
+        const weaknesses = [];
+        if (work.wordCount && work.wordCount > 1000000) {
+            weaknesses.push('篇幅较长，完结周期长');
+        }
+        if (work.updateFrequency === '周更' || work.updateFrequency === '不定时') {
+            weaknesses.push('更新可能不稳定');
+        }
+        if (work.trend === 'falling') {
+            weaknesses.push('热度下降，需要突破');
+        }
+        return weaknesses;
+    }
+    analyzeUniquePoints(work) {
+        const points = [];
+        if (work.tags.includes('穿越') || work.tags.includes('重生')) {
+            points.push('主角设定有特点');
+        }
+        if (work.tags.includes('世界观宏大')) {
+            points.push('世界观构建完整');
+        }
+        return points;
+    }
+    extractLessons(work) {
+        const lessons = [];
+        if (work.popularity > 0.6) {
+            lessons.push('成功的作品通常在开局就能吸引读者');
+        }
+        if (work.updateFrequency === '日更') {
+            lessons.push('稳定的更新频率对积累读者很重要');
+        }
+        if (work.engagement && work.engagement > 0.5) {
+            lessons.push('与读者互动可以提高作品粘性');
+        }
+        return lessons;
+    }
+    clearCache() {
+        this.cache.clear();
+    }
+    setCacheDuration(duration) {
+        this.cacheDuration = duration;
+    }
+    async analyzeCompetitor(title) {
+        return this.getCompetitiveAnalysis(title);
+    }
+    async generateInspiration(genre) {
+        const inspirations = [
+            `创作${genre}题材时，可以考虑从独特的世界观入手`,
+            `在${genre}创作中，人物塑造是吸引读者的关键`,
+            `尝试在${genre}作品中加入一些创新元素`,
+            `关注${genre}题材的读者反馈，了解他们的需求`
+        ];
+        return inspirations;
+    }
+    async analyzeMarket(genre) {
+        let filteredData = [...SAMPLE_TREND_DATA];
+        if (genre) {
+            filteredData = filteredData.filter(d => d.category === genre);
+        }
+        return this.analyzeMarketTrends(filteredData);
+    }
+    async generateCompetitorReport(title) {
+        return this.getCompetitiveAnalysis(title);
+    }
+    async generateTrendInsights() {
+        return this.getAudienceInsights(SAMPLE_TREND_DATA);
     }
 }
 exports.TrendAnalyzer = TrendAnalyzer;
-exports.default = TrendAnalyzer;
 //# sourceMappingURL=TrendAnalyzer.js.map

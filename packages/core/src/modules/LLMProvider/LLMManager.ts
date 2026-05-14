@@ -15,7 +15,37 @@ export type ModelProvider =
   | 'ollama' 
   | 'koboldcpp' 
   | 'gemini'
-  | 'custom';
+  | 'custom'
+  | 'azure'
+  | 'mistral'
+  | 'cohere'
+  | 'groq'
+  | 'together'
+  | 'fireworks'
+  | 'perplexity'
+  | 'cloudflare'
+  | 'replicate'
+  | 'huggingface'
+  | 'voyage'
+  | 'nomic'
+  // 国内模型
+  | 'baidu'
+  | 'alibaba'
+  | 'tencent'
+  | 'bytedance'
+  | 'huawei'
+  | 'zhipu'
+  | 'minimax'
+  | 'doubao'
+  // 更多国外模型
+  | 'modal'
+  | 'banana'
+  | 'lambda'
+  | 'modalabs'
+  | 'falcon'
+  | 'ai21'
+  | 'stablelm'
+  | 'mpt';
 
 export type StreamingMode = 'true' | 'false' | 'auto';
 
@@ -29,14 +59,193 @@ export interface ModelInfo {
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
+  // OpenAI 系列
   {
-    name: 'deepseek-v4-flash',
+    name: 'gpt-4o',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4o - 最强全能模型'
+  },
+  {
+    name: 'gpt-4o-mini',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4o Mini - 高性价比'
+  },
+  {
+    name: 'gpt-4-turbo',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4 Turbo - 快速且强大'
+  },
+  {
+    name: 'gpt-3.5-turbo',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16385,
+    description: 'GPT-3.5 Turbo - 轻量快速'
+  },
+  // Anthropic Claude 系列
+  {
+    name: 'claude-sonnet-4-20250514',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude Sonnet 4 - 平衡之选'
+  },
+  {
+    name: 'claude-opus-4-20250514',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude Opus 4 - 最强模型'
+  },
+  {
+    name: 'claude-haiku-4-20250514',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude Haiku 4 - 快速轻量'
+  },
+  // Google Gemini 系列
+  {
+    name: 'gemini-2.5-flash-preview-05-20',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 2.5 Flash - 高速度'
+  },
+  {
+    name: 'gemini-2.5-pro-preview-05-06',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 2.5 Pro - 最强推理'
+  },
+  // DeepSeek 系列
+  {
+    name: 'deepseek-chat',
     provider: 'deepseek',
     streamingMode: 'true',
     supportsEmbedding: true,
-    maxTokens: 8192,
-    description: 'DeepSeek V4 Flash - 主写作模型(中文强)'
+    maxTokens: 64000,
+    description: 'DeepSeek Chat - 主写作模型'
   },
+  {
+    name: 'deepseek-coder',
+    provider: 'deepseek',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16384,
+    description: 'DeepSeek Coder - 代码专家'
+  },
+  // Mistral AI 系列
+  {
+    name: 'mistral-large-2407',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Mistral Large - 欧洲最强模型'
+  },
+  {
+    name: 'mistral-small-2409',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32000,
+    description: 'Mistral Small - 高性价比'
+  },
+  {
+    name: 'codestral-2405',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32000,
+    description: 'Codestral - 代码专家'
+  },
+  // Groq 系列
+  {
+    name: 'llama-3.1-70b-versatile',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.1 70B - 超快推理'
+  },
+  {
+    name: 'mixtral-8x7b-32768',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral 8x7B - MoE架构'
+  },
+  // Together AI 系列
+  {
+    name: 'meta-llama/Llama-3-70b-chat-hf',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3 70B - 开源最强'
+  },
+  {
+    name: 'mistralai/Mixtral-8x22B-Instruct-v0.1',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 65536,
+    description: 'Mixtral 8x22B - 超大MoE'
+  },
+  // Perplexity 系列
+  {
+    name: 'sonar',
+    provider: 'perplexity',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 127072,
+    description: 'Perplexity Sonar - 实时搜索'
+  },
+  {
+    name: 'sonar-pro',
+    provider: 'perplexity',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 127072,
+    description: 'Perplexity Sonar Pro - 深度搜索'
+  },
+  // Cloudflare Workers AI
+  {
+    name: '@cf/meta/llama-3.1-8b-instruct',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.1 8B - Cloudflare边缘'
+  },
+  // Replicate 系列
+  {
+    name: 'meta/meta-llama-3-70b-instruct',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3 70B - Replicate部署'
+  },
+  // Embedding 模型
   {
     name: 'text-embedding-3-small',
     provider: 'openai',
@@ -54,28 +263,249 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     description: 'OpenAI Embedding Large - 高质量语义向量'
   },
   {
-    name: 'gemini-2.5-flash[真流]',
-    provider: 'gemini',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Gemini 2.5 Flash - 实时审计(真流)'
-  },
-  {
-    name: 'gemini-3-flash-preview[假流]',
-    provider: 'gemini',
+    name: 'embed-english-v3.0',
+    provider: 'cohere',
     streamingMode: 'false',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Gemini 3 Flash - 精确审计(假流)'
+    supportsEmbedding: true,
+    maxTokens: 4096,
+    description: 'Cohere Embed - 英文向量'
   },
   {
-    name: 'gemini-3-flash-preview[真流]',
-    provider: 'gemini',
+    name: 'embed-multilingual-v3.0',
+    provider: 'cohere',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 4096,
+    description: 'Cohere Embed - 多语言向量'
+  },
+  {
+    name: 'embed-3-small',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 4096,
+    description: 'Voyage Embed - 高质量向量'
+  },
+  {
+    name: 'nomic-embed-text-v1.5',
+    provider: 'nomic',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'Nomic Embed - 开源可解释向量'
+  },
+  // 本地部署模型
+  {
+    name: 'llama3',
+    provider: 'ollama',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'Gemini 3 Flash - 实时润色(真流)'
+    description: 'Llama 3 - 本地部署'
+  },
+  {
+    name: 'qwen2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Qwen 2 - 阿里通义本地'
+  },
+  {
+    name: 'mistral',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Mistral - 本地部署'
+  },
+  {
+    name: 'deepseek-v2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'DeepSeek V2 - 本地部署'
+  },
+  // 国内模型 - 百度文心一言
+  {
+    name: 'ernie-4.0',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '百度文心一言 ERNIE 4.0 - 中文最强'
+  },
+  {
+    name: 'ernie-turbo',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '百度文心一言 Turbo - 快速响应'
+  },
+  // 国内模型 - 阿里通义千问
+  {
+    name: 'qwen-max',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: '阿里通义千问 Max - 旗舰模型'
+  },
+  {
+    name: 'qwen-plus',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: '阿里通义千问 Plus - 平衡之选'
+  },
+  // 国内模型 - 腾讯混元
+  {
+    name: 'hunyuan-large',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '腾讯混元大模型 - 企业级'
+  },
+  {
+    name: 'hunyuan-standard',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '腾讯混元标准版 - 高效能'
+  },
+  // 国内模型 - 字节跳动豆包
+  {
+    name: 'doubao-pro',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '字节豆包 Pro - 多模态'
+  },
+  {
+    name: 'doubao-lite',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '字节豆包 Lite - 轻量快速'
+  },
+  // 国内模型 - 华为盘古
+  {
+    name: 'pangu-3.0',
+    provider: 'huawei',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: '华为盘古大模型 3.0 - 国产自研'
+  },
+  // 国内模型 - 智谱清言
+  {
+    name: 'glm-4',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: '智谱 GLM-4 - 开源优秀'
+  },
+  {
+    name: 'glm-3-turbo',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '智谱 GLM-3 Turbo - 性价比高'
+  },
+  // 国内模型 - MiniMax
+  {
+    name: 'abab5.5',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: 'MiniMax ABAB 5.5 - 超长上下文'
+  },
+  // 更多国外模型 - AI21
+  {
+    name: 'jamba-1.5-large',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'AI21 Jamba 1.5 - Mamba架构'
+  },
+  {
+    name: 'j2-mid',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'AI21 J2 Mid - 高效推理'
+  },
+  // 更多国外模型 - Fireworks
+  {
+    name: 'mixtral-8x7b-fireworks',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Fireworks Mixtral - 加速推理'
+  },
+  {
+    name: 'llama-3-70b-fireworks',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Fireworks Llama 3 - 超快响应'
+  },
+  // 更多国外模型 - Replicate
+  {
+    name: 'meta-llama-3-8b-instruct',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Replicate Llama 3 8B - 灵活部署'
+  },
+  // 更多国外模型 - Hugging Face
+  {
+    name: 'mistral-7b-instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Hugging Face Mistral - 开源模型'
+  },
+  // 本地部署扩展
+  {
+    name: 'mixtral',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral - MoE本地部署'
+  },
+  {
+    name: 'phi3',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Phi-3 - 微软小型大模型'
+  },
+  {
+    name: 'dolphin-mixtral',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Dolphin Mixtral - 微调优化'
   }
 ];
 
@@ -349,6 +779,284 @@ export class LLMManager {
         return this.callOpenAIEmbeddingAPI(config, text, options);
       }
     });
+
+    // Mistral AI
+    this.registerProvider({
+      name: 'mistral',
+      provider: 'mistral',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('mistral');
+        if (!config) throw new Error('Mistral config not found');
+        return this.callMistralAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('mistral');
+        if (!config) throw new Error('Mistral config not found');
+        await this.streamMistralAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Cohere
+    this.registerProvider({
+      name: 'cohere',
+      provider: 'cohere',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('cohere');
+        if (!config) throw new Error('Cohere config not found');
+        return this.callCohereAPI(config, prompt, options);
+      },
+      embed: async (text, options) => {
+        const config = this.getConfig('cohere');
+        if (!config) throw new Error('Cohere config not found');
+        return this.callCohereEmbeddingAPI(config, text, options);
+      }
+    });
+
+    // Groq
+    this.registerProvider({
+      name: 'groq',
+      provider: 'groq',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('groq');
+        if (!config) throw new Error('Groq config not found');
+        return this.callGroqAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('groq');
+        if (!config) throw new Error('Groq config not found');
+        await this.streamGroqAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Together AI
+    this.registerProvider({
+      name: 'together',
+      provider: 'together',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('together');
+        if (!config) throw new Error('Together config not found');
+        return this.callTogetherAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('together');
+        if (!config) throw new Error('Together config not found');
+        await this.streamTogetherAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Perplexity
+    this.registerProvider({
+      name: 'perplexity',
+      provider: 'perplexity',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('perplexity');
+        if (!config) throw new Error('Perplexity config not found');
+        return this.callPerplexityAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('perplexity');
+        if (!config) throw new Error('Perplexity config not found');
+        await this.streamPerplexityAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Cloudflare Workers AI
+    this.registerProvider({
+      name: 'cloudflare',
+      provider: 'cloudflare',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('cloudflare');
+        if (!config) throw new Error('Cloudflare config not found');
+        return this.callCloudflareAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('cloudflare');
+        if (!config) throw new Error('Cloudflare config not found');
+        await this.streamCloudflareAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Azure OpenAI
+    this.registerProvider({
+      name: 'azure',
+      provider: 'azure',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('azure');
+        if (!config) throw new Error('Azure config not found');
+        return this.callAzureAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('azure');
+        if (!config) throw new Error('Azure config not found');
+        await this.streamAzureAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // Voyage AI
+    this.registerProvider({
+      name: 'voyage',
+      provider: 'voyage',
+      embed: async (text, options) => {
+        const config = this.getConfig('voyage');
+        if (!config) throw new Error('Voyage config not found');
+        return this.callVoyageEmbeddingAPI(config, text, options);
+      }
+    });
+
+    // Nomic
+    this.registerProvider({
+      name: 'nomic',
+      provider: 'nomic',
+      embed: async (text, options) => {
+        const config = this.getConfig('nomic');
+        if (!config) throw new Error('Nomic config not found');
+        return this.callNomicEmbeddingAPI(config, text, options);
+      }
+    });
+
+    // 国内模型 - 百度文心一言
+    this.registerProvider({
+      name: 'baidu',
+      provider: 'baidu',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('baidu');
+        if (!config) throw new Error('Baidu config not found');
+        return this.callBaiduAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('baidu');
+        if (!config) throw new Error('Baidu config not found');
+        await this.streamBaiduAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - 阿里通义千问
+    this.registerProvider({
+      name: 'alibaba',
+      provider: 'alibaba',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('alibaba');
+        if (!config) throw new Error('Alibaba config not found');
+        return this.callAlibabaAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('alibaba');
+        if (!config) throw new Error('Alibaba config not found');
+        await this.streamAlibabaAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - 腾讯混元
+    this.registerProvider({
+      name: 'tencent',
+      provider: 'tencent',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('tencent');
+        if (!config) throw new Error('Tencent config not found');
+        return this.callTencentAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('tencent');
+        if (!config) throw new Error('Tencent config not found');
+        await this.streamTencentAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - 字节豆包
+    this.registerProvider({
+      name: 'bytedance',
+      provider: 'bytedance',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('bytedance');
+        if (!config) throw new Error('ByteDance config not found');
+        return this.callByteDanceAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('bytedance');
+        if (!config) throw new Error('ByteDance config not found');
+        await this.streamByteDanceAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - 华为盘古
+    this.registerProvider({
+      name: 'huawei',
+      provider: 'huawei',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('huawei');
+        if (!config) throw new Error('Huawei config not found');
+        return this.callHuaweiAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('huawei');
+        if (!config) throw new Error('Huawei config not found');
+        await this.streamHuaweiAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - 智谱清言
+    this.registerProvider({
+      name: 'zhipu',
+      provider: 'zhipu',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('zhipu');
+        if (!config) throw new Error('Zhipu config not found');
+        return this.callZhipuAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('zhipu');
+        if (!config) throw new Error('Zhipu config not found');
+        await this.streamZhipuAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // 国内模型 - MiniMax
+    this.registerProvider({
+      name: 'minimax',
+      provider: 'minimax',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('minimax');
+        if (!config) throw new Error('MiniMax config not found');
+        return this.callMiniMaxAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('minimax');
+        if (!config) throw new Error('MiniMax config not found');
+        await this.streamMiniMaxAPI(config, prompt, options, onChunk);
+      }
+    });
+
+    // AI21
+    this.registerProvider({
+      name: 'ai21',
+      provider: 'ai21',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('ai21');
+        if (!config) throw new Error('AI21 config not found');
+        return this.callAI21API(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('ai21');
+        if (!config) throw new Error('AI21 config not found');
+        await this.streamAI21API(config, prompt, options, onChunk);
+      }
+    });
+
+    // Fireworks
+    this.registerProvider({
+      name: 'fireworks',
+      provider: 'fireworks',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('fireworks');
+        if (!config) throw new Error('Fireworks config not found');
+        return this.callFireworksAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('fireworks');
+        if (!config) throw new Error('Fireworks config not found');
+        await this.streamFireworksAPI(config, prompt, options, onChunk);
+      }
+    });
   }
 
   /**
@@ -399,8 +1107,17 @@ export class LLMManager {
     
     switch (providerType) {
       case 'openai':
+      case 'openai':
       case 'deepseek':
       case 'custom':
+      case 'mistral':
+      case 'together':
+      case 'groq':
+      case 'perplexity':
+      case 'fireworks':
+      case 'ai21':
+      case 'replicate':
+      case 'huggingface':
         return this.callOpenAICompatibleAPI(config, prompt, options);
       case 'anthropic':
         return this.callAnthropicAPI(config, prompt, options);
@@ -413,6 +1130,26 @@ export class LLMManager {
         return this.callOllamaAPI(config, prompt, options);
       case 'koboldcpp':
         return this.callKoboldAPI(config, prompt, options);
+      case 'cohere':
+        return this.callCohereAPI(config, prompt, options);
+      case 'cloudflare':
+        return this.callCloudflareAPI(config, prompt, options);
+      case 'azure':
+        return this.callAzureAPI(config, prompt, options);
+      case 'baidu':
+        return this.callBaiduAPI(config, prompt, options);
+      case 'alibaba':
+        return this.callAlibabaAPI(config, prompt, options);
+      case 'tencent':
+        return this.callTencentAPI(config, prompt, options);
+      case 'bytedance':
+        return this.callByteDanceAPI(config, prompt, options);
+      case 'huawei':
+        return this.callHuaweiAPI(config, prompt, options);
+      case 'zhipu':
+        return this.callZhipuAPI(config, prompt, options);
+      case 'minimax':
+        return this.callMiniMaxAPI(config, prompt, options);
       default:
         return this.callOpenAICompatibleAPI(config, prompt, options);
     }
@@ -433,10 +1170,51 @@ export class LLMManager {
       case 'openai':
       case 'deepseek':
       case 'custom':
+      case 'mistral':
+      case 'together':
+      case 'groq':
+      case 'perplexity':
+      case 'fireworks':
+      case 'ai21':
+      case 'replicate':
+      case 'huggingface':
         await this.streamOpenAICompatibleAPI(config, prompt, { ...options, stream: true }, onChunk);
         break;
       case 'gemini':
         await this.streamGeminiAPI(config, prompt, options, onChunk);
+        break;
+      case 'anthropic':
+        await this.streamAnthropicAPI(config, prompt, options, onChunk);
+        break;
+      case 'cohere':
+        await this.streamCohereAPI(config, prompt, options, onChunk);
+        break;
+      case 'cloudflare':
+        await this.streamCloudflareAPI(config, prompt, options, onChunk);
+        break;
+      case 'azure':
+        await this.streamAzureAPI(config, prompt, options, onChunk);
+        break;
+      case 'baidu':
+        await this.streamBaiduAPI(config, prompt, options, onChunk);
+        break;
+      case 'alibaba':
+        await this.streamAlibabaAPI(config, prompt, options, onChunk);
+        break;
+      case 'tencent':
+        await this.streamTencentAPI(config, prompt, options, onChunk);
+        break;
+      case 'bytedance':
+        await this.streamByteDanceAPI(config, prompt, options, onChunk);
+        break;
+      case 'huawei':
+        await this.streamHuaweiAPI(config, prompt, options, onChunk);
+        break;
+      case 'zhipu':
+        await this.streamZhipuAPI(config, prompt, options, onChunk);
+        break;
+      case 'minimax':
+        await this.streamMiniMaxAPI(config, prompt, options, onChunk);
         break;
       default:
         const result = await this.callModelAPI(config, prompt, options);
@@ -997,7 +1775,7 @@ export class LLMManager {
     options?: GenerationOptions,
     stream: boolean = false
   ): Promise<LLMResponse> {
-    const endpoint = config.endpoint || config.baseURL || 'https://gemini.beijixingxing.com/v1';
+    const endpoint = config.endpoint || config.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
     
     if (stream) {
       let fullText = '';
@@ -1050,7 +1828,7 @@ export class LLMManager {
     options: GenerationOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<void> {
-    const endpoint = config.endpoint || config.baseURL || 'https://gemini.beijixingxing.com/v1';
+    const endpoint = config.endpoint || config.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
     
     const response = await fetch(`${endpoint}/chat/completions`, {
       method: 'POST',
@@ -1227,5 +2005,1859 @@ export class LLMManager {
       text: data.results?.[0]?.text || '',
       model: config.model
     };
+  }
+
+  /**
+   * 调用 Mistral AI API
+   */
+  private async callMistralAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.mistral.ai/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Mistral API failed', { status: response.status, error: errorText });
+      throw new Error(`Mistral API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined,
+      model: data.model || config.model
+    };
+  }
+
+  /**
+   * 流式调用 Mistral AI API
+   */
+  private async streamMistralAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.mistral.ai/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Mistral stream failed', { status: response.status });
+      throw new Error(`Mistral Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Cohere API
+   */
+  private async callCohereAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.cohere.ai/v1';
+
+    const response = await fetch(`${endpoint}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        message: prompt,
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Cohere API failed', { status: response.status, error: errorText });
+      throw new Error(`Cohere API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      text?: string;
+      generation_id?: string;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.text || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Cohere API
+   */
+  private async streamCohereAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.cohere.ai/v1';
+
+    const response = await fetch(`${endpoint}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        message: prompt,
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Cohere stream failed', { status: response.status });
+      throw new Error(`Cohere Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.text;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Cohere Embedding API
+   */
+  private async callCohereEmbeddingAPI(
+    config: LLMConfig,
+    text: string,
+    options?: EmbeddingOptions
+  ): Promise<EmbeddingResponse> {
+    const endpoint = config.endpoint || 'https://api.cohere.ai/v1';
+
+    const response = await fetch(`${endpoint}/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: options?.model || config.model,
+        texts: [text]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Cohere Embedding failed', { status: response.status, error: errorText });
+      throw new Error(`Cohere Embedding Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      embeddings?: number[][];
+      model?: string;
+      usage?: { prompt_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      embedding: data.embeddings?.[0] || this.textToEmbedding(text),
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 调用 Groq API
+   */
+  private async callGroqAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.groq.com/openai/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Groq API failed', { status: response.status, error: errorText });
+      throw new Error(`Groq API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Groq API
+   */
+  private async streamGroqAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.groq.com/openai/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Groq stream failed', { status: response.status });
+      throw new Error(`Groq Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Together AI API
+   */
+  private async callTogetherAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.together.xyz/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Together AI failed', { status: response.status, error: errorText });
+      throw new Error(`Together AI Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Together AI API
+   */
+  private async streamTogetherAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.together.xyz/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Together stream failed', { status: response.status });
+      throw new Error(`Together Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Perplexity API
+   */
+  private async callPerplexityAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.perplexity.ai';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Perplexity API failed', { status: response.status, error: errorText });
+      throw new Error(`Perplexity API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Perplexity API
+   */
+  private async streamPerplexityAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.perplexity.ai';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Perplexity stream failed', { status: response.status });
+      throw new Error(`Perplexity Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Cloudflare Workers AI API
+   */
+  private async callCloudflareAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const accountId = config.accountId || process.env.CLOUDFLARE_ACCOUNT_ID;
+    const endpoint = config.endpoint || `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai`;
+
+    const response = await fetch(`${endpoint}/v1/run/${config.model}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Cloudflare API failed', { status: response.status, error: errorText });
+      throw new Error(`Cloudflare API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      result?: { response?: string };
+    };
+
+    return {
+      text: data.result?.response || '',
+      model: config.model
+    };
+  }
+
+  /**
+   * 流式调用 Cloudflare Workers AI API
+   */
+  private async streamCloudflareAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const accountId = config.accountId || process.env.CLOUDFLARE_ACCOUNT_ID;
+    const endpoint = config.endpoint || `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai`;
+
+    const response = await fetch(`${endpoint}/v1/run/${config.model}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Cloudflare stream failed', { status: response.status });
+      throw new Error(`Cloudflare Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.response;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Azure OpenAI API
+   */
+  private async callAzureAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const deployment = config.deployment || config.model;
+    const endpoint = config.endpoint || config.baseURL || process.env.AZURE_OPENAI_ENDPOINT;
+
+    if (!endpoint) {
+      throw new Error('Azure OpenAI endpoint not configured');
+    }
+
+    const apiVersion = config.apiVersion || '2024-02-01';
+    const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': config.apiKey
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Azure API failed', { status: response.status, error: errorText });
+      throw new Error(`Azure API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Azure OpenAI API
+   */
+  private async streamAzureAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const deployment = config.deployment || config.model;
+    const endpoint = config.endpoint || config.baseURL || process.env.AZURE_OPENAI_ENDPOINT;
+
+    if (!endpoint) {
+      throw new Error('Azure OpenAI endpoint not configured');
+    }
+
+    const apiVersion = config.apiVersion || '2024-02-01';
+    const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': config.apiKey
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Azure stream failed', { status: response.status });
+      throw new Error(`Azure Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 流式调用 Anthropic API
+   */
+  private async streamAnthropicAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || config.baseURL || 'https://api.anthropic.com/v1';
+
+    const response = await fetch(`${endpoint}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Anthropic stream failed', { status: response.status });
+      throw new Error(`Anthropic Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta') {
+              const content = parsed.delta?.text;
+              if (content) onChunk(content);
+            }
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Voyage AI Embedding API
+   */
+  private async callVoyageEmbeddingAPI(
+    config: LLMConfig,
+    text: string,
+    options?: EmbeddingOptions
+  ): Promise<EmbeddingResponse> {
+    const endpoint = config.endpoint || 'https://api.voyageai.com/v1';
+
+    const response = await fetch(`${endpoint}/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: options?.model || config.model,
+        input: text
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Voyage Embedding failed', { status: response.status, error: errorText });
+      throw new Error(`Voyage Embedding Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      data?: Array<{ embedding: number[] }>;
+      model?: string;
+      usage?: { prompt_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      embedding: data.data?.[0]?.embedding || this.textToEmbedding(text),
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 调用 Nomic Embedding API
+   */
+  private async callNomicEmbeddingAPI(
+    config: LLMConfig,
+    text: string,
+    options?: EmbeddingOptions
+  ): Promise<EmbeddingResponse> {
+    const endpoint = config.endpoint || 'https://api-atlas.nomic.ai/v1';
+
+    const response = await fetch(`${endpoint}/embedding/text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: options?.model || config.model,
+        texts: [text]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Nomic Embedding failed', { status: response.status, error: errorText });
+      throw new Error(`Nomic Embedding Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      embeddings?: number[][];
+      model?: string;
+    };
+
+    return {
+      embedding: data.embeddings?.[0] || this.textToEmbedding(text),
+      model: data.model || config.model
+    };
+  }
+
+  /**
+   * 调用百度文心一言 API
+   */
+  private async callBaiduAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat';
+
+    const response = await fetch(`${endpoint}/${config.model}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Baidu API failed', { status: response.status, error: errorText });
+      throw new Error(`Baidu API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      result?: string;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.result || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用百度文心一言 API
+   */
+  private async streamBaiduAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat';
+
+    const response = await fetch(`${endpoint}/${config.model}/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Baidu stream failed', { status: response.status });
+      throw new Error(`Baidu Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.result;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用阿里通义千问 API
+   */
+  private async callAlibabaAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://dashscope.aliyuncs.com/api/text/completion';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        input: { messages: [{ role: 'user', content: prompt }] },
+        parameters: {
+          temperature: options?.temperature ?? 0.7,
+          max_tokens: options?.maxTokens ?? 2000
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Alibaba API failed', { status: response.status, error: errorText });
+      throw new Error(`Alibaba API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      output?: { text?: string };
+      usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.output?.text || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.input_tokens || 0,
+        completionTokens: data.usage.output_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用阿里通义千问 API
+   */
+  private async streamAlibabaAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://dashscope.aliyuncs.com/api/text/completion';
+
+    const response = await fetch(`${endpoint}?stream=true`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        input: { messages: [{ role: 'user', content: prompt }] },
+        parameters: {
+          temperature: options?.temperature ?? 0.7,
+          max_tokens: options?.maxTokens ?? 2000
+        }
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Alibaba stream failed', { status: response.status });
+      throw new Error(`Alibaba Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.output?.text;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用腾讯混元 API
+   */
+  private async callTencentAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://hunyuan.tencentcloudapi.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Tencent API failed', { status: response.status, error: errorText });
+      throw new Error(`Tencent API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用腾讯混元 API
+   */
+  private async streamTencentAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://hunyuan.tencentcloudapi.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Tencent stream failed', { status: response.status });
+      throw new Error(`Tencent Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用字节跳动豆包 API
+   */
+  private async callByteDanceAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.doubao.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'ByteDance API failed', { status: response.status, error: errorText });
+      throw new Error(`ByteDance API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用字节跳动豆包 API
+   */
+  private async streamByteDanceAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.doubao.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'ByteDance stream failed', { status: response.status });
+      throw new Error(`ByteDance Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用华为盘古 API
+   */
+  private async callHuaweiAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.pangu.huaweicloud.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Huawei API failed', { status: response.status, error: errorText });
+      throw new Error(`Huawei API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用华为盘古 API
+   */
+  private async streamHuaweiAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.pangu.huaweicloud.com/v1/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Huawei stream failed', { status: response.status });
+      throw new Error(`Huawei Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用智谱清言 API
+   */
+  private async callZhipuAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Zhipu API failed', { status: response.status, error: errorText });
+      throw new Error(`Zhipu API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用智谱清言 API
+   */
+  private async streamZhipuAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Zhipu stream failed', { status: response.status });
+      throw new Error(`Zhipu Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 MiniMax API
+   */
+  private async callMiniMaxAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.minimax.chat/v1/text/completion';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'MiniMax API failed', { status: response.status, error: errorText });
+      throw new Error(`MiniMax API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 MiniMax API
+   */
+  private async streamMiniMaxAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.minimax.chat/v1/text/completion';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'MiniMax stream failed', { status: response.status });
+      throw new Error(`MiniMax Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 AI21 API
+   */
+  private async callAI21API(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.ai21.com/studio/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'AI21 API failed', { status: response.status, error: errorText });
+      throw new Error(`AI21 API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 AI21 API
+   */
+  private async streamAI21API(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.ai21.com/studio/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'AI21 stream failed', { status: response.status });
+      throw new Error(`AI21 Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Fireworks API
+   */
+  private async callFireworksAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.fireworks.ai/inference/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Fireworks API failed', { status: response.status, error: errorText });
+      throw new Error(`Fireworks API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Fireworks API
+   */
+  private async streamFireworksAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.fireworks.ai/inference/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Fireworks stream failed', { status: response.status });
+      throw new Error(`Fireworks Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
   }
 }

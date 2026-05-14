@@ -143,7 +143,143 @@ class CardManager {
                 }
             }
         }
+        for (const [fieldName, fieldDef] of Object.entries(schema.properties)) {
+            const value = card.content[fieldName];
+            if (value === undefined || value === null) {
+                continue;
+            }
+            const fieldErrors = this.validateField(fieldName, value, fieldDef, schema);
+            errors.push(...fieldErrors);
+        }
         return { valid: errors.length === 0, errors };
+    }
+    validateField(fieldName, value, fieldDef, schema) {
+        const errors = [];
+        if (fieldDef.$ref) {
+            const refDef = schema.$defs?.[fieldDef.$ref];
+            if (refDef) {
+                for (const [nestedField, nestedDef] of Object.entries(refDef.properties)) {
+                    const nestedValue = value[nestedField];
+                    const nestedErrors = this.validateField(`${fieldName}.${nestedField}`, nestedValue, nestedDef, schema);
+                    errors.push(...nestedErrors);
+                }
+            }
+            return errors;
+        }
+        switch (fieldDef.type) {
+            case 'string':
+                if (typeof value !== 'string') {
+                    errors.push({
+                        field: fieldName,
+                        message: `Field "${fieldName}" must be a string`
+                    });
+                }
+                else {
+                    if (fieldDef.format) {
+                        const formatError = this.validateStringFormat(fieldName, value, fieldDef.format);
+                        if (formatError)
+                            errors.push(formatError);
+                    }
+                }
+                break;
+            case 'number':
+                if (typeof value !== 'number' || isNaN(value)) {
+                    errors.push({
+                        field: fieldName,
+                        message: `Field "${fieldName}" must be a number`
+                    });
+                }
+                else {
+                    if (fieldDef.minimum !== undefined && value < fieldDef.minimum) {
+                        errors.push({
+                            field: fieldName,
+                            message: `Field "${fieldName}" must be >= ${fieldDef.minimum}`
+                        });
+                    }
+                    if (fieldDef.maximum !== undefined && value > fieldDef.maximum) {
+                        errors.push({
+                            field: fieldName,
+                            message: `Field "${fieldName}" must be <= ${fieldDef.maximum}`
+                        });
+                    }
+                }
+                break;
+            case 'boolean':
+                if (typeof value !== 'boolean') {
+                    errors.push({
+                        field: fieldName,
+                        message: `Field "${fieldName}" must be a boolean`
+                    });
+                }
+                break;
+            case 'array':
+                if (!Array.isArray(value)) {
+                    errors.push({
+                        field: fieldName,
+                        message: `Field "${fieldName}" must be an array`
+                    });
+                }
+                else if (fieldDef.items) {
+                    for (let i = 0; i < value.length; i++) {
+                        const itemErrors = this.validateField(`${fieldName}[${i}]`, value[i], fieldDef.items, schema);
+                        errors.push(...itemErrors);
+                    }
+                }
+                break;
+            case 'object':
+                if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+                    errors.push({
+                        field: fieldName,
+                        message: `Field "${fieldName}" must be an object`
+                    });
+                }
+                break;
+        }
+        return errors;
+    }
+    validateStringFormat(fieldName, value, format) {
+        switch (format) {
+            case 'email':
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid email` };
+                }
+                break;
+            case 'uri':
+            case 'url':
+                try {
+                    new URL(value);
+                }
+                catch {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid URL` };
+                }
+                break;
+            case 'uuid':
+                if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid UUID` };
+                }
+                break;
+            case 'date':
+                if (isNaN(Date.parse(value))) {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid date` };
+                }
+                break;
+            case 'date-time':
+                if (isNaN(Date.parse(value)) || !/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid ISO datetime` };
+                }
+                break;
+            case 'regex':
+                try {
+                    new RegExp(value);
+                }
+                catch {
+                    return { field: fieldName, message: `Field "${fieldName}" must be a valid regex pattern` };
+                }
+                break;
+            default:
+                break;
+        }
+        return null;
     }
     async createCard(projectId, type, title, content, parentId) {
         const schema = this.schemas.get(type);

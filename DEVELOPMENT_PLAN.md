@@ -388,10 +388,10 @@ Step 4: 实现协作机制
 | 设置页 | 系统设置 | P2 |
 
 #### 技术栈
-- Vue 3 + TypeScript
-- Element Plus
-- Pinia
-- Vue Router
+- React 18 + TypeScript
+- Ant Design
+- Zustand
+- React Router
 
 #### 验收标准
 - [ ] 7个页面全部完成

@@ -21,6 +21,8 @@ export declare class CardManager {
     addSchema(type: string, schema: CardSchema): Promise<void>;
     getSchema(type: string): Promise<CardSchema | undefined>;
     validate(card: Card): ValidationResult;
+    private validateField;
+    private validateStringFormat;
     createCard(projectId: string, type: string, title: string, content: Record<string, any>, parentId?: string): Promise<Card>;
     updateCard(projectId: string, cardId: string, updates: Partial<{
         title: string;

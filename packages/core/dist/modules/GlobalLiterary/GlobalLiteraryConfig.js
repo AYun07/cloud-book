@@ -480,6 +480,328 @@ class GlobalLiteraryConfig {
                 'en-US': ['Inner world', 'Mental processes', 'Identity']
             }
         });
+        // 动作/冒险
+        this.genres.set('action', {
+            genre: 'action',
+            names: {
+                'zh-CN': '动作',
+                'en-US': 'Action',
+                'ja-JP': 'アクション'
+            },
+            description: {
+                'zh-CN': '以激烈动作场景为核心的文学类型',
+                'en-US': 'Fiction centered on intense physical action'
+            },
+            subgenres: {
+                'zh-CN': ['动作冒险', '战斗', '追逐', '极限运动'],
+                'en-US': ['Action-Adventure', 'Combat', 'Chase', 'Extreme Sports']
+            },
+            examples: ['The Bourne Identity', 'Jack Reacher', 'Tom Clancy novels'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['动作场面', '紧张刺激', '快节奏'],
+                'en-US': ['Action sequences', 'Tension', 'Fast pacing']
+            }
+        });
+        // 冒险
+        this.genres.set('adventure', {
+            genre: 'adventure',
+            names: {
+                'zh-CN': '冒险',
+                'en-US': 'Adventure',
+                'ja-JP': '冒険'
+            },
+            description: {
+                'zh-CN': '以探索和冒险为核心的文学类型',
+                'en-US': 'Fiction centered on exploration and adventure'
+            },
+            subgenres: {
+                'zh-CN': ['探险', '生存冒险', '夺宝', '荒野求生'],
+                'en-US': ['Exploration', 'Survival Adventure', 'Treasure Hunt', 'Wilderness Survival']
+            },
+            examples: ['Treasure Island', 'The Lost City of Z', 'Into the Wild'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['探索', '发现', '挑战'],
+                'en-US': ['Exploration', 'Discovery', 'Challenge']
+            }
+        });
+        // 生存
+        this.genres.set('survival', {
+            genre: 'survival',
+            names: {
+                'zh-CN': '生存',
+                'en-US': 'Survival Fiction',
+                'ja-JP': 'サバイバル'
+            },
+            description: {
+                'zh-CN': '主角在极端环境中生存的故事',
+                'en-US': 'Stories of characters surviving in extreme conditions'
+            },
+            subgenres: {
+                'zh-CN': ['末日生存', '荒野求生', '灾难求生', '极限生存'],
+                'en-US': ['Post-Apocalyptic Survival', 'Wilderness Survival', 'Disaster Survival', 'Extreme Survival']
+            },
+            examples: ['The Martian', 'Hatchet', 'World War Z'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['求生技能', '资源匮乏', '极端环境'],
+                'en-US': ['Survival skills', 'Resource scarcity', 'Extreme environments']
+            }
+        });
+        // 末日/后启示录
+        this.genres.set('post_apocalyptic', {
+            genre: 'post_apocalyptic',
+            names: {
+                'zh-CN': '末日/后启示录',
+                'en-US': 'Post-Apocalyptic',
+                'ja-JP': 'ポストアポカリプス'
+            },
+            description: {
+                'zh-CN': '世界灾难后的故事',
+                'en-US': 'Stories set after a catastrophic event'
+            },
+            subgenres: {
+                'zh-CN': ['核末日', '病毒末日', '自然灾难', '社会崩溃'],
+                'en-US': ['Nuclear Apocalypse', 'Pandemic', 'Natural Disaster', 'Social Collapse']
+            },
+            examples: ['The Road', 'Station Eleven', 'The Last of Us'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['末日背景', '文明崩溃', '资源争夺'],
+                'en-US': ['Apocalyptic backdrop', 'Civilization collapse', 'Resource scarcity']
+            }
+        });
+        // 反乌托邦
+        this.genres.set('dystopian', {
+            genre: 'dystopian',
+            names: {
+                'zh-CN': '反乌托邦',
+                'en-US': 'Dystopian',
+                'ja-JP': 'ディストピア'
+            },
+            description: {
+                'zh-CN': '描绘压迫性社会的文学类型',
+                'en-US': 'Fiction depicting oppressive societies'
+            },
+            subgenres: {
+                'zh-CN': ['极权社会', '科技监控', '社会分层', '反抗'],
+                'en-US': ['Totalitarian regime', 'Technological surveillance', 'Social stratification', 'Resistance']
+            },
+            examples: ['1984', 'Brave New World', 'The Hunger Games', 'Fahrenheit 451'],
+            regions: ['Western', 'Global'],
+            characteristics: {
+                'zh-CN': ['压迫', '控制', '反抗', '警示'],
+                'en-US': ['Oppression', 'Control', 'Resistance', 'Warning']
+            }
+        });
+        // 侦探
+        this.genres.set('detective', {
+            genre: 'detective',
+            names: {
+                'zh-CN': '侦探',
+                'en-US': 'Detective Fiction',
+                'ja-JP': '探偵小説'
+            },
+            description: {
+                'zh-CN': '以破案和解谜为核心的文学类型',
+                'en-US': 'Fiction centered on solving crimes and puzzles'
+            },
+            subgenres: {
+                'zh-CN': ['经典侦探', '硬汉派', '警察程序', '私家侦探'],
+                'en-US': ['Classic Detective', 'Hardboiled', 'Police Procedural', 'Private Detective']
+            },
+            examples: ['Sherlock Holmes', 'The Big Sleep', 'Hercule Poirot'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['调查', '推理', '线索', '破案'],
+                'en-US': ['Investigation', 'Deduction', 'Clues', 'Solution']
+            }
+        });
+        // 黑色电影/硬汉派
+        this.genres.set('noir', {
+            genre: 'noir',
+            names: {
+                'zh-CN': '黑色电影/硬汉派',
+                'en-US': 'Noir/Hardboiled',
+                'ja-JP': 'ノワール'
+            },
+            description: {
+                'zh-CN': '以悲观和道德模糊为特征的犯罪小说',
+                'en-US': 'Crime fiction characterized by cynicism and moral ambiguity'
+            },
+            subgenres: {
+                'zh-CN': ['硬汉派', '黑色电影', '犯罪小说', '痞子主角'],
+                'en-US': ['Hardboiled', 'Film Noir', 'Crime Fiction', 'Cynical Protagonist']
+            },
+            examples: ['The Maltese Falcon', 'Double Indemnity', 'Sin City'],
+            regions: ['Western', 'Global'],
+            characteristics: {
+                'zh-CN': ['黑暗', '道德模糊', '宿命论', '冷硬'],
+                'en-US': ['Darkness', 'Moral ambiguity', 'Fatalism', 'Tough exterior']
+            }
+        });
+        // 神话传说
+        this.genres.set('mythology', {
+            genre: 'mythology',
+            names: {
+                'zh-CN': '神话/传说',
+                'en-US': 'Mythology/Legend',
+                'ja-JP': '神話'
+            },
+            description: {
+                'zh-CN': '基于神话和传说故事的作品',
+                'en-US': 'Fiction based on mythological and legendary stories'
+            },
+            subgenres: {
+                'zh-CN': ['希腊神话', '北欧神话', '中国神话', '埃及神话', '凯尔特神话'],
+                'en-US': ['Greek Mythology', 'Norse Mythology', 'Chinese Mythology', 'Egyptian Mythology', 'Celtic Mythology']
+            },
+            examples: ['Percy Jackson', 'American Gods', 'Norse Mythology by Neil Gaiman'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['神祇', '英雄', '魔法', '史诗'],
+                'en-US': ['Divine beings', 'Heroes', 'Magic', 'Epic scale']
+            }
+        });
+        // 民间传说
+        this.genres.set('folklore', {
+            genre: 'folklore',
+            names: {
+                'zh-CN': '民间传说',
+                'en-US': 'Folklore',
+                'ja-JP': '民話'
+            },
+            description: {
+                'zh-CN': '基于民间故事和传统的文学',
+                'en-US': 'Literature based on folk tales and traditions'
+            },
+            subgenres: {
+                'zh-CN': ['民间故事', '妖精传说', '鬼怪故事', '地方传说'],
+                'en-US': ['Folk tales', 'Fairy lore', 'Ghost stories', 'Local legends']
+            },
+            examples: [' Grimm\'s Fairy Tales', ' Arabian Nights', 'Japanese Yokai stories'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['传统', '民俗', '超自然', '道德寓意'],
+                'en-US': ['Tradition', 'Folklore', 'Supernatural', 'Moral lessons']
+            }
+        });
+        // 超级英雄
+        this.genres.set('superhero', {
+            genre: 'superhero',
+            names: {
+                'zh-CN': '超级英雄',
+                'en-US': 'Superhero',
+                'ja-JP': 'スーパーロ英雄'
+            },
+            description: {
+                'zh-CN': '拥有超能力的英雄人物故事',
+                'en-US': 'Stories of heroes with extraordinary powers'
+            },
+            subgenres: {
+                'zh-CN': ['DC风格', 'Marvel风格', '日式英雄', '黑暗英雄'],
+                'en-US': ['DC-style', 'Marvel-style', 'Tokusatsu', 'Dark Hero']
+            },
+            examples: ['Watchmen', 'The Boys', 'Invincible'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['超能力', '英雄使命', '反派', '正义'],
+                'en-US': ['Superpowers', 'Heroic mission', 'Villains', 'Justice']
+            }
+        });
+        // 悬疑
+        this.genres.set('suspense', {
+            genre: 'suspense',
+            names: {
+                'zh-CN': '悬疑',
+                'en-US': 'Suspense',
+                'ja-JP': 'サスペンス'
+            },
+            description: {
+                'zh-CN': '以制造紧张和期待为核心的文学类型',
+                'en-US': 'Fiction designed to create tension and anticipation'
+            },
+            subgenres: {
+                'zh-CN': ['心理悬疑', '惊悚悬疑', '家庭悬疑', '复仇悬疑'],
+                'en-US': ['Psychological Suspense', 'Domestic Suspense', 'Revenge Thriller', 'Twist Suspense']
+            },
+            examples: ['Gone Girl', 'The Girl on the Train', 'Behind Closed Doors'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['悬念', '紧张', '未知', '期待'],
+                'en-US': ['Tension', 'Anticipation', 'Uncertainty', 'Suspense']
+            }
+        });
+        // 赛博朋克
+        this.genres.set('cyberpunk', {
+            genre: 'cyberpunk',
+            names: {
+                'zh-CN': '赛博朋克',
+                'en-US': 'Cyberpunk',
+                'ja-JP': 'サイバーパンク'
+            },
+            description: {
+                'zh-CN': '高科技与低生活结合的未来设定',
+                'en-US': 'High tech, low life futuristic setting'
+            },
+            subgenres: {
+                'zh-CN': ['网络朋克', '赛博都市', '黑客文化', '神经朋克'],
+                'en-US': ['Cyberpunk noir', 'Megacity', 'Hacker culture', 'Neuropunk']
+            },
+            examples: ['Neuromancer', 'Snow Crash', 'Blade Runner', 'Cyberpunk 2077'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['高科技', '网络', '反乌托邦', '身体改造'],
+                'en-US': ['High technology', 'Cyberspace', 'Dystopia', 'Body modification']
+            }
+        });
+        // 太空歌剧
+        this.genres.set('space_opera', {
+            genre: 'space_opera',
+            names: {
+                'zh-CN': '太空歌剧',
+                'en-US': 'Space Opera',
+                'ja-JP': 'スペースオペラ'
+            },
+            description: {
+                'zh-CN': '以太空探索和星际冲突为背景的史诗故事',
+                'en-US': 'Epic stories of space exploration and interstellar conflict'
+            },
+            subgenres: {
+                'zh-CN': ['星际战争', '太空冒险', '星际政治', '银河传说'],
+                'en-US': ['Space warfare', 'Space adventure', 'Interstellar politics', 'Galactic saga']
+            },
+            examples: ['Star Wars', 'The Expanse', 'Foundation', 'Hyperion'],
+            regions: ['Global'],
+            characteristics: {
+                'zh-CN': ['星际', '战争', '冒险', '宏大叙事'],
+                'en-US': ['Interstellar setting', 'Conflict', 'Adventure', 'Grand scale']
+            }
+        });
+        // 异世界
+        this.genres.set('isekai', {
+            genre: 'isekai',
+            names: {
+                'zh-CN': '异世界',
+                'en-US': 'Isekai',
+                'ja-JP': '異世界'
+            },
+            description: {
+                'zh-CN': '主角穿越到异世界的故事',
+                'en-US': 'Stories where protagonist is transported to another world'
+            },
+            subgenres: {
+                'zh-CN': ['转生异世界', '穿越异世界', '异世界种田', '异世界冒险'],
+                'en-US': ['Reincarnated', 'Transported', 'Isekai farming', 'Isekai adventure']
+            },
+            examples: ['Sword Art Online', 'That Time I Got Reincarnated as a Slime', 'Overlord'],
+            regions: ['Japan', 'China', 'Korea', 'Global'],
+            characteristics: {
+                'zh-CN': ['异世界', '穿越', '冒险', '成长'],
+                'en-US': ['Another world', 'Transmigration', 'Adventure', 'Growth']
+            }
+        });
     }
     initializeLiteraryForms() {
         // 长篇小说

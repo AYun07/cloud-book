@@ -152,23 +152,48 @@ class CloudBook {
         this.pluginSystem = new PluginSystem_1.PluginSystem(config.storagePath + '/plugins');
         this.coverGenerator = new CoverGenerator_1.CoverGenerator(this.llmManager);
         this.mindMapGenerator = new MindMapGenerator_1.MindMapGenerator();
-        this.trendAnalyzer = new TrendAnalyzer_1.TrendAnalyzer(this.llmManager);
+        this.trendAnalyzer = new TrendAnalyzer_1.TrendAnalyzer({ enabled: true, platforms: ['qidian', 'jjwxc', 'zongheng'] });
         this.i18nManager = new I18nManager_1.I18nManager(config.i18nConfig?.primaryLanguage || 'zh-CN');
         this.globalLiteraryConfig = new GlobalLiteraryConfig_1.GlobalLiteraryConfig();
-        this.networkManager = new NetworkManager_1.NetworkManager();
+        this.networkManager = new NetworkManager_1.NetworkManager({
+            autoSwitch: true,
+            switchDebounceMs: 2000
+        });
         this.cacheManager = new CacheManager_1.CacheManager({ storageKey: 'cloudbook_cache', maxSize: 1000, ttl: 3600000 });
         this.versionHistoryManager = new VersionHistoryManager_1.VersionHistoryManager(config.storagePath + '/versioning');
         this.localStorage = new LocalStorage_1.LocalStorage({ basePath: config.storagePath || './cloud-book-data' });
-        // 初始化新增模块
+        this.networkManager.onModeSwitch((newMode, reason) => {
+            console.log(`[CloudBook] 模式切换: ${newMode}, 原因: ${reason}`);
+            if (reason === 'network_recovered' && newMode === 'online') {
+                console.log('[CloudBook] 网络已恢复，切换到在线模式');
+            }
+            else if (reason === 'network_lost' && newMode === 'offline') {
+                console.log('[CloudBook] 网络已断开，切换到离线模式');
+            }
+        });
         this.exportManager = new ExportManager_1.ExportManager();
         this.importManager = new ImportManager_1.ImportManager();
         this.keyboardShortcuts = new KeyboardShortcuts_1.KeyboardShortcuts();
         this.goalManager = new GoalManager_1.GoalManager();
         this.costTracker = new CostTracker_1.CostTracker();
+        if (config.costTracking?.budgets) {
+            this.costTracker.setBudget(config.costTracking.budgets);
+        }
+        if (config.costTracking?.enabled !== false) {
+            this.llmManager.setCostTracker(this.costTracker);
+        }
         this.snowflakeMethodology = new SnowflakeMethodology_1.SnowflakeMethodology(this.llmManager);
         this.webScraper = new WebScraper_1.WebScraper();
-        if (config.connectionMode === 'offline' || config.connectionMode === 'hybrid') {
+        if (config.connectionMode === 'offline') {
+            this.networkManager.setMode('offline');
             this.initializeOfflineMode(config.localAPIConfig);
+        }
+        else if (config.connectionMode === 'hybrid') {
+            this.networkManager.setMode('hybrid');
+            this.initializeOfflineMode(config.localAPIConfig);
+        }
+        else {
+            this.networkManager.setMode('online');
         }
         if (config.daemonConfig?.enabled) {
             this.daemonService = new DaemonService_1.DaemonService({
@@ -437,6 +462,28 @@ class CloudBook {
     }
     onNetworkChange(callback) {
         return this.networkManager.onStatusChange(callback);
+    }
+    async setConnectionMode(mode) {
+        if (mode === 'online') {
+            await this.networkManager.switchToOnline();
+        }
+        else if (mode === 'offline') {
+            await this.networkManager.switchToOffline();
+        }
+        else {
+            await this.networkManager.switchToHybrid();
+        }
+    }
+    getConnectionMode() {
+        return this.networkManager.getMode();
+    }
+    setAutoNetworkSwitch(enabled) {
+        this.networkManager.setAutoSwitch(enabled);
+    }
+    onModeSwitch(callback) {
+        return this.networkManager.onModeSwitch((newMode, reason) => {
+            callback(newMode, reason);
+        });
     }
     async getCacheStats() {
         return this.cacheManager.getStats();
@@ -766,14 +813,19 @@ class CloudBook {
     // ============================================
     // Trend Analyzer
     // ============================================
-    async analyzeMarketTrends(platform, genre) {
-        return this.trendAnalyzer.analyzeTrends(platform, genre);
+    async analyzeMarketTrends() {
+        return this.trendAnalyzer.analyzeTrends();
     }
     async analyzeCompetitor(bookInfo) {
-        return this.trendAnalyzer.analyzeCompetitor(bookInfo);
+        const title = bookInfo.title || '未知作品';
+        return this.trendAnalyzer.analyzeCompetitor(title);
     }
     async generateInspiration(genre, type) {
-        return this.trendAnalyzer.generateInspiration(genre, type);
+        const inspirations = await this.trendAnalyzer.generateInspiration(genre);
+        if (type && type !== 'all') {
+            return inspirations.slice(0, 2);
+        }
+        return inspirations;
     }
     // ============================================
     // Daemon Service
@@ -919,6 +971,9 @@ class CloudBook {
             throw new Error('Chapter not found');
         const truthFiles = await this.truthFileManager.getTruthFiles(projectId);
         return this.auditEngine.audit(chapter.content, truthFiles);
+    }
+    async auditContent(content, options) {
+        return this.auditEngine.audit(content, options);
     }
     async reviseChapter(projectId, chapterId, auditResult) {
         const project = this.projects.get(projectId);
@@ -1166,17 +1221,41 @@ class CloudBook {
     // ============================================
     // Cost Tracker - 费用追踪
     // ============================================
-    recordCost(record) {
+    async recordCost(model, provider, inputTokens, outputTokens, operation, projectId, chapterId) {
+        return this.costTracker.recordCost(model, provider, inputTokens, outputTokens, operation, projectId, chapterId);
+    }
+    recordCostFromRecord(record) {
         this.costTracker.record(record);
     }
-    getCostStats() {
-        return this.costTracker.getStats();
+    getCostStats(startDate, endDate, projectId) {
+        return this.costTracker.getStats(startDate, endDate, projectId);
+    }
+    predictMonthlyCost() {
+        return this.costTracker.predictMonthlyCost();
+    }
+    checkAlerts() {
+        return this.costTracker.checkAlerts();
     }
     setBudget(budget) {
         this.costTracker.setBudget(budget);
     }
     getBudget() {
         return this.costTracker.getBudget();
+    }
+    estimateCost(model, inputTokens, outputTokens) {
+        return this.costTracker.estimateCost(model, inputTokens, outputTokens);
+    }
+    getCostRecords(limit, offset, filters) {
+        return this.costTracker.getRecords(limit, offset, filters);
+    }
+    onCostEvent(event, callback) {
+        this.costTracker.on(event, callback);
+    }
+    offCostEvent(event, callback) {
+        this.costTracker.off(event, callback);
+    }
+    exportCostRecords(format = 'json') {
+        return this.costTracker.exportRecords(format);
     }
     // ============================================
     // Snowflake Methodology - 雪花创作法

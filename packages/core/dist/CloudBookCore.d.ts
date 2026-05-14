@@ -9,6 +9,7 @@ export declare class CloudBookCore {
     private storage;
     private llmManager;
     private memoryManager;
+    private truthFileManager;
     constructor(options?: {
         storage?: UnifiedStorage;
         llmManager?: LLMManager;
@@ -29,6 +30,16 @@ export declare class CloudBookCore {
     updateCharacter(projectId: string, characterId: string, updates: Partial<Character>): Promise<Character>;
     deleteCharacter(projectId: string, characterId: string): Promise<void>;
     getTruthFiles(projectId: string): Promise<TruthFiles>;
+    updateChapterSummary(projectId: string, chapter: Chapter): Promise<void>;
+    updateWorldState(projectId: string, state: Partial<TruthFiles['currentState']>): Promise<void>;
+    addResource(projectId: string, resource: any): Promise<void>;
+    addHook(projectId: string, hook: any): Promise<void>;
+    fulfillHook(projectId: string, hookId: string, chapterNumber: number): Promise<void>;
+    addCharacterInteraction(projectId: string, characterId1: string, characterId2: string, chapterNumber: number, type: string, summary: string): Promise<void>;
+    updateEmotionalArc(projectId: string, characterId: string, characterName: string, chapterNumber: number, emotion: string, intensity: number): Promise<void>;
+    validateChapter(projectId: string, chapter: Chapter, characters: Character[]): Promise<any>;
+    validateProject(projectId: string, chapters: Chapter[], characters: Character[], worldTimeline?: any[]): Promise<any>;
+    getContextSummary(projectId: string, chapterNumber: number): Promise<string>;
     private countWords;
     close(): Promise<void>;
 }

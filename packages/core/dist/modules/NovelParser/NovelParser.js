@@ -164,11 +164,24 @@ class NovelParser {
         const factions = [];
         const items = [];
         const timeline = [];
+        // 解析力量体系关键词
+        const powerKeywords = [
+            '修炼', '功法', '境界', '修为', '修真', '炼气', '筑基', '金丹', '元婴',
+            '魔法', '斗气', '武魂', '灵力', '法力', '真气', '真元', '法力',
+            '等级', '段位', '阶级', '等级', '阶位'
+        ];
+        const foundPowerKeywords = powerKeywords.filter(keyword => content.includes(keyword));
+        let powerSystem = '';
+        if (foundPowerKeywords.length > 0) {
+            powerSystem = `小说包含以下力量体系元素: ${foundPowerKeywords.join(', ')}`;
+        }
+        // 解析地点
         const locationPatterns = [
             /在([\u4e00-\u9fa5]{2,8})里/g,
             /来到([\u4e00-\u9fa5]{2,8})/g,
             /前往([\u4e00-\u9fa5]{2,8})/g,
-            /进入([\u4e00-\u9fa5]{2,8})/g
+            /进入([\u4e00-\u9fa5]{2,8})/g,
+            /到([\u4e00-\u9fa5]{2,8})中/g
         ];
         for (const pattern of locationPatterns) {
             let match;
@@ -178,12 +191,15 @@ class NovelParser {
                 }
             }
         }
+        // 解析势力
         const factionPatterns = [
             /([\u4e00-\u9fa5]{2,8})宗/g,
             /([\u4e00-\u9fa5]{2,8})派/g,
             /([\u4e00-\u9fa5]{2,8})教/g,
             /([\u4e00-\u9fa5]{2,8})门/g,
-            /([\u4e00-\u9fa5]{2,8})帮/g
+            /([\u4e00-\u9fa5]{2,8})帮/g,
+            /([\u4e00-\u9fa5]{2,8})殿/g,
+            /([\u4e00-\u9fa5]{2,8})阁/g
         ];
         for (const pattern of factionPatterns) {
             let match;
@@ -193,8 +209,46 @@ class NovelParser {
                 }
             }
         }
+        // 解析物品
+        const itemPatterns = [
+            /拿着([\u4e00-\u9fa5]{2,8})/g,
+            /取出([\u4e00-\u9fa5]{2,8})/g,
+            /握着([\u4e00-\u9fa5]{2,8})/g,
+            /([\u4e00-\u9fa5]{2,8})剑/g,
+            /([\u4e00-\u9fa5]{2,8})刀/g
+        ];
+        for (const pattern of itemPatterns) {
+            let match;
+            while ((match = pattern.exec(content)) !== null) {
+                if (match[1] && !items.includes(match[1])) {
+                    items.push(match[1]);
+                }
+            }
+        }
+        // 解析时间线
+        const timePatterns = [
+            /第[一二三四五六七八九十百千万]+年前/g,
+            /十年前/g,
+            /百年前/g,
+            /千年前/g
+        ];
+        for (const pattern of timePatterns) {
+            let match;
+            while ((match = pattern.exec(content)) !== null) {
+                if (match[0]) {
+                    // 查找这个时间点前后的内容作为事件
+                    const contextStart = Math.max(0, match.index - 50);
+                    const contextEnd = Math.min(content.length, match.index + 50);
+                    const context = content.slice(contextStart, contextEnd);
+                    timeline.push({
+                        event: context.trim(),
+                        chapter: 1
+                    });
+                }
+            }
+        }
         return {
-            powerSystem: '',
+            powerSystem,
             locations,
             factions,
             items,

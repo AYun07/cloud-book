@@ -458,7 +458,7 @@ ${chapters.map((c, i) => `${i + 1}. 第${c.number}章 "${c.title}"`).join('\n')}
                 }));
             }
         }
-        const tasks = [];
+        let tasks = [];
         const lines = response.split('\n').filter((l) => l.trim());
         let currentSection = '';
         for (const line of lines) {

@@ -92,6 +92,8 @@ export interface WritingOptions {
   autoAudit?: boolean;
   autoHumanize?: boolean;
   parallelCount?: number;
+  batchMode?: 'sequential' | 'parallel' | 'adaptive' | 'intelligent';
+  stopOnError?: boolean;
 }
 
 export class CloudBook {

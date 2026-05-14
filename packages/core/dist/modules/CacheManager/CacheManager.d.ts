@@ -1,12 +1,11 @@
 /**
- * 缓存管理系统
- * 支持多种缓存策略
+ * 缓存管理模块
+ * 提供基于内存的缓存功能，支持 TTL 和 LRU 驱逐策略
  */
 export interface CacheConfig {
     maxSize: number;
     ttl: number;
-    storage: 'memory' | 'localStorage' | 'disk';
-    serializer?: 'json' | 'msgpack' | 'binary';
+    storage: 'memory' | 'localStorage';
 }
 export interface CacheEntry<T> {
     key: string;
@@ -51,6 +50,11 @@ export declare class CacheManager<T = any> {
         entry: CacheEntry<T>;
     }>;
 }
+/**
+ * 两级缓存管理器
+ * L1 为进程内内存缓存，L2 为 localStorage 持久化缓存
+ * L1 命中时直接返回，L1 未命中时查询 L2 并回填 L1
+ */
 export declare class MultiLevelCache {
     private l1;
     private l2;

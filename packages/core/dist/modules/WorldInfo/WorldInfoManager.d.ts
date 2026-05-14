@@ -31,12 +31,31 @@ export interface ContextVariable {
     value: string | number | boolean;
     type: 'string' | 'number' | 'boolean' | 'date' | 'list';
 }
+export interface GenerationOptions {
+    genre?: string;
+    theme?: string;
+    storySeed?: string;
+    depth?: number;
+    modelName?: string;
+}
+export interface GeneratedWorldContent {
+    overview: string;
+    elements: Array<{
+        name: string;
+        key: string;
+        content: string;
+        keywords: string[];
+        depth: number;
+        parentKey?: string;
+    }>;
+}
 export declare class WorldInfoManager {
     private worldInfos;
     private relationships;
     private templates;
     private storagePath;
-    constructor(storagePath?: string);
+    private llmManager?;
+    constructor(storagePath?: string, llmManager?: any);
     /**
      * 初始化项目
      */
@@ -111,6 +130,22 @@ export declare class WorldInfoManager {
         includeRelationships?: boolean;
         format?: 'text' | 'json' | 'yaml';
     }): Promise<string>;
+    /**
+     * 使用 LLM 自动生成世界设定内容
+     */
+    generateWorldContent(projectId: string, options: GenerationOptions): Promise<WorldInfo[]>;
+    /**
+     * 构建生成提示词
+     */
+    private buildGenerationPrompt;
+    /**
+     * 解析 LLM 生成的内容
+     */
+    private parseGeneratedContent;
+    /**
+     * 设置 LLM Manager（用于后续配置）
+     */
+    setLLMManager(llmManager: any): void;
     /**
      * 应用模板
      */

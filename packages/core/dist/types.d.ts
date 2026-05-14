@@ -136,6 +136,8 @@ export interface SchemaProperty {
     format?: string;
     items?: SchemaProperty;
     $ref?: string;
+    minimum?: number;
+    maximum?: number;
 }
 export interface SchemaDefinition {
     type: string;
@@ -543,7 +545,7 @@ export interface NovelProject {
     updatedAt: Date;
 }
 export interface LLMConfig {
-    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'lmstudio' | 'gemini' | 'custom';
+    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'ollama' | 'koboldcpp' | 'gemini' | 'custom';
     name: string;
     endpoint?: string;
     baseURL?: string;
@@ -683,11 +685,20 @@ export interface WritingPattern {
     frequency: number;
     examples: string[];
 }
+export interface CoverImageOptions {
+    size?: '1024x1024' | '1024x1792' | '1792x1024';
+    quality?: 'standard' | 'hd';
+    style?: 'vivid' | 'natural';
+    model?: 'dall-e-3' | 'dall-e-2';
+}
 export interface CoverConfig {
     style?: 'fantasy' | 'modern' | 'scifi' | 'romance' | 'historical' | 'custom';
     mainColor?: string;
     characters?: string[];
     theme?: string;
+    imageOptions?: CoverImageOptions;
+    openaiApiKey?: string;
+    openaiEndpoint?: string;
 }
 export interface MindMapNode {
     id: string;
@@ -924,5 +935,52 @@ export interface SearchResult {
     document: CreativeDocument;
     relevanceScore: number;
     matchedSegments: string[];
+}
+export interface TrendAnalysisConfig {
+    enabled: boolean;
+    platforms?: string[];
+    cacheResults?: boolean;
+}
+export interface TrendReport {
+    period: string;
+    topGenres: {
+        genre: string;
+        count: number;
+        avgPopularity: number;
+    }[];
+    risingTopics: {
+        topic: string;
+        category: string;
+        growthRate: number;
+    }[];
+    audienceInsights: {
+        insight: string;
+        source: string;
+    }[];
+    platformData: PlatformData[];
+    marketTrends: MarketTrend[];
+    recommendations: {
+        type: 'opportunity' | 'warning' | 'suggestion';
+        message: string;
+    }[];
+    timestamp: Date;
+}
+export interface PlatformData {
+    platform: string;
+    trends: {
+        title: string;
+        popularity: number;
+        trend: 'rising' | 'falling' | 'stable';
+    }[];
+}
+export interface MarketTrend {
+    category: string;
+    demand: 'high' | 'medium' | 'low';
+    saturation: number;
+    growth: number;
+    competition: number;
+    bestTimeToEnter: string;
+    risk: 'high' | 'medium' | 'low';
+    recommendations: string[];
 }
 //# sourceMappingURL=types.d.ts.map

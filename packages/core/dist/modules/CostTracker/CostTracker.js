@@ -1,7 +1,14 @@
 "use strict";
 /**
  * 费用追踪器
- * 追踪API调用成本，控制预算
+ * 追踪API调用成本，支持预算控制和成本预测
+ *
+ * 功能：
+ * - 记录API调用成本
+ * - 支持日/周/月/总预算控制
+ * - 预算告警（达到80%阈值时触发）
+ * - 基于事件机制支持实时推送
+ * - 成本统计和预测
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CostTracker = void 0;
@@ -17,6 +24,7 @@ class CostTracker {
         'deepseek-chat': { input: 0.0001, output: 0.0001 },
         'deepseek-coder': { input: 0.0001, output: 0.0001 },
     };
+    listeners = new Map();
     constructor(budgets) {
         this.budgets = budgets || {};
         this.loadRecords();
@@ -26,6 +34,7 @@ class CostTracker {
     }
     setBudget(budget) {
         this.budgets = budget;
+        this.emit('budgetChanged', budget);
     }
     getBudget() {
         return Object.keys(this.budgets).length > 0 ? this.budgets : null;
@@ -36,6 +45,31 @@ class CostTracker {
     }
     setModelCost(model, inputCost, outputCost) {
         this.costPerToken[model] = { input: inputCost, output: outputCost };
+    }
+    on(event, callback) {
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, new Set());
+        }
+        this.listeners.get(event).add(callback);
+    }
+    off(event, callback) {
+        const eventListeners = this.listeners.get(event);
+        if (eventListeners) {
+            eventListeners.delete(callback);
+        }
+    }
+    emit(event, data) {
+        const eventListeners = this.listeners.get(event);
+        if (eventListeners) {
+            for (const listener of eventListeners) {
+                try {
+                    listener(data);
+                }
+                catch (e) {
+                    console.error(`Error in cost event listener for ${event}:`, e);
+                }
+            }
+        }
     }
     async recordCost(model, provider, inputTokens, outputTokens, operation, projectId, chapterId) {
         const modelCosts = this.costPerToken[model] || { input: 0.001, output: 0.002 };
@@ -56,9 +90,11 @@ class CostTracker {
         };
         this.records.push(record);
         this.saveRecords();
+        this.emit('costRecorded', record);
         const alerts = this.checkAlerts();
         if (alerts.length > 0) {
             console.warn('Cost alert:', alerts);
+            this.emit('alert', alerts[0]);
         }
         return record;
     }

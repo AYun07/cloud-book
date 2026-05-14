@@ -27,6 +27,7 @@ export interface ExportResult {
     filename?: string;
     size?: number;
     error?: string;
+    buffer?: Buffer;
 }
 export interface BatchExportOptions extends ExportOptions {
     splitByChapters?: boolean;
@@ -59,11 +60,22 @@ export interface ExportConfig {
 export declare class ExportManager {
     private defaultOptions;
     private templates;
+    private tempDir;
     constructor();
     private registerDefaultTemplates;
     registerTemplate(template: ExportTemplate): void;
     getTemplates(): ExportTemplate[];
     export(project: NovelProject, options?: Partial<ExportOptions>): Promise<ExportResult>;
+    private exportText;
+    private exportJson;
+    private exportEpub;
+    private exportPdf;
+    private exportDocx;
+    private createEpubBuffer;
+    private formatContentForEpub;
+    private createPdfBuffer;
+    private createDocxBuffer;
+    private cleanupTempDir;
     exportProject(project: NovelProject, format: ExportFormat, config?: ExportConfig): Promise<string>;
     exportChapter(chapter: Chapter, format: ExportFormat): Promise<string>;
     getSupportedFormats(): ExportFormat[];
@@ -75,16 +87,10 @@ export declare class ExportManager {
     private toTxt;
     private toMarkdown;
     private toJson;
-    private toEpub;
-    private buildEpubMetadata;
-    private buildEpubManifest;
-    private buildEpubSpine;
-    private buildEpubNav;
     private toHtml;
     private toPdfHtml;
     private toDocx;
     private generateFilename;
-    private calculateSize;
     private escapeHtml;
     private escapeXml;
     private generateUuid;

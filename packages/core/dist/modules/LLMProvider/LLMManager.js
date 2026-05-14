@@ -62,10 +62,26 @@ class LLMManager {
     defaultProvider;
     modelConfigs = new Map();
     embeddingCache = new Map();
-    cacheTTL = 3600000; // 1 hour
+    cacheTTL = 3600000;
     logs = [];
+    costTracker;
+    costTrackingEnabled = false;
     constructor() {
         this.registerBuiltinProviders();
+    }
+    setCostTracker(tracker) {
+        this.costTracker = tracker;
+        this.costTrackingEnabled = true;
+    }
+    isCostTrackingEnabled() {
+        return this.costTrackingEnabled;
+    }
+    recordCost(model, provider, inputTokens, outputTokens, operation) {
+        if (this.costTracker && this.costTrackingEnabled) {
+            this.costTracker.recordCost(model, provider, inputTokens, outputTokens, operation).catch(err => {
+                this.log('error', 'LLMManager', 'Failed to record cost', { error: err.message });
+            });
+        }
     }
     log(level, component, message, metadata) {
         const entry = {
@@ -95,6 +111,14 @@ class LLMManager {
     clearCache() {
         this.embeddingCache.clear();
         this.log('info', 'LLMManager', 'Embedding cache cleared');
+    }
+    getConfigForProvider(providerType) {
+        for (const [_, config] of this.modelConfigs) {
+            if (config.provider === providerType) {
+                return config;
+            }
+        }
+        return undefined;
     }
     /**
      * 获取模型信息
@@ -339,7 +363,12 @@ class LLMManager {
             throw new Error(`Provider not found: ${name}`);
         }
         this.log('debug', 'LLMManager', 'Generating text', { model: name, promptLength: prompt.length });
-        return provider.generate(prompt, options);
+        const response = await provider.generate(prompt, options);
+        if (response.usage) {
+            const config = this.modelConfigs.get(name || '') || this.getConfigForProvider(provider.provider);
+            this.recordCost(response.model || config?.model || name || 'unknown', provider.provider, response.usage.promptTokens, response.usage.completionTokens, 'generate');
+        }
+        return response;
     }
     /**
      * 补全文本
@@ -401,6 +430,10 @@ class LLMManager {
                     embedding: response.embedding,
                     timestamp: Date.now()
                 });
+                if (response.usage) {
+                    const config = this.modelConfigs.get(name || '') || this.getConfigForProvider('openai');
+                    this.recordCost(response.model || config?.model || name || 'text-embedding-3-small', provider.provider, response.usage.promptTokens, 0, 'embedding');
+                }
                 return response.embedding;
             }
             catch (error) {
@@ -434,18 +467,18 @@ class LLMManager {
     textToEmbedding(text, dimensions = 1536) {
         const words = this.tokenize(text);
         const wordFreq = this.calculateWordFrequency(words);
-        const idf = this.calculateIDF([text], words);
+        const wordScores = this.calculateWordImportance(words, wordFreq);
         const embedding = new Array(dimensions).fill(0);
         let index = 0;
         for (const [word, freq] of Object.entries(wordFreq)) {
             const wordHash = this.hashWord(word);
-            const tfidf = freq * idf[word] || freq;
+            const score = wordScores[word] || freq;
             const startIdx = Math.abs(wordHash) % dimensions;
             const spreadFactor = Math.min(5, Math.ceil(dimensions / (Object.keys(wordFreq).length * 10)));
             for (let offset = 0; offset < spreadFactor; offset++) {
                 const pos = (startIdx + offset) % dimensions;
                 const sign = ((wordHash >> offset) & 1) ? 1 : -1;
-                const weight = tfidf * (1 / (1 + offset));
+                const weight = score * (1 / (1 + offset));
                 embedding[pos] += sign * weight * 0.3;
             }
             index++;
@@ -467,6 +500,31 @@ class LLMManager {
             embedding[i] = embedding[i] / magnitude;
         }
         return embedding;
+    }
+    /**
+     * 计算词语重要性分数（结合词频、词长和停用词排除）
+     */
+    calculateWordImportance(words, wordFreq) {
+        const stopWords = new Set([
+            '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个',
+            '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好',
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with'
+        ]);
+        const scores = {};
+        const totalWords = words.length || 1;
+        for (const [word, freq] of Object.entries(wordFreq)) {
+            let score = freq;
+            // 排除停用词
+            if (stopWords.has(word.toLowerCase())) {
+                score *= 0.1;
+            }
+            // 词长奖励
+            if (word.length >= 2) {
+                score *= Math.min(2, 1 + word.length * 0.1);
+            }
+            scores[word] = score;
+        }
+        return scores;
     }
     tokenize(text) {
         const chinese = text.match(/[\u4e00-\u9fa5]+/g) || [];
@@ -687,7 +745,7 @@ class LLMManager {
      * 调用 Gemini API
      */
     async callGeminiAPI(config, prompt, options, stream = false) {
-        const endpoint = config.endpoint || config.baseURL || 'https://gemini.beijixingxing.com/v1';
+        const endpoint = config.endpoint || config.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
         if (stream) {
             let fullText = '';
             await this.streamGeminiAPI(config, prompt, options, (chunk) => {
@@ -726,7 +784,7 @@ class LLMManager {
      * 流式调用 Gemini API
      */
     async streamGeminiAPI(config, prompt, options, onChunk) {
-        const endpoint = config.endpoint || config.baseURL || 'https://gemini.beijixingxing.com/v1';
+        const endpoint = config.endpoint || config.baseURL || 'https://generativelanguage.googleapis.com/v1beta';
         const response = await fetch(`${endpoint}/chat/completions`, {
             method: 'POST',
             headers: {

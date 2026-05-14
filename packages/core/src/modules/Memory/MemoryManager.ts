@@ -93,11 +93,26 @@ export class MemoryManager {
     });
   }
 
-  async addMemory(projectId: string, content: string, type: Memory['type'] = 'memory'): Promise<Memory> {
+  async addMemory(
+    projectId: string, 
+    content: string, 
+    type: Memory['type'] = 'memory',
+    metadata?: Partial<Memory['metadata']>
+  ): Promise<Memory> {
     const memory: Memory = {
       id: this.generateId(),
       content,
-      type
+      type,
+      metadata: {
+        keywords: this.extractKeywords(content, 5),
+        priority: metadata?.priority || 'normal',
+        createdAt: new Date(),
+        chapterNumber: metadata?.chapterNumber,
+        emotionalTone: metadata?.emotionalTone,
+        scope: metadata?.scope,
+        characterStates: metadata?.characterStates,
+        ...metadata
+      }
     };
 
     switch (type) {

@@ -205,7 +205,8 @@ class LocalAPIServer {
             'cohere': 'https://api.cohere.ai/v1',
             'together': 'https://api.together.xyz/v1',
             'groq': 'https://api.groq.com/openai/v1',
-            'perplexity': 'https://api.perplexity.ai'
+            'perplexity': 'https://api.perplexity.ai',
+            'ollama': 'http://localhost:11434'
         };
         return baseUrls[provider] || '';
     }

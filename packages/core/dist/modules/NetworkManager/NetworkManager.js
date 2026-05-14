@@ -1,7 +1,7 @@
 "use strict";
 /**
  * 网络状态管理器
- * 监测网络状态，自动切换在线/离线模式
+ * 监测网络状态，支持在线/离线模式手动和自动切换
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NetworkManager = void 0;
@@ -9,8 +9,11 @@ class NetworkManager {
     status;
     config;
     listeners = new Set();
+    modeSwitchListeners = new Set();
     intervalId;
     lastLatency;
+    switchDebounceTimer;
+    wasOnline = true;
     constructor(config) {
         this.config = {
             checkInterval: config?.checkInterval || 30000,
@@ -19,7 +22,9 @@ class NetworkManager {
                 'https://www.google.com',
                 'https://www.baidu.com',
                 'https://api.openai.com'
-            ]
+            ],
+            autoSwitch: config?.autoSwitch ?? true,
+            switchDebounceMs: config?.switchDebounceMs ?? 2000
         };
         this.status = {
             isOnline: true,
@@ -27,6 +32,7 @@ class NetworkManager {
             mode: 'online',
             fallbackAvailable: true
         };
+        this.wasOnline = true;
     }
     async initialize() {
         await this.checkConnection();
@@ -36,6 +42,10 @@ class NetworkManager {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = undefined;
+        }
+        if (this.switchDebounceTimer) {
+            clearTimeout(this.switchDebounceTimer);
+            this.switchDebounceTimer = undefined;
         }
     }
     startMonitoring() {
@@ -67,9 +77,38 @@ class NetworkManager {
             this.status.fallbackAvailable = false;
         }
         if (previousStatus.isOnline !== this.status.isOnline) {
-            this.notifyListeners();
+            this.handleNetworkStateChange(previousStatus.isOnline, this.status.isOnline);
         }
         return this.status.isOnline;
+    }
+    handleNetworkStateChange(wasOnline, isNowOnline) {
+        if (!this.config.autoSwitch || this.status.mode !== 'hybrid') {
+            this.notifyListeners();
+            return;
+        }
+        if (this.switchDebounceTimer) {
+            clearTimeout(this.switchDebounceTimer);
+        }
+        this.switchDebounceTimer = setTimeout(() => {
+            if (isNowOnline && !wasOnline) {
+                this.performModeSwitch('offline', 'online', 'network_recovered');
+            }
+            else if (!isNowOnline && wasOnline) {
+                this.performModeSwitch('online', 'offline', 'network_lost');
+            }
+            this.notifyListeners();
+        }, this.config.switchDebounceMs);
+    }
+    performModeSwitch(fromMode, toMode, reason) {
+        this.status.mode = toMode;
+        for (const listener of this.modeSwitchListeners) {
+            try {
+                listener(toMode, reason);
+            }
+            catch (error) {
+                console.error('Mode switch listener error:', error);
+            }
+        }
     }
     async pingUrl(url) {
         const startTime = Date.now();
@@ -93,15 +132,27 @@ class NetworkManager {
         return { ...this.status };
     }
     setMode(mode) {
-        this.status.mode = mode;
-        this.notifyListeners();
+        const previousMode = this.status.mode;
+        if (previousMode !== mode) {
+            this.performModeSwitch(previousMode, mode, 'manual');
+        }
     }
     getMode() {
         return this.status.mode;
     }
+    setAutoSwitch(enabled) {
+        this.config.autoSwitch = enabled;
+    }
+    isAutoSwitchEnabled() {
+        return this.config.autoSwitch ?? true;
+    }
     onStatusChange(listener) {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
+    }
+    onModeSwitch(listener) {
+        this.modeSwitchListeners.add(listener);
+        return () => this.modeSwitchListeners.delete(listener);
     }
     notifyListeners() {
         for (const listener of this.listeners) {
@@ -112,6 +163,23 @@ class NetworkManager {
                 console.error('Network status listener error:', error);
             }
         }
+    }
+    async switchToOnline() {
+        if (this.status.mode === 'offline' || this.status.mode === 'hybrid') {
+            await this.checkConnection();
+            if (this.status.isOnline) {
+                this.setMode('online');
+            }
+        }
+    }
+    async switchToOffline() {
+        if (this.status.mode === 'online' || this.status.mode === 'hybrid') {
+            this.setMode('offline');
+        }
+    }
+    async switchToHybrid() {
+        this.setMode('hybrid');
+        await this.checkConnection();
     }
     async forceOffline() {
         this.status.isOnline = false;

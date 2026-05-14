@@ -1,8 +1,8 @@
 /**
  * 国际化管理器
- * 支持40+语言，提供完整的本地化功能
+ * 支持45种语言，提供完整的本地化功能
  */
-export type Locale = 'zh-CN' | 'zh-TW' | 'zh-HK' | 'en-US' | 'en-GB' | 'ja-JP' | 'ko-KR' | 'es-ES' | 'fr-FR' | 'de-DE' | 'it-IT' | 'pt-BR' | 'pt-PT' | 'ru-RU' | 'ar-SA' | 'hi-IN' | 'th-TH' | 'vi-VN' | 'id-ID' | 'ms-MY' | 'tl-PH' | 'uk-UA' | 'pl-PL' | 'cs-CZ' | 'sk-SK' | 'hu-HU' | 'ro-RO' | 'bg-BG' | 'el-GR' | 'tr-TR' | 'he-IL' | 'fa-IR' | 'ur-PK' | 'bn-BD' | 'ta-IN' | 'ml-IN' | 'kn-IN' | 'te-IN' | 'mr-IN' | 'ne-NP' | 'si-LK' | 'my-MM' | 'km-KH' | 'lo-LA' | 'zh-SG';
+export type Locale = 'zh-CN' | 'zh-TW' | 'zh-HK' | 'en-US' | 'en-GB' | 'ja-JP' | 'ko-KR' | 'es-ES' | 'fr-FR' | 'de-DE' | 'it-IT' | 'pt-BR' | 'pt-PT' | 'ru-RU' | 'ar-SA' | 'hi-IN' | 'th-TH' | 'vi-VN' | 'id-ID' | 'ms-MY' | 'tl-PH' | 'uk-UA' | 'pl-PL' | 'cs-CZ' | 'sk-SK' | 'hu-HU' | 'ro-RO' | 'bg-BR' | 'el-GR' | 'tr-TR' | 'he-IL' | 'fa-IR' | 'ur-PK' | 'bn-BD' | 'ta-IN' | 'ml-IN' | 'kn-IN' | 'te-IN' | 'mr-IN' | 'ne-NP' | 'si-LK' | 'my-MM' | 'km-KH' | 'lo-LA' | 'zh-SG';
 export interface LocaleInfo {
     code: Locale;
     name: string;
@@ -20,8 +20,9 @@ export declare class I18nManager {
     private listeners;
     private pluralRules;
     private localeInfo;
-    private defaultTranslations;
+    private translationsData;
     constructor(initialLocale?: Locale);
+    private initializeTranslations;
     private initializePluralRules;
     setLocale(locale: Locale): void;
     getLocale(): Locale;
@@ -43,6 +44,8 @@ export declare class I18nManager {
     private savePreference;
     loadPreference(): void;
     exportTranslations(locale: Locale): string;
+    getSupportedLanguagesCount(): number;
+    getFullyTranslatedLanguages(): Locale[];
 }
 export default I18nManager;
 //# sourceMappingURL=I18nManager.d.ts.map

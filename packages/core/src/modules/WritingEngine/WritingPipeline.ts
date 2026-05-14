@@ -38,13 +38,71 @@ export interface ContextSyncOptions {
   waitForAuditResult: boolean;
   enableConsistencyCheck: boolean;
   maxWaitTimeMs: number;
+  syncIntervalMs: number;
+  maxRetries: number;
+  retryDelayMs: number;
 }
 
 const DEFAULT_SYNC_OPTIONS: ContextSyncOptions = {
   enableSequentialSync: true,
   waitForAuditResult: true,
   enableConsistencyCheck: true,
-  maxWaitTimeMs: 30000
+  maxWaitTimeMs: 60000,
+  syncIntervalMs: 1000,
+  maxRetries: 3,
+  retryDelayMs: 5000
+};
+
+export interface BatchOptions {
+  mode: 'sequential' | 'parallel' | 'adaptive';
+  parallelCount: number;
+  enableContextSync: boolean;
+  enableAutoRetry: boolean;
+  enableProgressReport: boolean;
+  onChapterStart?: (chapterNumber: number) => void;
+  onChapterComplete?: (chapter: Chapter, chapterNumber: number) => void;
+  onBatchProgress?: (completed: number, total: number, currentChapter?: number) => void;
+  onBatchError?: (error: Error, chapterNumber: number) => void;
+}
+
+export interface AdaptiveBatchConfig {
+  enabled: boolean;
+  initialParallelCount: number;
+  maxParallelCount: number;
+  minParallelCount: number;
+  slowChapterThreshold: number;
+  speedUpIncrement: number;
+  slowDownDecrement: number;
+  measurementWindow: number;
+}
+
+const DEFAULT_ADAPTIVE_CONFIG: AdaptiveBatchConfig = {
+  enabled: true,
+  initialParallelCount: 3,
+  maxParallelCount: 5,
+  minParallelCount: 1,
+  slowChapterThreshold: 30000,
+  speedUpIncrement: 1,
+  slowDownDecrement: 1,
+  measurementWindow: 5
+};
+
+export interface WritingStrategy {
+  type: 'fast' | 'balanced' | 'quality';
+  autoAudit: boolean;
+  autoHumanize: boolean;
+  maxRevisionIterations: number;
+  enableStyleTransfer: boolean;
+  enableConsistencyBoost: boolean;
+}
+
+const DEFAULT_WRITING_STRATEGY: WritingStrategy = {
+  type: 'balanced',
+  autoAudit: true,
+  autoHumanize: true,
+  maxRevisionIterations: 3,
+  enableStyleTransfer: false,
+  enableConsistencyBoost: true
 };
 
 export class WritingPipeline {
@@ -55,18 +113,101 @@ export class WritingPipeline {
   private chapterStates: Map<number, ChapterContextState> = new Map();
   private chapterLocks: Map<number, Promise<void>> = new Map();
   private syncOptions: ContextSyncOptions;
+  private adaptiveConfig: AdaptiveBatchConfig;
+  private writingStrategy: WritingStrategy;
+  private abortControllers: Map<number, AbortController> = new Map();
+  private isAborted: boolean = false;
+  private chapterTimings: number[] = [];
 
   constructor(
     llmManager: LLMManager,
     auditEngine: AIAuditEngine,
     antiDetectionEngine: AntiDetectionEngine,
-    syncOptions?: Partial<ContextSyncOptions>
+    syncOptions?: Partial<ContextSyncOptions>,
+    adaptiveConfig?: Partial<AdaptiveBatchConfig>,
+    writingStrategy?: Partial<WritingStrategy>
   ) {
     this.llmManager = llmManager;
     this.auditEngine = auditEngine;
     this.antiDetectionEngine = antiDetectionEngine;
     this.contextManager = new ContextManager();
     this.syncOptions = { ...DEFAULT_SYNC_OPTIONS, ...syncOptions };
+    this.adaptiveConfig = { ...DEFAULT_ADAPTIVE_CONFIG, ...adaptiveConfig };
+    this.writingStrategy = { ...DEFAULT_WRITING_STRATEGY, ...writingStrategy };
+  }
+
+  /**
+   * 设置自适应批次配置
+   */
+  setAdaptiveConfig(config: Partial<AdaptiveBatchConfig>): void {
+    this.adaptiveConfig = { ...this.adaptiveConfig, ...config };
+  }
+
+  /**
+   * 设置写作策略
+   */
+  setWritingStrategy(strategy: Partial<WritingStrategy>): void {
+    this.writingStrategy = { ...this.writingStrategy, ...strategy };
+  }
+
+  /**
+   * 中止当前所有章节生成
+   */
+  abortAll(): void {
+    this.isAborted = true;
+    for (const [chapterNumber, controller] of this.abortControllers) {
+      controller.abort();
+      console.log(`已中止章节 ${chapterNumber} 的生成`);
+    }
+    this.abortControllers.clear();
+  }
+
+  /**
+   * 中止特定章节的生成
+   */
+  abortChapter(chapterNumber: number): void {
+    const controller = this.abortControllers.get(chapterNumber);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(chapterNumber);
+    }
+  }
+
+  /**
+   * 重置中止状态
+   */
+  resetAbort(): void {
+    this.isAborted = false;
+  }
+
+  /**
+   * 获取章节生成统计
+   */
+  getChapterStatistics(): {
+    totalChapters: number;
+    completed: number;
+    failed: number;
+    pending: number;
+    averageTimingMs: number;
+    estimatedRemainingTimeMs: number;
+  } {
+    const states = Array.from(this.chapterStates.values());
+    const completed = states.filter(s => s.status === 'completed').length;
+    const failed = states.filter(s => s.status === 'failed').length;
+    const pending = states.filter(s => s.status === 'pending' || s.status === 'writing').length;
+
+    const avgTiming = this.chapterTimings.length > 0
+      ? this.chapterTimings.reduce((a, b) => a + b, 0) / this.chapterTimings.length
+      : 0;
+
+    return {
+      totalChapters: states.length,
+      completed,
+      failed,
+      pending,
+      averageTimingMs: avgTiming,
+      estimatedRemainingTimeMs: avgTiming * pending
+    };
   }
 
   /**
@@ -89,6 +230,40 @@ export class WritingPipeline {
   clearChapterStates(): void {
     this.chapterStates.clear();
     this.chapterLocks.clear();
+    this.abortControllers.clear();
+    this.isAborted = false;
+    this.chapterTimings = [];
+  }
+
+  /**
+   * 智能等待前面的章节完成（带重试机制）
+   */
+  private async waitForPreviousChaptersWithRetry(
+    currentChapter: number,
+    requiredStatus: ChapterContextState['status'][] = ['completed']
+  ): Promise<void> {
+    let retries = 0;
+    
+    while (retries < this.syncOptions.maxRetries) {
+      try {
+        await this.waitForPreviousChapters(currentChapter, requiredStatus);
+        return;
+      } catch (error) {
+        retries++;
+        if (retries >= this.syncOptions.maxRetries) {
+          throw error;
+        }
+        console.warn(`等待前面章节完成失败，${this.syncOptions.retryDelayMs}ms后重试 (${retries}/${this.syncOptions.maxRetries})`);
+        await this.delay(this.syncOptions.retryDelayMs);
+      }
+    }
+  }
+
+  /**
+   * 延迟工具函数
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -358,11 +533,19 @@ export class WritingPipeline {
     auditResult?: AuditResult;
     humanized?: string;
   }> {
+    if (this.isAborted) {
+      throw new Error('章节生成已中止');
+    }
+
+    const abortController = new AbortController();
+    this.abortControllers.set(chapterNumber, abortController);
+    const startTime = Date.now();
+
     this.registerChapterLock(chapterNumber);
 
     try {
       if (this.syncOptions.enableSequentialSync) {
-        await this.waitForPreviousChapters(chapterNumber, ['completed']);
+        await this.waitForPreviousChaptersWithRetry(chapterNumber, ['completed']);
       }
 
       this.updateChapterState(chapterNumber, { status: 'writing' });
@@ -382,6 +565,10 @@ export class WritingPipeline {
         context,
         options
       );
+
+      if (abortController.signal.aborted) {
+        throw new Error('章节生成已中止');
+      }
 
       this.updateChapterState(chapterNumber, { status: 'auditing' });
 
@@ -408,6 +595,10 @@ export class WritingPipeline {
         );
       }
 
+      if (abortController.signal.aborted) {
+        throw new Error('章节生成已中止');
+      }
+
       let humanized: string | undefined;
       if (options?.autoHumanize) {
         humanized = await this.antiDetectionEngine.humanize(finalContent, this.llmManager);
@@ -420,6 +611,12 @@ export class WritingPipeline {
         project,
         auditResult
       );
+
+      const elapsedTime = Date.now() - startTime;
+      this.chapterTimings.push(elapsedTime);
+      if (this.chapterTimings.length > this.adaptiveConfig.measurementWindow * 2) {
+        this.chapterTimings.shift();
+      }
 
       const chapter: Chapter = {
         id: this.generateId(),
@@ -450,6 +647,7 @@ export class WritingPipeline {
       });
       throw error;
     } finally {
+      this.abortControllers.delete(chapterNumber);
       this.releaseChapterLock(
         chapterNumber,
         undefined
@@ -870,7 +1068,7 @@ ${content}
 
   /**
    * 批量生成章节
-   * 支持跨章节上下文同步
+   * 支持顺序同步、并行、及自适应模式
    */
   async generateChaptersBatch(
     project: NovelProject,
@@ -882,24 +1080,38 @@ ${content}
   ): Promise<Chapter[]> {
     const chapters: Chapter[] = [];
     const total = endChapter - startChapter + 1;
-    const parallelCount = options?.parallelCount || 2;
-    const enableSync = this.syncOptions.enableSequentialSync;
-
+    
     this.clearChapterStates();
 
-    if (enableSync) {
-      await this.executeSequentialBatch(
-        project, startChapter, endChapter, truthFiles, options,
-        chapters, total, onProgress
-      );
-    } else {
-      await this.executeParallelBatch(
-        project, startChapter, endChapter, truthFiles, options,
-        chapters, total, parallelCount, onProgress
-      );
-    }
+    const batchMode = options?.batchMode || 'sequential';
 
-    return chapters;
+    switch (batchMode) {
+      case 'sequential':
+        return this.executeSequentialBatch(
+          project, startChapter, endChapter, truthFiles, options, chapters, total, onProgress
+        );
+      
+      case 'parallel':
+        return this.executeParallelBatch(
+          project, startChapter, endChapter, truthFiles, options, chapters, total,
+          options?.parallelCount || 2, onProgress
+        );
+      
+      case 'adaptive':
+        return this.executeAdaptiveBatch(
+          project, startChapter, endChapter, truthFiles, options, chapters, total, onProgress
+        );
+      
+      case 'intelligent':
+        return this.executeIntelligentBatch(
+          project, startChapter, endChapter, truthFiles, options, chapters, total, onProgress
+        );
+      
+      default:
+        return this.executeSequentialBatch(
+          project, startChapter, endChapter, truthFiles, options, chapters, total, onProgress
+        );
+    }
   }
 
   /**
@@ -914,8 +1126,13 @@ ${content}
     chapters: Chapter[],
     total: number,
     onProgress?: (current: number, total: number, chapter?: Chapter) => void
-  ): Promise<void> {
+  ): Promise<Chapter[]> {
     for (let i = startChapter; i <= endChapter; i++) {
+      if (this.isAborted) {
+        console.warn('批次生成已中止');
+        break;
+      }
+      
       try {
         const result = await this.generateChapter(project, i, truthFiles, options);
         chapters.push(result.chapter);
@@ -935,13 +1152,18 @@ ${content}
         }
       } catch (error) {
         console.error(`章节${i}生成失败:`, error);
-        throw error;
+        if (options?.stopOnError) {
+          throw error;
+        }
       }
     }
+    
+    return chapters;
   }
 
   /**
    * 并行执行批次（保持有限并行）
+   * 注意：同批次内无上下文同步
    */
   private async executeParallelBatch(
     project: NovelProject,
@@ -953,24 +1175,199 @@ ${content}
     total: number,
     parallelCount: number,
     onProgress?: (current: number, total: number, chapter?: Chapter) => void
-  ): Promise<void> {
+  ): Promise<Chapter[]> {
     for (let i = startChapter; i <= endChapter; i += parallelCount) {
-      const batch: Promise<{ chapter: Chapter; chapterNumber: number }>[] = [];
+      if (this.isAborted) {
+        console.warn('批次生成已中止');
+        break;
+      }
+      
+      const batch: Promise<{ chapter: Chapter; chapterNumber: number; success: boolean }>[] = [];
+      const batchEnd = Math.min(i + parallelCount - 1, endChapter);
 
-      for (let j = i; j < Math.min(i + parallelCount, endChapter + 1); j++) {
+      for (let j = i; j <= batchEnd; j++) {
+        const chapterNum = j;
         batch.push(
-          this.generateChapter(project, j, truthFiles, options)
-            .then(result => ({ chapter: result.chapter, chapterNumber: j }))
+          this.generateChapter(project, chapterNum, truthFiles, {
+            ...options,
+            autoAudit: false
+          })
+            .then(result => ({ chapter: result.chapter, chapterNumber: chapterNum, success: true }))
+            .catch(error => {
+              console.error(`并行章节${chapterNum}生成失败:`, error);
+              return { chapter: null as any, chapterNumber: chapterNum, success: false };
+            })
         );
       }
 
-      const results = await Promise.all(batch);
+      const results = await Promise.allSettled(batch);
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.success) {
+          chapters.push(result.value.chapter);
+          onProgress?.(chapters.length, total, result.value.chapter);
+        }
+      }
 
-      for (const result of results.sort((a, b) => a.chapterNumber - b.chapterNumber)) {
+      if (batch.length > 1) {
+        console.log(`批次 ${i}-${batchEnd} 并行完成，该批次内无上下文同步`);
+      }
+    }
+    
+    return chapters;
+  }
+
+  /**
+   * 自适应批次执行（根据性能动态调整并行数）
+   */
+  private async executeAdaptiveBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    truthFiles: TruthFiles,
+    options: WritingOptions | undefined,
+    chapters: Chapter[],
+    total: number,
+    onProgress?: (current: number, total: number, chapter?: Chapter) => void
+  ): Promise<Chapter[]> {
+    let currentParallelCount = this.adaptiveConfig.initialParallelCount;
+    let consecutiveSlowChapters = 0;
+    
+    for (let i = startChapter; i <= endChapter; i += currentParallelCount) {
+      if (this.isAborted) {
+        console.warn('自适应批次生成已中止');
+        break;
+      }
+      
+      const batchEnd = Math.min(i + currentParallelCount - 1, endChapter);
+      const batchStartTime = Date.now();
+      
+      const batch: Promise<{ chapter: Chapter; chapterNumber: number; success: boolean; elapsed: number }>[] = [];
+      
+      for (let j = i; j <= batchEnd; j++) {
+        const chapterNum = j;
+        const chapterStartTime = Date.now();
+        
+        batch.push(
+          this.generateChapter(project, chapterNum, truthFiles, options)
+            .then(result => ({
+              chapter: result.chapter,
+              chapterNumber: chapterNum,
+              success: true,
+              elapsed: Date.now() - chapterStartTime
+            }))
+            .catch(error => {
+              console.error(`自适应章节${chapterNum}生成失败:`, error);
+              return { chapter: null as any, chapterNumber: chapterNum, success: false, elapsed: Date.now() - chapterStartTime };
+            })
+        );
+      }
+
+      const results = await Promise.allSettled(batch);
+      const batchElapsed = Date.now() - batchStartTime;
+      
+      let successCount = 0;
+      let avgChapterTime = 0;
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          if (result.value.success) {
+            chapters.push(result.value.chapter);
+            onProgress?.(chapters.length, total, result.value.chapter);
+            successCount++;
+          }
+          avgChapterTime += result.value.elapsed;
+        }
+      }
+      
+      avgChapterTime = successCount > 0 ? avgChapterTime / successCount : avgChapterTime;
+      
+      if (avgChapterTime > this.adaptiveConfig.slowChapterThreshold) {
+        consecutiveSlowChapters++;
+        if (consecutiveSlowChapters >= 2 && currentParallelCount > this.adaptiveConfig.minParallelCount) {
+          currentParallelCount = Math.max(
+            this.adaptiveConfig.minParallelCount,
+            currentParallelCount - this.adaptiveConfig.slowDownDecrement
+          );
+          console.log(`检测到性能下降，降低并行数至 ${currentParallelCount}`);
+          consecutiveSlowChapters = 0;
+        }
+      } else {
+        consecutiveSlowChapters = 0;
+        if (currentParallelCount < this.adaptiveConfig.maxParallelCount) {
+          currentParallelCount = Math.min(
+            this.adaptiveConfig.maxParallelCount,
+            currentParallelCount + this.adaptiveConfig.speedUpIncrement
+          );
+          console.log(`性能良好，增加并行数至 ${currentParallelCount}`);
+        }
+      }
+    }
+    
+    return chapters;
+  }
+
+  /**
+   * 智能批次执行（结合顺序和并行优点）
+   * 使用流水线模式：主线程顺序生成，同时预热下一批
+   */
+  private async executeIntelligentBatch(
+    project: NovelProject,
+    startChapter: number,
+    endChapter: number,
+    truthFiles: TruthFiles,
+    options: WritingOptions | undefined,
+    chapters: Chapter[],
+    total: number,
+    onProgress?: (current: number, total: number, chapter?: Chapter) => void
+  ): Promise<Chapter[]> {
+    const warmupQueue: Map<number, Promise<{ chapter: Chapter } | null>> = new Map();
+    const pipelineDepth = 2;
+    
+    for (let i = startChapter; i <= endChapter; i++) {
+      if (this.isAborted) {
+        console.warn('智能批次生成已中止');
+        break;
+      }
+      
+      if (this.syncOptions.enableSequentialSync) {
+        await this.waitForPreviousChaptersWithRetry(i, ['completed']);
+      }
+      
+      if (warmupQueue.has(i)) {
+        const result = await warmupQueue.get(i);
+        warmupQueue.delete(i);
+        
+        if (result) {
+          chapters.push(result.chapter);
+          onProgress?.(chapters.length, total, result.chapter);
+        }
+      } else {
+        const result = await this.generateChapter(project, i, truthFiles, options);
         chapters.push(result.chapter);
         onProgress?.(chapters.length, total, result.chapter);
       }
+      
+      for (let j = i + 1; j <= Math.min(i + pipelineDepth, endChapter); j++) {
+        if (!warmupQueue.has(j)) {
+          const warmupPromise = this.generateChapter(project, j, truthFiles, options)
+            .catch(error => {
+              console.warn(`预热章节${j}失败:`, error.message);
+              return null;
+            });
+          warmupQueue.set(j, warmupPromise);
+        }
+      }
     }
+    
+    for (const [_, promise] of warmupQueue) {
+      const result = await promise;
+      if (result) {
+        chapters.push(result.chapter);
+      }
+    }
+    
+    return chapters;
   }
 
   /**

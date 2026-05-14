@@ -18,6 +18,8 @@ export { OfflineModeManager, offlineModeManager, OfflineAuditor, OfflineConsiste
 export { AIAuditEngine, AIAuditEngineConfig } from './modules/AIAudit/AIAuditEngine';
 export { AuditEngine, AuditResult, AuditDimension, AuditIssue } from './modules/AIAudit/AuditEngineImpl';
 export { TruthFileManager } from './modules/TruthFiles/TruthFileManager';
+export { ExportManager, ExportOptions, ExportResult, ExportTemplate, ExportFormat } from './modules/ExportManager/ExportManager';
+export { ImportManager, ImportOptions, ImportResult, ImportFormat } from './modules/ImportManager/ImportManager';
 export { WritingPipeline } from './modules/WritingEngine/WritingPipeline';
 export { ContextManager } from './modules/ContextManager/ContextManager';
 export { WorldInfoManager } from './modules/WorldInfo/WorldInfoManager';
@@ -31,10 +33,11 @@ export { AgentSystem, AgentTask, AgentResponse } from './modules/AgentSystem/Age
 export { DaemonService } from './modules/DaemonService/DaemonService';
 export { SevenStepMethodology, StepResult } from './modules/SevenStepMethodology/SevenStepMethodology';
 export { GenreConfigManager, GenreTemplate } from './modules/GenreConfig/GenreConfigManager';
-export { PluginSystem } from './modules/PluginSystem/PluginSystem';
+export { PluginSystem, PluginContext, HookPayload, CommandResult, LuaPluginInfo } from './modules/PluginSystem/PluginSystem';
+export { LuaInterpreter, LuaPlugin, LuaExecutionResult, LuaValue } from './modules/PluginSystem/LuaInterpreter';
 export { CoverGenerator, CoverDesign } from './modules/CoverGenerator/CoverGenerator';
 export { MindMapGenerator, MindMapData } from './modules/MindMapGenerator/MindMapGenerator';
-export { TrendAnalyzer, TrendReport, CompetitorAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
+export { TrendAnalyzer, TrendData, MarketTrend, CompetitiveAnalysis } from './modules/TrendAnalyzer/TrendAnalyzer';
 export { I18nManager } from './modules/I18nManager/I18nManager';
 export { GlobalLiteraryConfig } from './modules/GlobalLiterary/GlobalLiteraryConfig';
 export { LocalAPIServer, OfflineLLMManager, APIKeyConfig } from './modules/LocalAPI/LocalAPIServer';

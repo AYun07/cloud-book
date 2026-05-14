@@ -1,114 +1,78 @@
 /**
- * Trend Analyzer - 扫榜分析模块
- * 分析平台趋势和竞品
+ * 趋势分析器
+ * 支持市场趋势分析和数据展示
+ *
+ * 注意：此模块目前不包含真实的网络爬虫功能，仅提供静态分析和样本数据展示
  */
-import { LLMManager } from '../LLMProvider/LLMManager';
-import { Genre } from '../../types';
-export interface TrendReport {
-    generatedAt: Date;
+import { TrendAnalysisConfig, TrendReport } from '../../types';
+export interface TrendData {
     platform: string;
-    genre: Genre;
-    hotElements: TrendElement[];
-    successfulPatterns: Pattern[];
-    marketGaps: Gap[];
-    recommendations: Recommendation[];
-}
-export interface TrendElement {
-    name: string;
+    category: string;
+    title: string;
+    author?: string;
     popularity: number;
-    trend: 'rising' | 'stable' | 'declining';
-    examples: string[];
+    trend: 'rising' | 'falling' | 'stable';
+    wordCount?: number;
+    updateFrequency?: string;
+    tags: string[];
+    rating?: number;
+    chapters?: number;
+    subscribers?: number;
+    views?: number;
+    engagement?: number;
+    lastUpdated: Date;
 }
-export interface Pattern {
-    name: string;
-    description: string;
-    frequency: number;
-    successRate: number;
+export interface MarketTrend {
+    category: string;
+    demand: 'high' | 'medium' | 'low';
+    saturation: number;
+    growth: number;
+    competition: number;
+    bestTimeToEnter: string;
+    risk: 'high' | 'medium' | 'low';
+    recommendations: string[];
 }
-export interface Gap {
-    name: string;
-    description: string;
-    opportunity: 'high' | 'medium' | 'low';
-}
-export interface Recommendation {
-    type: 'plot' | 'character' | 'world' | 'writing';
-    suggestion: string;
-    priority: 'high' | 'medium' | 'low';
-    reason: string;
-}
-export interface CompetitorAnalysis {
+export interface CompetitiveAnalysis {
     title: string;
     author: string;
-    genre: Genre;
-    wordCount: number;
-    updateFrequency: string;
-    hotElements: string[];
-    strengths: string[];
-    weaknesses: string[];
-    readerReviews: string[];
-}
-export interface BookAnalysis {
-    basicInfo: {
-        title: string;
-        author: string;
-        genre: string;
-        wordCount: number;
-        chapters: number;
-        status: 'ongoing' | 'completed';
-    };
-    structure: {
-        openingHook: string;
-        mainConflict: string;
-        subplots: string[];
-        pacingAssessment: string;
-    };
-    characterDesign: {
-        protagonistType: string;
-        supportingCast: string[];
-        relationshipDynamics: string;
-    };
-    marketPerformance: {
-        ranking: number;
-        subscriberCount: string;
-        reviewCount: number;
-        rating: number;
-    };
+    platform: string;
+    strength: string[];
+    weakness: string[];
+    uniquePoints: string[];
+    lessons: string[];
 }
 export declare class TrendAnalyzer {
-    private llmManager;
-    constructor(llmManager: LLMManager);
-    analyzeTrends(platform: string, genre: Genre, options?: {
-        timeRange?: 'week' | 'month' | 'quarter';
-        sampleSize?: number;
-    }): Promise<TrendReport>;
-    analyzeCompetitor(bookInfo: {
-        title?: string;
-        url?: string;
-        genre?: Genre;
-    }): Promise<CompetitorAnalysis>;
-    analyzeBook(content: string, metadata?: Record<string, any>): Promise<BookAnalysis>;
-    compareBooks(book1: string, book2: string): Promise<{
-        similarities: string[];
-        differences: string[];
-        recommendation: string;
-    }>;
-    generateInspiration(genre: Genre, inspirationType?: 'plot' | 'character' | 'world' | 'all'): Promise<string[]>;
-    private buildTrendPrompt;
-    private buildCompetitorPrompt;
-    private buildBookAnalysisPrompt;
-    private parseTrendReport;
-    private parseCompetitorAnalysis;
-    private parseBookAnalysis;
-    private parseComparison;
-    private parseInspirationList;
-    private extractTrendElements;
-    private extractPatterns;
-    private extractGaps;
-    private extractRecommendations;
-    private extractField;
-    private extractSection;
-    private extractList;
-    private extractReviews;
+    private config;
+    private cache;
+    private cacheDuration;
+    constructor(config?: Partial<TrendAnalysisConfig>);
+    analyzeTrends(): Promise<TrendReport>;
+    private fetchPlatformData;
+    private getQidianSampleData;
+    private getJjwxcSampleData;
+    private getZonghengSampleData;
+    private getSfhSampleData;
+    private getGenericSampleData;
+    private analyzeMarketTrends;
+    private getTopGenres;
+    private getRisingTopics;
+    private getAudienceInsights;
+    private generateRecommendations;
+    getCompetitiveAnalysis(title: string): Promise<CompetitiveAnalysis[]>;
+    private findSimilarWorks;
+    private analyzeStrength;
+    private analyzeWeakness;
+    private analyzeUniquePoints;
+    private extractLessons;
+    clearCache(): void;
+    setCacheDuration(duration: number): void;
+    analyzeCompetitor(title: string): Promise<CompetitiveAnalysis[]>;
+    generateInspiration(genre: string): Promise<string[]>;
+    analyzeMarket(genre?: string): Promise<MarketTrend[]>;
+    generateCompetitorReport(title: string): Promise<CompetitiveAnalysis[]>;
+    generateTrendInsights(): Promise<{
+        insight: string;
+        source: string;
+    }[]>;
 }
-export default TrendAnalyzer;
 //# sourceMappingURL=TrendAnalyzer.d.ts.map

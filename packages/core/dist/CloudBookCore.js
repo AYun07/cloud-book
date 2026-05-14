@@ -3,22 +3,59 @@
  * Cloud Book - 核心引擎
  * 基于统一存储的简化实现
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CloudBookCore = void 0;
+const path = __importStar(require("path"));
 const storage_1 = require("./utils/storage");
 const errors_1 = require("./utils/errors");
 const LLMManager_1 = require("./modules/LLMProvider/LLMManager");
 const MemoryManager_1 = require("./modules/Memory/MemoryManager");
+const TruthFileManager_1 = require("./modules/TruthFiles/TruthFileManager");
 class CloudBookCore {
     storage;
     llmManager;
     memoryManager;
+    truthFileManager;
     constructor(options = {}) {
         this.storage = options.storage || new storage_1.UnifiedStorage({
             basePath: options.dataPath || './data/cloudbook'
         });
         this.llmManager = options.llmManager || new LLMManager_1.LLMManager();
         this.memoryManager = new MemoryManager_1.MemoryManager();
+        this.truthFileManager = new TruthFileManager_1.TruthFileManager(path.join(options.dataPath || './data/cloudbook', 'truth-files'));
     }
     async initialize() {
         await this.memoryManager.initialize('default');
@@ -73,15 +110,21 @@ class CloudBookCore {
                                 allFiles.push(fullPath);
                             }
                         }
-                        catch { }
+                        catch (error) {
+                            console.warn(`CloudBook.listProjects: Error checking path ${fullPath}:`, error);
+                        }
                     }
                 }
-                catch { }
+                catch (error) {
+                    console.warn(`CloudBook.listProjects: Error listing directory ${dirPath}:`, error);
+                }
             };
             try {
                 await listDir('projects');
             }
-            catch { }
+            catch (error) {
+                console.warn('CloudBook.listProjects: Error listing projects directory:', error);
+            }
             const projects = [];
             for (const file of allFiles) {
                 if (file.endsWith('meta.json') && file.includes('/projects/')) {
@@ -89,7 +132,9 @@ class CloudBookCore {
                         const content = await this.storage.read(file);
                         projects.push(JSON.parse(content));
                     }
-                    catch { }
+                    catch (error) {
+                        console.warn(`CloudBook.listProjects: Error reading project file ${file}:`, error);
+                    }
                 }
             }
             return projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -141,22 +186,30 @@ class CloudBookCore {
                                 allFiles.push(fullPath);
                             }
                         }
-                        catch { }
+                        catch (error) {
+                            console.warn(`CloudBook.deleteProject: Error checking path ${fullPath}:`, error);
+                        }
                     }
                 }
-                catch { }
+                catch (error) {
+                    console.warn(`CloudBook.deleteProject: Error listing directory ${dirPath}:`, error);
+                }
             };
             await listDir(`projects/${projectId}`);
             for (const file of allFiles.reverse()) {
                 try {
                     await this.storage.delete(file, false);
                 }
-                catch { }
+                catch (error) {
+                    console.warn(`CloudBook.deleteProject: Error deleting file ${file}:`, error);
+                }
             }
             try {
                 await this.storage.delete(`projects/${projectId}`, false);
             }
-            catch { }
+            catch (error) {
+                console.warn(`CloudBook.deleteProject: Error deleting project directory:`, error);
+            }
         }
         catch (error) {
             throw (0, errors_1.handleError)(error, 'CloudBook.deleteProject');
@@ -322,56 +375,43 @@ class CloudBookCore {
         }
     }
     async getTruthFiles(projectId) {
-        const project = await this.getProject(projectId);
-        if (!project) {
-            throw new errors_1.CloudBookError('Project not found', 'NOT_FOUND', { projectId }, 404);
+        try {
+            return await this.truthFileManager.getTruthFiles(projectId);
         }
-        const characters = [];
-        if (project.characters) {
-            for (const char of project.characters) {
-                const fullChar = await this.getCharacter(projectId, char.id);
-                if (fullChar)
-                    characters.push(fullChar);
-            }
+        catch (error) {
+            // 如果文件不存在，初始化
+            return await this.truthFileManager.initialize(projectId);
         }
-        const chapters = [];
-        if (project.chapters) {
-            for (const ch of project.chapters) {
-                const fullCh = await this.getChapter(projectId, ch.id);
-                if (fullCh)
-                    chapters.push(fullCh);
-            }
-        }
-        const summaries = chapters.map(c => ({
-            chapterId: c.id,
-            chapterNumber: c.number,
-            title: c.title,
-            charactersPresent: c.characters || [],
-            keyEvents: [],
-            stateChanges: [],
-            newHooks: [],
-            resolvedHooks: []
-        }));
-        return {
-            currentState: {
-                protagonist: {
-                    id: characters[0]?.id || '',
-                    name: characters[0]?.name || '',
-                    location: '',
-                    status: ''
-                },
-                knownFacts: [],
-                currentConflicts: [],
-                relationshipSnapshot: {},
-                activeSubplots: []
-            },
-            particleLedger: [],
-            pendingHooks: [],
-            chapterSummaries: summaries,
-            subplotBoard: [],
-            emotionalArcs: [],
-            characterMatrix: []
-        };
+    }
+    async updateChapterSummary(projectId, chapter) {
+        await this.truthFileManager.updateChapterSummary(projectId, chapter);
+    }
+    async updateWorldState(projectId, state) {
+        await this.truthFileManager.updateWorldState(projectId, state);
+    }
+    async addResource(projectId, resource) {
+        await this.truthFileManager.addResource(projectId, resource);
+    }
+    async addHook(projectId, hook) {
+        await this.truthFileManager.addHook(projectId, hook);
+    }
+    async fulfillHook(projectId, hookId, chapterNumber) {
+        await this.truthFileManager.fulfillHook(projectId, hookId, chapterNumber);
+    }
+    async addCharacterInteraction(projectId, characterId1, characterId2, chapterNumber, type, summary) {
+        await this.truthFileManager.addCharacterInteraction(projectId, characterId1, characterId2, chapterNumber, type, summary);
+    }
+    async updateEmotionalArc(projectId, characterId, characterName, chapterNumber, emotion, intensity) {
+        await this.truthFileManager.updateEmotionalArc(projectId, characterId, characterName, chapterNumber, emotion, intensity);
+    }
+    async validateChapter(projectId, chapter, characters) {
+        return await this.truthFileManager.validateChapter(projectId, chapter, characters);
+    }
+    async validateProject(projectId, chapters, characters, worldTimeline) {
+        return await this.truthFileManager.validateProject(projectId, chapters, characters, worldTimeline);
+    }
+    async getContextSummary(projectId, chapterNumber) {
+        return await this.truthFileManager.getContextSummary(projectId, chapterNumber);
     }
     countWords(text) {
         const chinese = (text.match(/[\u4e00-\u9fa5]/g) || []).length;

@@ -1,17 +1,69 @@
 "use strict";
 /**
  * Plugin System - 插件系统
- * 支持扩展命令和钩子
+ * 支持扩展命令、钩子以及 Lua 风格扩展
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AVAILABLE_COMMANDS = exports.AVAILABLE_HOOKS = exports.PluginSystem = void 0;
+const LuaInterpreter_1 = require("./LuaInterpreter");
 class PluginSystem {
     plugins = new Map();
     commands = new Map();
     hooks = new Map();
     storagePath;
+    luaPlugins = new Map();
+    luaInterpreters = new Map();
+    defaultLuaInterpreter;
+    luaBridgeFunctions = new Map();
     constructor(storagePath = './data/plugins') {
         this.storagePath = storagePath;
+        this.defaultLuaInterpreter = new LuaInterpreter_1.LuaInterpreter();
+        this.setupLuaBridge();
+    }
+    currentContext = {};
+    setupLuaBridge() {
+        this.registerLuaBridgeFunction('log', (args) => {
+            const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            console.log('[Lua]', message);
+            return message;
+        });
+        this.registerLuaBridgeFunction('getContext', () => {
+            return this.currentContext;
+        });
+        this.registerLuaBridgeFunction('setContext', (args) => {
+            const [key, value] = args;
+            if (typeof key === 'string') {
+                this.currentContext[key] = value;
+                return { key, value, success: true };
+            }
+            return { success: false, error: 'Key must be a string' };
+        });
+        this.registerLuaBridgeFunction('executeCommand', async (args) => {
+            const [commandName, params] = args;
+            if (typeof commandName !== 'string') {
+                return { success: false, error: 'Command name must be a string' };
+            }
+            try {
+                const result = await this.executeCommand(commandName, params || {}, this.currentContext);
+                return result;
+            }
+            catch (error) {
+                return { success: false, error: error.message };
+            }
+        });
+        this.registerLuaBridgeFunction('triggerHook', async (args) => {
+            const [hookName, data] = args;
+            if (typeof hookName !== 'string') {
+                return { success: false, error: 'Hook name must be a string' };
+            }
+            try {
+                await this.triggerHook(hookName, { ...this.currentContext, data });
+                return { success: true, hookName };
+            }
+            catch (error) {
+                return { success: false, error: error.message };
+            }
+        });
     }
     async register(plugin) {
         if (this.plugins.has(plugin.id)) {
@@ -141,6 +193,194 @@ class PluginSystem {
         catch (error) {
             console.error('Failed to load plugin state:', error);
         }
+    }
+    async loadLuaPlugin(pluginConfig) {
+        if (this.luaPlugins.has(pluginConfig.id)) {
+            return { success: false, error: `Lua plugin ${pluginConfig.id} is already loaded` };
+        }
+        try {
+            const interpreter = new LuaInterpreter_1.LuaInterpreter();
+            this.setupLuaBridgeFunctions(interpreter);
+            const result = interpreter.execute(pluginConfig.script);
+            if (!result.success) {
+                return { success: false, error: result.error };
+            }
+            const luaPlugin = {
+                id: pluginConfig.id,
+                name: pluginConfig.name,
+                script: pluginConfig.script,
+                enabled: true
+            };
+            this.luaPlugins.set(pluginConfig.id, luaPlugin);
+            this.luaInterpreters.set(pluginConfig.id, interpreter);
+            return { success: true };
+        }
+        catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    setupLuaBridgeFunctions(interpreter) {
+        this.luaBridgeFunctions.forEach((fn, name) => {
+            interpreter.setGlobal(name, {
+                type: 'function',
+                value: (args) => {
+                    const jsArgs = args.map(a => this.luaValueToJs(a));
+                    const result = fn(jsArgs);
+                    return this.jsToLuaValue(result);
+                }
+            });
+        });
+    }
+    executeLuaScript(script, pluginId) {
+        const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+        if (!interpreter) {
+            return { success: false, error: 'Lua interpreter not found' };
+        }
+        if (pluginId) {
+            this.setupLuaBridgeFunctions(interpreter);
+        }
+        return interpreter.execute(script);
+    }
+    executeLuaFunction(pluginId, functionName, ...args) {
+        const interpreter = this.luaInterpreters.get(pluginId);
+        if (!interpreter) {
+            return { success: false, error: `Lua plugin ${pluginId} not found` };
+        }
+        try {
+            const globalFn = interpreter.getGlobal(functionName);
+            if (!globalFn || globalFn.type !== 'function') {
+                return { success: false, error: `Function ${functionName} not found` };
+            }
+            const luaArgs = args.map(a => this.jsToLuaValue(a));
+            if (typeof globalFn.value === 'function') {
+                const result = globalFn.value(luaArgs);
+                return { success: true, returnValue: result };
+            }
+            else {
+                const func = globalFn.value;
+                const funcScope = new Map(func.closure);
+                for (let i = 0; i < func.params.length; i++) {
+                    funcScope.set(func.params[i], luaArgs[i] || { type: 'nil', value: null });
+                }
+                let result = { type: 'nil', value: null };
+                for (const stmt of func.body) {
+                    result = interpreter.executeStatement(stmt, funcScope);
+                }
+                return { success: true, returnValue: result };
+            }
+        }
+        catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    unloadLuaPlugin(pluginId) {
+        if (!this.luaPlugins.has(pluginId)) {
+            return { success: false, error: `Lua plugin ${pluginId} not found` };
+        }
+        this.luaPlugins.delete(pluginId);
+        this.luaInterpreters.delete(pluginId);
+        return { success: true };
+    }
+    enableLuaPlugin(pluginId) {
+        const plugin = this.luaPlugins.get(pluginId);
+        if (!plugin) {
+            return { success: false, error: `Lua plugin ${pluginId} not found` };
+        }
+        plugin.enabled = true;
+        return { success: true };
+    }
+    disableLuaPlugin(pluginId) {
+        const plugin = this.luaPlugins.get(pluginId);
+        if (!plugin) {
+            return { success: false, error: `Lua plugin ${pluginId} not found` };
+        }
+        plugin.enabled = false;
+        return { success: true };
+    }
+    getLuaPlugins() {
+        return Array.from(this.luaPlugins.values()).map(p => ({
+            id: p.id,
+            name: p.name,
+            enabled: p.enabled,
+            registeredAt: new Date()
+        }));
+    }
+    getLuaPlugin(pluginId) {
+        return this.luaPlugins.get(pluginId);
+    }
+    registerLuaBridgeFunction(name, fn) {
+        this.luaBridgeFunctions.set(name, fn);
+    }
+    setLuaGlobal(pluginId, name, value) {
+        const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+        if (interpreter) {
+            interpreter.setGlobal(name, this.jsToLuaValue(value));
+        }
+    }
+    getLuaGlobal(pluginId, name) {
+        const interpreter = pluginId ? this.luaInterpreters.get(pluginId) : this.defaultLuaInterpreter;
+        if (interpreter) {
+            const value = interpreter.getGlobal(name);
+            return value ? this.luaValueToJs(value) : undefined;
+        }
+        return undefined;
+    }
+    jsToLuaValue(value) {
+        if (value === null || value === undefined)
+            return { type: 'nil', value: null };
+        if (typeof value === 'number')
+            return { type: 'number', value };
+        if (typeof value === 'string')
+            return { type: 'string', value };
+        if (typeof value === 'boolean')
+            return { type: 'boolean', value };
+        if (Array.isArray(value)) {
+            return {
+                type: 'table',
+                value: {
+                    array: value.map(v => this.jsToLuaValue(v)),
+                    dict: new Map()
+                }
+            };
+        }
+        if (typeof value === 'object') {
+            const dict = new Map();
+            for (const [k, v] of Object.entries(value)) {
+                dict.set(k, this.jsToLuaValue(v));
+            }
+            return { type: 'table', value: { array: [], dict } };
+        }
+        return { type: 'userdata', value };
+    }
+    luaValueToJs(value) {
+        switch (value.type) {
+            case 'nil': return null;
+            case 'number': return value.value;
+            case 'string': return value.value;
+            case 'boolean': return value.value;
+            case 'table':
+                const table = value.value;
+                const hasNumericKeys = table.array.length > 0;
+                const hasStringKeys = table.dict.size > 0;
+                if (hasNumericKeys && !hasStringKeys) {
+                    return table.array.map(v => this.luaValueToJs(v));
+                }
+                const obj = {};
+                for (let i = 0; i < table.array.length; i++) {
+                    obj[String(i + 1)] = this.luaValueToJs(table.array[i]);
+                }
+                table.dict.forEach((v, k) => {
+                    obj[k] = this.luaValueToJs(v);
+                });
+                return obj;
+            default: return value.value;
+        }
+    }
+    hasLuaSupport() {
+        return true;
+    }
+    getLuaVersion() {
+        return '5.3';
     }
 }
 exports.PluginSystem = PluginSystem;
