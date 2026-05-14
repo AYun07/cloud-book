@@ -37,6 +37,7 @@ export type ModelProvider =
   | 'zhipu'
   | 'minimax'
   | 'doubao'
+  | 'moonshot'
   // 更多国外模型
   | 'modal'
   | 'banana'
@@ -59,14 +60,30 @@ export interface ModelInfo {
 }
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
-  // OpenAI 系列
+  // ==================== OpenAI 系列 ====================
   {
     name: 'gpt-4o',
     provider: 'openai',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 128000,
-    description: 'GPT-4o - 最强全能模型'
+    description: 'GPT-4o - 最新旗舰模型'
+  },
+  {
+    name: 'gpt-4o-2024-11-20',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4o 最新版本'
+  },
+  {
+    name: 'gpt-4o-2024-08-06',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4o 稳定版本'
   },
   {
     name: 'gpt-4o-mini',
@@ -77,12 +94,68 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     description: 'GPT-4o Mini - 高性价比'
   },
   {
+    name: 'gpt-4o-mini-2024-07-18',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4o Mini 指定版本'
+  },
+  {
+    name: 'gpt-4.1',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1047576,
+    description: 'GPT-4.1 - 超大上下文'
+  },
+  {
+    name: 'gpt-4.1-mini',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1047576,
+    description: 'GPT-4.1 Mini - 平衡版'
+  },
+  {
+    name: 'gpt-4.1-nano',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1047576,
+    description: 'GPT-4.1 Nano - 轻量版'
+  },
+  {
     name: 'gpt-4-turbo',
     provider: 'openai',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 128000,
-    description: 'GPT-4 Turbo - 快速且强大'
+    description: 'GPT-4 Turbo - 快速强大'
+  },
+  {
+    name: 'gpt-4-turbo-2024-04-09',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GPT-4 Turbo 指定版本'
+  },
+  {
+    name: 'gpt-4',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'GPT-4 原始版本'
+  },
+  {
+    name: 'gpt-4-32k',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'GPT-4 32K上下文'
   },
   {
     name: 'gpt-3.5-turbo',
@@ -92,7 +165,123 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     maxTokens: 16385,
     description: 'GPT-3.5 Turbo - 轻量快速'
   },
-  // Anthropic Claude 系列
+  {
+    name: 'gpt-3.5-turbo-16k',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16385,
+    description: 'GPT-3.5 Turbo 16K'
+  },
+  {
+    name: 'o1',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'O1 - 深度推理模型'
+  },
+  {
+    name: 'o1-preview',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'O1 Preview - 推理预览版'
+  },
+  {
+    name: 'o1-mini',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'O1 Mini - 轻量推理'
+  },
+  {
+    name: 'o3-mini',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'O3 Mini - 最新推理模型'
+  },
+  {
+    name: 'chatgpt-4o-latest',
+    provider: 'openai',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'ChatGPT-4o 最新版'
+  },
+  // OpenAI Embedding
+  {
+    name: 'text-embedding-3-small',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'OpenAI Embedding Small'
+  },
+  {
+    name: 'text-embedding-3-large',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'OpenAI Embedding Large'
+  },
+  {
+    name: 'text-embedding-ada-002',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'OpenAI Ada Embedding'
+  },
+  // OpenAI Image
+  {
+    name: 'dall-e-3',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'DALL-E 3 - 图像生成'
+  },
+  {
+    name: 'dall-e-2',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'DALL-E 2 - 图像生成'
+  },
+  // OpenAI Audio
+  {
+    name: 'whisper-1',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 262144,
+    description: 'Whisper - 语音识别'
+  },
+  {
+    name: 'tts-1',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'TTS-1 - 文本转语音'
+  },
+  {
+    name: 'tts-1-hd',
+    provider: 'openai',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'TTS-1 HD - 高清语音'
+  },
+
+  // ==================== Anthropic Claude 系列 ====================
   {
     name: 'claude-sonnet-4-20250514',
     provider: 'anthropic',
@@ -117,14 +306,63 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     maxTokens: 200000,
     description: 'Claude Haiku 4 - 快速轻量'
   },
-  // Google Gemini 系列
+  {
+    name: 'claude-3-5-sonnet-20241022',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3.5 Sonnet 最新'
+  },
+  {
+    name: 'claude-3-5-sonnet-20240620',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3.5 Sonnet'
+  },
+  {
+    name: 'claude-3-5-haiku-20241022',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3.5 Haiku'
+  },
+  {
+    name: 'claude-3-opus-20240229',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3 Opus'
+  },
+  {
+    name: 'claude-3-sonnet-20240229',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3 Sonnet'
+  },
+  {
+    name: 'claude-3-haiku-20240307',
+    provider: 'anthropic',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 200000,
+    description: 'Claude 3 Haiku'
+  },
+
+  // ==================== Google Gemini 系列 ====================
   {
     name: 'gemini-2.5-flash-preview-05-20',
     provider: 'gemini',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 1048576,
-    description: 'Gemini 2.5 Flash - 高速度'
+    description: 'Gemini 2.5 Flash Preview'
   },
   {
     name: 'gemini-2.5-pro-preview-05-06',
@@ -132,16 +370,90 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 1048576,
-    description: 'Gemini 2.5 Pro - 最强推理'
+    description: 'Gemini 2.5 Pro Preview'
   },
-  // DeepSeek 系列
+  {
+    name: 'gemini-2.0-flash',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 2.0 Flash'
+  },
+  {
+    name: 'gemini-2.0-flash-lite',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 2.0 Flash Lite'
+  },
+  {
+    name: 'gemini-2.0-pro-exp-02-05',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 2.0 Pro Experimental'
+  },
+  {
+    name: 'gemini-1.5-pro',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 2097152,
+    description: 'Gemini 1.5 Pro - 超长上下文'
+  },
+  {
+    name: 'gemini-1.5-flash',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 1.5 Flash'
+  },
+  {
+    name: 'gemini-1.5-flash-8b',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'Gemini 1.5 Flash 8B'
+  },
+  {
+    name: 'gemini-1.0-pro',
+    provider: 'gemini',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32760,
+    description: 'Gemini 1.0 Pro'
+  },
+  // Gemini Embedding
+  {
+    name: 'text-embedding-004',
+    provider: 'gemini',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: 'Gemini Text Embedding'
+  },
+  {
+    name: 'embedding-001',
+    provider: 'gemini',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: 'Gemini Embedding'
+  },
+
+  // ==================== DeepSeek 系列 ====================
   {
     name: 'deepseek-chat',
     provider: 'deepseek',
     streamingMode: 'true',
-    supportsEmbedding: true,
+    supportsEmbedding: false,
     maxTokens: 64000,
-    description: 'DeepSeek Chat - 主写作模型'
+    description: 'DeepSeek Chat - 通用对话'
   },
   {
     name: 'deepseek-coder',
@@ -151,14 +463,55 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     maxTokens: 16384,
     description: 'DeepSeek Coder - 代码专家'
   },
-  // Mistral AI 系列
+  {
+    name: 'deepseek-reasoner',
+    provider: 'deepseek',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek Reasoner - 深度推理'
+  },
+  {
+    name: 'deepseek-r1',
+    provider: 'deepseek',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek R1 - 推理模型'
+  },
+  {
+    name: 'deepseek-v3',
+    provider: 'deepseek',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek V3 - 最新版本'
+  },
+
+  // ==================== Mistral AI 系列 ====================
+  {
+    name: 'mistral-large-2411',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Mistral Large 最新版'
+  },
   {
     name: 'mistral-large-2407',
     provider: 'mistral',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 128000,
-    description: 'Mistral Large - 欧洲最强模型'
+    description: 'Mistral Large'
+  },
+  {
+    name: 'mistral-small-2501',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32000,
+    description: 'Mistral Small 最新版'
   },
   {
     name: 'mistral-small-2409',
@@ -166,7 +519,15 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 32000,
-    description: 'Mistral Small - 高性价比'
+    description: 'Mistral Small'
+  },
+  {
+    name: 'codestral-2501',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: 'Codestral 最新版'
   },
   {
     name: 'codestral-2405',
@@ -176,14 +537,136 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     maxTokens: 32000,
     description: 'Codestral - 代码专家'
   },
-  // Groq 系列
+  {
+    name: 'ministral-8b-2410',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Ministral 8B - 边缘部署'
+  },
+  {
+    name: 'ministral-3b-2410',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Ministral 3B - 超轻量'
+  },
+  {
+    name: 'open-mistral-7b',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32000,
+    description: 'Mistral 7B 开源版'
+  },
+  {
+    name: 'open-mixtral-8x7b',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32000,
+    description: 'Mixtral 8x7B 开源版'
+  },
+  {
+    name: 'open-mixtral-8x22b',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 65536,
+    description: 'Mixtral 8x22B 开源版'
+  },
+  {
+    name: 'pixtral-12b-2409',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Pixtral 12B - 多模态'
+  },
+  {
+    name: 'pixtral-large-2411',
+    provider: 'mistral',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Pixtral Large - 多模态旗舰'
+  },
+  // Mistral Embedding
+  {
+    name: 'mistral-embed',
+    provider: 'mistral',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'Mistral Embedding'
+  },
+
+  // ==================== Groq 系列 ====================
+  {
+    name: 'llama-3.3-70b-versatile',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Llama 3.3 70B Versatile'
+  },
+  {
+    name: 'llama-3.3-70b-specdec',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.3 70B Speculative'
+  },
+  {
+    name: 'llama-3.1-8b-instant',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 8B Instant'
+  },
   {
     name: 'llama-3.1-70b-versatile',
     provider: 'groq',
     streamingMode: 'true',
     supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 70B Versatile'
+  },
+  {
+    name: 'llama-3.2-1b-preview',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'Llama 3.1 70B - 超快推理'
+    description: 'Llama 3.2 1B Preview'
+  },
+  {
+    name: 'llama-3.2-3b-preview',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.2 3B Preview'
+  },
+  {
+    name: 'llama-3.2-11b-vision-preview',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.2 11B Vision'
+  },
+  {
+    name: 'llama-3.2-90b-vision-preview',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.2 90B Vision'
   },
   {
     name: 'mixtral-8x7b-32768',
@@ -191,16 +674,97 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 32768,
-    description: 'Mixtral 8x7B - MoE架构'
+    description: 'Mixtral 8x7B'
   },
-  // Together AI 系列
   {
-    name: 'meta-llama/Llama-3-70b-chat-hf',
-    provider: 'together',
+    name: 'gemma2-9b-it',
+    provider: 'groq',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'Llama 3 70B - 开源最强'
+    description: 'Gemma 2 9B'
+  },
+  {
+    name: 'gemma-7b-it',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 7B'
+  },
+  {
+    name: 'deepseek-r1-distill-llama-70b',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'DeepSeek R1 Distill Llama 70B'
+  },
+  {
+    name: 'qwen-2.5-32b',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2.5 32B'
+  },
+  {
+    name: 'qwen-qwq-32b-preview',
+    provider: 'groq',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen QwQ 32B - 推理模型'
+  },
+
+  // ==================== Together AI 系列 ====================
+  {
+    name: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.3 70B Turbo'
+  },
+  {
+    name: 'meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.2 90B Vision'
+  },
+  {
+    name: 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.2 11B Vision'
+  },
+  {
+    name: 'meta-llama/Llama-3.1-405B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 405B - 超大模型'
+  },
+  {
+    name: 'meta-llama/Llama-3.1-70B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 70B Turbo'
+  },
+  {
+    name: 'meta-llama/Llama-3.1-8B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 8B Turbo'
   },
   {
     name: 'mistralai/Mixtral-8x22B-Instruct-v0.1',
@@ -208,16 +772,113 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 65536,
-    description: 'Mixtral 8x22B - 超大MoE'
+    description: 'Mixtral 8x22B'
   },
-  // Perplexity 系列
+  {
+    name: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral 8x7B'
+  },
+  {
+    name: 'mistralai/Mistral-7B-Instruct-v0.3',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mistral 7B v0.3'
+  },
+  {
+    name: 'Qwen/Qwen2.5-72B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2.5 72B Turbo'
+  },
+  {
+    name: 'Qwen/Qwen2.5-7B-Instruct-Turbo',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2.5 7B Turbo'
+  },
+  {
+    name: 'Qwen/Qwen2-72B-Instruct',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2 72B'
+  },
+  {
+    name: 'deepseek-ai/DeepSeek-V3',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek V3'
+  },
+  {
+    name: 'deepseek-ai/DeepSeek-R1',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek R1'
+  },
+  {
+    name: 'google/gemma-2-27B-it',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 2 27B'
+  },
+  {
+    name: 'google/gemma-2-9B-it',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 2 9B'
+  },
+  {
+    name: 'databricks/dbrx-instruct',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'DBRX Instruct'
+  },
+  {
+    name: 'zero-one-ai/Yi-34B-Chat',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Yi 34B Chat'
+  },
+  {
+    name: 'allenai/OLMo-7B-Instruct',
+    provider: 'together',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 2048,
+    description: 'OLMo 7B Instruct'
+  },
+
+  // ==================== Perplexity 系列 ====================
   {
     name: 'sonar',
     provider: 'perplexity',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 127072,
-    description: 'Perplexity Sonar - 实时搜索'
+    description: 'Sonar - 实时搜索'
   },
   {
     name: 'sonar-pro',
@@ -225,50 +886,106 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 127072,
-    description: 'Perplexity Sonar Pro - 深度搜索'
+    description: 'Sonar Pro - 深度搜索'
   },
-  // Cloudflare Workers AI
   {
-    name: '@cf/meta/llama-3.1-8b-instruct',
-    provider: 'cloudflare',
+    name: 'sonar-reasoning',
+    provider: 'perplexity',
     streamingMode: 'true',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Llama 3.1 8B - Cloudflare边缘'
+    maxTokens: 127072,
+    description: 'Sonar Reasoning - 推理搜索'
   },
-  // Replicate 系列
   {
-    name: 'meta/meta-llama-3-70b-instruct',
-    provider: 'replicate',
+    name: 'sonar-reasoning-pro',
+    provider: 'perplexity',
     streamingMode: 'true',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Llama 3 70B - Replicate部署'
-  },
-  // Embedding 模型
-  {
-    name: 'text-embedding-3-small',
-    provider: 'openai',
-    streamingMode: 'false',
-    supportsEmbedding: true,
-    maxTokens: 8192,
-    description: 'OpenAI Embedding - 语义向量模型'
+    maxTokens: 127072,
+    description: 'Sonar Reasoning Pro'
   },
   {
-    name: 'text-embedding-3-large',
-    provider: 'openai',
-    streamingMode: 'false',
-    supportsEmbedding: true,
-    maxTokens: 8192,
-    description: 'OpenAI Embedding Large - 高质量语义向量'
+    name: 'llama-3.1-sonar-small-128k-online',
+    provider: 'perplexity',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 127072,
+    description: 'Sonar Small 128K Online'
   },
+  {
+    name: 'llama-3.1-sonar-large-128k-online',
+    provider: 'perplexity',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 127072,
+    description: 'Sonar Large 128K Online'
+  },
+
+  // ==================== Cohere 系列 ====================
+  {
+    name: 'command-r-plus-08-2024',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Command R+ 最新版'
+  },
+  {
+    name: 'command-r-plus',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Command R+ - 旗舰模型'
+  },
+  {
+    name: 'command-r-08-2024',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Command R 最新版'
+  },
+  {
+    name: 'command-r',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Command R - RAG优化'
+  },
+  {
+    name: 'command',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Command - 通用模型'
+  },
+  {
+    name: 'command-light',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Command Light - 轻量版'
+  },
+  {
+    name: 'command-nightly',
+    provider: 'cohere',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Command Nightly - 实验版'
+  },
+  // Cohere Embedding
   {
     name: 'embed-english-v3.0',
     provider: 'cohere',
     streamingMode: 'false',
     supportsEmbedding: true,
     maxTokens: 4096,
-    description: 'Cohere Embed - 英文向量'
+    description: 'Cohere Embed English v3'
   },
   {
     name: 'embed-multilingual-v3.0',
@@ -276,168 +993,74 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'false',
     supportsEmbedding: true,
     maxTokens: 4096,
-    description: 'Cohere Embed - 多语言向量'
+    description: 'Cohere Embed Multilingual v3'
   },
   {
-    name: 'embed-3-small',
-    provider: 'voyage',
+    name: 'embed-english-light-v3.0',
+    provider: 'cohere',
     streamingMode: 'false',
     supportsEmbedding: true,
     maxTokens: 4096,
-    description: 'Voyage Embed - 高质量向量'
+    description: 'Cohere Embed English Light'
   },
   {
-    name: 'nomic-embed-text-v1.5',
-    provider: 'nomic',
+    name: 'embed-multilingual-light-v3.0',
+    provider: 'cohere',
     streamingMode: 'false',
     supportsEmbedding: true,
-    maxTokens: 8192,
-    description: 'Nomic Embed - 开源可解释向量'
+    maxTokens: 4096,
+    description: 'Cohere Embed Multilingual Light'
   },
-  // 本地部署模型
+  // Cohere Rerank
   {
-    name: 'llama3',
-    provider: 'ollama',
-    streamingMode: 'true',
+    name: 'rerank-english-v3.0',
+    provider: 'cohere',
+    streamingMode: 'false',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Llama 3 - 本地部署'
+    maxTokens: 4096,
+    description: 'Cohere Rerank English'
   },
   {
-    name: 'qwen2',
-    provider: 'ollama',
-    streamingMode: 'true',
+    name: 'rerank-multilingual-v3.0',
+    provider: 'cohere',
+    streamingMode: 'false',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Qwen 2 - 阿里通义本地'
+    maxTokens: 4096,
+    description: 'Cohere Rerank Multilingual'
   },
+
+  // ==================== AI21 系列 ====================
   {
-    name: 'mistral',
-    provider: 'ollama',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Mistral - 本地部署'
-  },
-  {
-    name: 'deepseek-v2',
-    provider: 'ollama',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'DeepSeek V2 - 本地部署'
-  },
-  // 国内模型 - 百度文心一言
-  {
-    name: 'ernie-4.0',
-    provider: 'baidu',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 32768,
-    description: '百度文心一言 ERNIE 4.0 - 中文最强'
-  },
-  {
-    name: 'ernie-turbo',
-    provider: 'baidu',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: '百度文心一言 Turbo - 快速响应'
-  },
-  // 国内模型 - 阿里通义千问
-  {
-    name: 'qwen-max',
-    provider: 'alibaba',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 128000,
-    description: '阿里通义千问 Max - 旗舰模型'
-  },
-  {
-    name: 'qwen-plus',
-    provider: 'alibaba',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 64000,
-    description: '阿里通义千问 Plus - 平衡之选'
-  },
-  // 国内模型 - 腾讯混元
-  {
-    name: 'hunyuan-large',
-    provider: 'tencent',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 32768,
-    description: '腾讯混元大模型 - 企业级'
-  },
-  {
-    name: 'hunyuan-standard',
-    provider: 'tencent',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: '腾讯混元标准版 - 高效能'
-  },
-  // 国内模型 - 字节跳动豆包
-  {
-    name: 'doubao-pro',
-    provider: 'bytedance',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 32768,
-    description: '字节豆包 Pro - 多模态'
-  },
-  {
-    name: 'doubao-lite',
-    provider: 'bytedance',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: '字节豆包 Lite - 轻量快速'
-  },
-  // 国内模型 - 华为盘古
-  {
-    name: 'pangu-3.0',
-    provider: 'huawei',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 64000,
-    description: '华为盘古大模型 3.0 - 国产自研'
-  },
-  // 国内模型 - 智谱清言
-  {
-    name: 'glm-4',
-    provider: 'zhipu',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 128000,
-    description: '智谱 GLM-4 - 开源优秀'
-  },
-  {
-    name: 'glm-3-turbo',
-    provider: 'zhipu',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 8192,
-    description: '智谱 GLM-3 Turbo - 性价比高'
-  },
-  // 国内模型 - MiniMax
-  {
-    name: 'abab5.5',
-    provider: 'minimax',
-    streamingMode: 'true',
-    supportsEmbedding: false,
-    maxTokens: 256000,
-    description: 'MiniMax ABAB 5.5 - 超长上下文'
-  },
-  // 更多国外模型 - AI21
-  {
-    name: 'jamba-1.5-large',
+    name: 'jamba-1-5-large',
     provider: 'ai21',
     streamingMode: 'true',
     supportsEmbedding: false,
-    maxTokens: 128000,
-    description: 'AI21 Jamba 1.5 - Mamba架构'
+    maxTokens: 256000,
+    description: 'Jamba 1.5 Large - Mamba架构'
+  },
+  {
+    name: 'jamba-1-5-mini',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: 'Jamba 1.5 Mini - 轻量版'
+  },
+  {
+    name: 'jamba-instruct',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: 'Jamba Instruct'
+  },
+  {
+    name: 'j2-ultra',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Jurassic-2 Ultra'
   },
   {
     name: 'j2-mid',
@@ -445,59 +1068,1106 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'AI21 J2 Mid - 高效推理'
+    description: 'Jurassic-2 Mid'
   },
-  // 更多国外模型 - Fireworks
   {
-    name: 'mixtral-8x7b-fireworks',
+    name: 'j2-light',
+    provider: 'ai21',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Jurassic-2 Light'
+  },
+
+  // ==================== Fireworks AI 系列 ====================
+  {
+    name: 'accounts/fireworks/models/llama-v3p3-70b-instruct',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.3 70B Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/llama-v3p1-405b-instruct',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 405B Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/llama-v3p1-70b-instruct',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 70B Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/llama-v3p1-8b-instruct',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 8B Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/qwen2p5-72b-instruct',
     provider: 'fireworks',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 32768,
-    description: 'Fireworks Mixtral - 加速推理'
+    description: 'Qwen 2.5 72B Fireworks'
   },
   {
-    name: 'llama-3-70b-fireworks',
+    name: 'accounts/fireworks/models/mixtral-8x22b-instruct',
     provider: 'fireworks',
     streamingMode: 'true',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Fireworks Llama 3 - 超快响应'
+    maxTokens: 65536,
+    description: 'Mixtral 8x22B Fireworks'
   },
-  // 更多国外模型 - Replicate
   {
-    name: 'meta-llama-3-8b-instruct',
+    name: 'accounts/fireworks/models/mixtral-8x7b-instruct',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral 8x7B Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/deepseek-v3',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek V3 Fireworks'
+  },
+  {
+    name: 'accounts/fireworks/models/deepseek-r1',
+    provider: 'fireworks',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 64000,
+    description: 'DeepSeek R1 Fireworks'
+  },
+
+  // ==================== Cloudflare Workers AI ====================
+  {
+    name: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.3 70B Fast'
+  },
+  {
+    name: '@cf/meta/llama-3.1-70b-instruct',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.1 70B'
+  },
+  {
+    name: '@cf/meta/llama-3.1-8b-instruct',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3.1 8B'
+  },
+  {
+    name: '@cf/meta/llama-2-7b-chat-int8',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Llama 2 7B Chat'
+  },
+  {
+    name: '@cf/mistral/mistral-7b-instruct-v0.1',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Mistral 7B Instruct'
+  },
+  {
+    name: '@cf/mistral/mistral-7b-instruct-v0.2',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mistral 7B v0.2'
+  },
+  {
+    name: '@cf/qwen/qwen1.5-14b-chat-awq',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Qwen 1.5 14B'
+  },
+  {
+    name: '@cf/google/gemma-7b-it',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 7B IT'
+  },
+  {
+    name: '@cf/deepseek-ai/deepseek-math-7b-instruct',
+    provider: 'cloudflare',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'DeepSeek Math 7B'
+  },
+  // Cloudflare Embedding
+  {
+    name: '@cf/baai/bge-base-en-v1.5',
+    provider: 'cloudflare',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 512,
+    description: 'BGE Base Embedding'
+  },
+  {
+    name: '@cf/baai/bge-large-en-v1.5',
+    provider: 'cloudflare',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 512,
+    description: 'BGE Large Embedding'
+  },
+
+  // ==================== Replicate 系列 ====================
+  {
+    name: 'meta/meta-llama-3.1-405b-instruct',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 405B Replicate'
+  },
+  {
+    name: 'meta/meta-llama-3.1-70b-instruct',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 70B Replicate'
+  },
+  {
+    name: 'meta/meta-llama-3-70b-instruct',
     provider: 'replicate',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'Replicate Llama 3 8B - 灵活部署'
+    description: 'Llama 3 70B Replicate'
   },
-  // 更多国外模型 - Hugging Face
   {
-    name: 'mistral-7b-instruct',
+    name: 'meta/llama-2-70b-chat',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Llama 2 70B Chat'
+  },
+  {
+    name: 'mistralai/mixtral-8x7b-instruct-v0.1',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral 8x7B Replicate'
+  },
+  {
+    name: 'mistralai/mistral-7b-instruct-v0.2',
+    provider: 'replicate',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mistral 7B Replicate'
+  },
+
+  // ==================== Hugging Face 系列 ====================
+  {
+    name: 'meta-llama/Meta-Llama-3.1-70B-Instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 70B HF'
+  },
+  {
+    name: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Llama 3.1 8B HF'
+  },
+  {
+    name: 'mistralai/Mistral-7B-Instruct-v0.3',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mistral 7B v0.3 HF'
+  },
+  {
+    name: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mixtral 8x7B HF'
+  },
+  {
+    name: 'Qwen/Qwen2.5-72B-Instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2.5 72B HF'
+  },
+  {
+    name: 'Qwen/Qwen2.5-7B-Instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2.5 7B HF'
+  },
+  {
+    name: 'google/gemma-2-27b-it',
     provider: 'huggingface',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 8192,
-    description: 'Hugging Face Mistral - 开源模型'
+    description: 'Gemma 2 27B HF'
   },
-  // 本地部署扩展
+  {
+    name: 'google/gemma-2-9b-it',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 2 9B HF'
+  },
+  {
+    name: 'microsoft/Phi-3-mini-4k-instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Phi-3 Mini 4K'
+  },
+  {
+    name: 'microsoft/Phi-3-medium-128k-instruct',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Phi-3 Medium 128K'
+  },
+  {
+    name: 'tiiuae/falcon-180B-chat',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 2048,
+    description: 'Falcon 180B Chat'
+  },
+  {
+    name: 'bigscience/bloom',
+    provider: 'huggingface',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 2048,
+    description: 'BLOOM - 多语言模型'
+  },
+
+  // ==================== Voyage AI Embedding ====================
+  {
+    name: 'voyage-3-large',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 32000,
+    description: 'Voyage 3 Large - 最强向量'
+  },
+  {
+    name: 'voyage-3',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 32000,
+    description: 'Voyage 3 - 平衡向量'
+  },
+  {
+    name: 'voyage-3-lite',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 32000,
+    description: 'Voyage 3 Lite - 轻量向量'
+  },
+  {
+    name: 'voyage-large-2-instruct',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 16000,
+    description: 'Voyage Large 2 Instruct'
+  },
+  {
+    name: 'voyage-law-2',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 16000,
+    description: 'Voyage Law 2 - 法律专用'
+  },
+  {
+    name: 'voyage-code-2',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 16000,
+    description: 'Voyage Code 2 - 代码专用'
+  },
+  {
+    name: 'voyage-finance-2',
+    provider: 'voyage',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 32000,
+    description: 'Voyage Finance 2 - 金融专用'
+  },
+
+  // ==================== Nomic Embedding ====================
+  {
+    name: 'nomic-embed-text-v1.5',
+    provider: 'nomic',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'Nomic Embed v1.5'
+  },
+  {
+    name: 'nomic-embed-text-v1',
+    provider: 'nomic',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'Nomic Embed v1'
+  },
+
+  // ==================== 百度文心一言 ====================
+  {
+    name: 'ernie-4.0-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 ERNIE 4.0 8K'
+  },
+  {
+    name: 'ernie-4.0',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '文心一言 ERNIE 4.0'
+  },
+  {
+    name: 'ernie-3.5-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 ERNIE 3.5 8K'
+  },
+  {
+    name: 'ernie-3.5',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '文心一言 ERNIE 3.5'
+  },
+  {
+    name: 'ernie-speed-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 Speed 8K'
+  },
+  {
+    name: 'ernie-speed-128k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: '文心一言 Speed 128K'
+  },
+  {
+    name: 'ernie-lite-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 Lite 8K'
+  },
+  {
+    name: 'ernie-tiny-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 Tiny 8K'
+  },
+  {
+    name: 'ernie-char-8k',
+    provider: 'baidu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '文心一言 Char 8K - 角色对话'
+  },
+  // 百度 Embedding
+  {
+    name: 'embedding-v1',
+    provider: 'baidu',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: '百度 Embedding V1'
+  },
+
+  // ==================== 阿里通义千问 ====================
+  {
+    name: 'qwen-max',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '通义千问 Max'
+  },
+  {
+    name: 'qwen-max-longcontext',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 10000,
+    description: '通义千问 Max 长文本'
+  },
+  {
+    name: 'qwen-plus',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: '通义千问 Plus'
+  },
+  {
+    name: 'qwen-turbo',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: '通义千问 Turbo'
+  },
+  {
+    name: 'qwen-long',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 10000,
+    description: '通义千问 Long - 超长文本'
+  },
+  {
+    name: 'qwen2.5-72b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2.5 72B'
+  },
+  {
+    name: 'qwen2.5-32b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2.5 32B'
+  },
+  {
+    name: 'qwen2.5-14b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2.5 14B'
+  },
+  {
+    name: 'qwen2.5-7b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2.5 7B'
+  },
+  {
+    name: 'qwen2-57b-a14b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2 57B A14B'
+  },
+  {
+    name: 'qwen2-72b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2 72B'
+  },
+  {
+    name: 'qwen2-7b-instruct',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 131072,
+    description: 'Qwen 2 7B'
+  },
+  {
+    name: 'qwen-vl-max',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen VL Max - 多模态'
+  },
+  {
+    name: 'qwen-vl-plus',
+    provider: 'alibaba',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen VL Plus - 多模态'
+  },
+  // 通义千问 Embedding
+  {
+    name: 'text-embedding-v3',
+    provider: 'alibaba',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: '通义 Embedding V3'
+  },
+  {
+    name: 'text-embedding-v2',
+    provider: 'alibaba',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: '通义 Embedding V2'
+  },
+
+  // ==================== 腾讯混元 ====================
+  {
+    name: 'hunyuan-large',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '混元 Large'
+  },
+  {
+    name: 'hunyuan-standard',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '混元 Standard'
+  },
+  {
+    name: 'hunyuan-standard-256k',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: '混元 Standard 256K'
+  },
+  {
+    name: 'hunyuan-lite',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '混元 Lite'
+  },
+  {
+    name: 'hunyuan-vision',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '混元 Vision - 多模态'
+  },
+  {
+    name: 'hunyuan-code',
+    provider: 'tencent',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '混元 Code - 代码专家'
+  },
+  // 腾讯 Embedding
+  {
+    name: 'hunyuan-embedding',
+    provider: 'tencent',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: '混元 Embedding'
+  },
+
+  // ==================== 字节跳动豆包 ====================
+  {
+    name: 'doubao-pro-32k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '豆包 Pro 32K'
+  },
+  {
+    name: 'doubao-pro-128k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: '豆包 Pro 128K'
+  },
+  {
+    name: 'doubao-lite-32k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '豆包 Lite 32K'
+  },
+  {
+    name: 'doubao-lite-128k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: '豆包 Lite 128K'
+  },
+  {
+    name: 'doubao-1.5-pro-32k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '豆包 1.5 Pro 32K'
+  },
+  {
+    name: 'doubao-1.5-pro-256k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 256000,
+    description: '豆包 1.5 Pro 256K'
+  },
+  {
+    name: 'doubao-1.5-lite-32k',
+    provider: 'bytedance',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: '豆包 1.5 Lite 32K'
+  },
+  {
+    name: 'doubao-embedding',
+    provider: 'bytedance',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 4096,
+    description: '豆包 Embedding'
+  },
+
+  // ==================== 华为盘古 ====================
+  {
+    name: 'pangu-natural-language-10b',
+    provider: 'huawei',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '盘古自然语言 10B'
+  },
+  {
+    name: 'pangu-multimodal-10b',
+    provider: 'huawei',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '盘古多模态 10B'
+  },
+  {
+    name: 'pangu-code-10b',
+    provider: 'huawei',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: '盘古代码 10B'
+  },
+  {
+    name: 'pangu-embedding',
+    provider: 'huawei',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 2048,
+    description: '盘古 Embedding'
+  },
+
+  // ==================== 智谱清言 ====================
+  {
+    name: 'glm-4-plus',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-4 Plus'
+  },
+  {
+    name: 'glm-4-0520',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-4 0520'
+  },
+  {
+    name: 'glm-4-air',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-4 Air'
+  },
+  {
+    name: 'glm-4-airx',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'GLM-4 AirX'
+  },
+  {
+    name: 'glm-4-flash',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-4 Flash - 免费'
+  },
+  {
+    name: 'glm-4-long',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 1048576,
+    description: 'GLM-4 Long - 超长上下文'
+  },
+  {
+    name: 'glm-4v-plus',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'GLM-4V Plus - 多模态'
+  },
+  {
+    name: 'glm-4v-flash',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'GLM-4V Flash - 多模态免费'
+  },
+  {
+    name: 'glm-z1-air',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-Z1 Air - 推理模型'
+  },
+  {
+    name: 'glm-z1-airx',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'GLM-Z1 AirX - 推理模型'
+  },
+  {
+    name: 'glm-z1-flash',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'GLM-Z1 Flash - 推理免费'
+  },
+  {
+    name: 'chatglm3-6b',
+    provider: 'zhipu',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'ChatGLM3 6B'
+  },
+  // 智谱 Embedding
+  {
+    name: 'embedding-3',
+    provider: 'zhipu',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: '智谱 Embedding 3'
+  },
+
+  // ==================== MiniMax ====================
+  {
+    name: 'abab6.5s-chat',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 245760,
+    description: 'ABAB 6.5S Chat'
+  },
+  {
+    name: 'abab6.5g-chat',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 245760,
+    description: 'ABAB 6.5G Chat'
+  },
+  {
+    name: 'abab6.5-chat',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 245760,
+    description: 'ABAB 6.5 Chat'
+  },
+  {
+    name: 'abab5.5-chat',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 6144,
+    description: 'ABAB 5.5 Chat'
+  },
+  {
+    name: 'abab5.5s-chat',
+    provider: 'minimax',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 6144,
+    description: 'ABAB 5.5S Chat'
+  },
+  {
+    name: 'speech-01-turbo',
+    provider: 'minimax',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'MiniMax 语音合成'
+  },
+  {
+    name: 'video-01',
+    provider: 'minimax',
+    streamingMode: 'false',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'MiniMax 视频生成'
+  },
+
+  // ==================== Moonshot (月之暗面) ====================
+  {
+    name: 'moonshot-v1-8k',
+    provider: 'moonshot',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Moonshot V1 8K'
+  },
+  {
+    name: 'moonshot-v1-32k',
+    provider: 'moonshot',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Moonshot V1 32K'
+  },
+  {
+    name: 'moonshot-v1-128k',
+    provider: 'moonshot',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Moonshot V1 128K'
+  },
+
+  // ==================== Ollama 本地部署 ====================
+  {
+    name: 'llama3.3',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Llama 3.3 本地'
+  },
+  {
+    name: 'llama3.2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Llama 3.2 本地'
+  },
+  {
+    name: 'llama3.1',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Llama 3.1 本地'
+  },
+  {
+    name: 'llama3',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Llama 3 本地'
+  },
+  {
+    name: 'llama2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Llama 2 本地'
+  },
+  {
+    name: 'mistral',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Mistral 本地'
+  },
   {
     name: 'mixtral',
     provider: 'ollama',
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 32768,
-    description: 'Mixtral - MoE本地部署'
+    description: 'Mixtral 本地'
+  },
+  {
+    name: 'qwen2.5',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Qwen 2.5 本地'
+  },
+  {
+    name: 'qwen2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'Qwen 2 本地'
+  },
+  {
+    name: 'deepseek-v2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'DeepSeek V2 本地'
+  },
+  {
+    name: 'deepseek-coder-v2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'DeepSeek Coder V2 本地'
+  },
+  {
+    name: 'gemma2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 2 本地'
+  },
+  {
+    name: 'gemma',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 8192,
+    description: 'Gemma 本地'
   },
   {
     name: 'phi3',
     provider: 'ollama',
     streamingMode: 'true',
     supportsEmbedding: false,
-    maxTokens: 8192,
-    description: 'Phi-3 - 微软小型大模型'
+    maxTokens: 128000,
+    description: 'Phi-3 本地'
+  },
+  {
+    name: 'phi4',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16384,
+    description: 'Phi-4 本地'
+  },
+  {
+    name: 'codellama',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16384,
+    description: 'Code Llama 本地'
+  },
+  {
+    name: 'starcoder2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 16384,
+    description: 'StarCoder 2 本地'
   },
   {
     name: 'dolphin-mixtral',
@@ -505,7 +2175,57 @@ export const SUPPORTED_MODELS: ModelInfo[] = [
     streamingMode: 'true',
     supportsEmbedding: false,
     maxTokens: 32768,
-    description: 'Dolphin Mixtral - 微调优化'
+    description: 'Dolphin Mixtral 本地'
+  },
+  {
+    name: 'nous-hermes2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'Nous Hermes 2 本地'
+  },
+  {
+    name: 'wizardlm2',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 32768,
+    description: 'WizardLM 2 本地'
+  },
+  {
+    name: 'command-r',
+    provider: 'ollama',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 128000,
+    description: 'Command R 本地'
+  },
+  {
+    name: 'nomic-embed-text',
+    provider: 'ollama',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 8192,
+    description: 'Nomic Embed 本地'
+  },
+  {
+    name: 'mxbai-embed-large',
+    provider: 'ollama',
+    streamingMode: 'false',
+    supportsEmbedding: true,
+    maxTokens: 512,
+    description: 'MxBai Embed 本地'
+  },
+
+  // ==================== KoboldCPP 本地部署 ====================
+  {
+    name: 'koboldcpp-default',
+    provider: 'koboldcpp',
+    streamingMode: 'true',
+    supportsEmbedding: false,
+    maxTokens: 4096,
+    description: 'KoboldCPP 默认'
   }
 ];
 
@@ -1057,6 +2777,22 @@ export class LLMManager {
         await this.streamFireworksAPI(config, prompt, options, onChunk);
       }
     });
+
+    // Moonshot (月之暗面)
+    this.registerProvider({
+      name: 'moonshot',
+      provider: 'moonshot',
+      generate: async (prompt, options) => {
+        const config = this.getConfig('moonshot');
+        if (!config) throw new Error('Moonshot config not found');
+        return this.callMoonshotAPI(config, prompt, options);
+      },
+      stream: async (prompt, options, onChunk) => {
+        const config = this.getConfig('moonshot');
+        if (!config) throw new Error('Moonshot config not found');
+        await this.streamMoonshotAPI(config, prompt, options, onChunk);
+      }
+    });
   }
 
   /**
@@ -1150,6 +2886,8 @@ export class LLMManager {
         return this.callZhipuAPI(config, prompt, options);
       case 'minimax':
         return this.callMiniMaxAPI(config, prompt, options);
+      case 'moonshot':
+        return this.callMoonshotAPI(config, prompt, options);
       default:
         return this.callOpenAICompatibleAPI(config, prompt, options);
     }
@@ -1215,6 +2953,9 @@ export class LLMManager {
         break;
       case 'minimax':
         await this.streamMiniMaxAPI(config, prompt, options, onChunk);
+        break;
+      case 'moonshot':
+        await this.streamMoonshotAPI(config, prompt, options, onChunk);
         break;
       default:
         const result = await this.callModelAPI(config, prompt, options);
@@ -3833,6 +5574,110 @@ export class LLMManager {
     if (!response.ok) {
       this.log('error', 'LLMManager', 'Fireworks stream failed', { status: response.status });
       throw new Error(`Fireworks Stream Error: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('Response body is null');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) onChunk(content);
+          } catch {}
+        }
+      }
+    }
+  }
+
+  /**
+   * 调用 Moonshot (月之暗面) API
+   */
+  private async callMoonshotAPI(
+    config: LLMConfig,
+    prompt: string,
+    options?: GenerationOptions
+  ): Promise<LLMResponse> {
+    const endpoint = config.endpoint || 'https://api.moonshot.cn/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.log('error', 'LLMManager', 'Moonshot API failed', { status: response.status, error: errorText });
+      throw new Error(`Moonshot API Error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content || '',
+      model: data.model || config.model,
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens || 0,
+        completionTokens: data.usage.completion_tokens || 0,
+        totalTokens: data.usage.total_tokens || 0
+      } : undefined
+    };
+  }
+
+  /**
+   * 流式调用 Moonshot (月之暗面) API
+   */
+  private async streamMoonshotAPI(
+    config: LLMConfig,
+    prompt: string,
+    options: GenerationOptions,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    const endpoint = config.endpoint || 'https://api.moonshot.cn/v1';
+
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      this.log('error', 'LLMManager', 'Moonshot stream failed', { status: response.status });
+      throw new Error(`Moonshot Stream Error: ${response.status}`);
     }
 
     const reader = response.body?.getReader();
