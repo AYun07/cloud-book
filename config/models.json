@@ -1,0 +1,117 @@
+{
+  "lastUpdate": "2026-05-14T00:00:00.000Z",
+  "totalModels": 250,
+  "totalProviders": 28,
+  "version": "1.0.0",
+  "updateFrequency": "weekly",
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "website": "https://platform.openai.com",
+      "apiDocs": "https://platform.openai.com/docs/api-reference",
+      "status": "active"
+    },
+    "anthropic": {
+      "name": "Anthropic Claude",
+      "website": "https://www.anthropic.com",
+      "apiDocs": "https://docs.anthropic.com",
+      "status": "active"
+    },
+    "gemini": {
+      "name": "Google Gemini",
+      "website": "https://ai.google.dev",
+      "apiDocs": "https://ai.google.dev/api/rest",
+      "status": "active"
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "website": "https://www.deepseek.com",
+      "apiDocs": "https://platform.deepseek.com/docs",
+      "status": "active"
+    },
+    "mistral": {
+      "name": "Mistral AI",
+      "website": "https://mistral.ai",
+      "apiDocs": "https://docs.mistral.ai",
+      "status": "active"
+    },
+    "groq": {
+      "name": "Groq",
+      "website": "https://console.groq.com",
+      "apiDocs": "https://console.groq.com/docs",
+      "status": "active"
+    },
+    "together": {
+      "name": "Together AI",
+      "website": "https://together.ai",
+      "apiDocs": "https://docs.together.ai",
+      "status": "active"
+    },
+    "perplexity": {
+      "name": "Perplexity",
+      "website": "https://perplexity.ai",
+      "apiDocs": "https://docs.perplexity.ai",
+      "status": "active"
+    },
+    "cohere": {
+      "name": "Cohere",
+      "website": "https://cohere.com",
+      "apiDocs": "https://docs.cohere.com",
+      "status": "active"
+    },
+    "baidu": {
+      "name": "百度文心一言",
+      "website": "https://cloud.baidu.com/doc/WENXINWORKSHOP",
+      "apiDocs": "https://cloud.baidu.com/doc/WENXINWORKSHOP/s/In70q69d8",
+      "status": "active"
+    },
+    "alibaba": {
+      "name": "阿里通义千问",
+      "website": "https://tongyi.aliyun.com",
+      "apiDocs": "https://help.aliyun.com/zh/dashscope",
+      "status": "active"
+    },
+    "tencent": {
+      "name": "腾讯混元",
+      "website": "https://cloud.tencent.com/document/product/1729",
+      "apiDocs": "https://cloud.tencent.com/document/product/1729",
+      "status": "active"
+    },
+    "bytedance": {
+      "name": "字节跳动豆包",
+      "website": "https://www.volcengine.com/product/doubao",
+      "apiDocs": "https://www.volcengine.com/document/doubao",
+      "status": "active"
+    },
+    "huawei": {
+      "name": "华为盘古",
+      "website": "https://www.huaweicloud.com/product/pangu.html",
+      "apiDocs": "https://support.huaweicloud.com/api-pangu/pangu_02_001.html",
+      "status": "active"
+    },
+    "zhipu": {
+      "name": "智谱清言",
+      "website": "https://www.zhipuai.cn",
+      "apiDocs": "https://open.bigmodel.cn/doc/api",
+      "status": "active"
+    },
+    "minimax": {
+      "name": "MiniMax",
+      "website": "https://www.minimax.chat",
+      "apiDocs": "https://www.minimax.chat/document",
+      "status": "active"
+    },
+    "moonshot": {
+      "name": "Moonshot",
+      "website": "https://platform.moonshot.cn",
+      "apiDocs": "https://platform.moonshot.cn/docs",
+      "status": "active"
+    },
+    "ollama": {
+      "name": "Ollama 本地部署",
+      "website": "https://ollama.com",
+      "apiDocs": "https://github.com/ollama/ollama",
+      "status": "active"
+    }
+  }
+}
