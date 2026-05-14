@@ -40,8 +40,8 @@ export interface ValidationResult {
 export class TruthFileManager {
   private storagePath: string;
 
-  constructor(storagePath: string = './truth-files') {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string) {
+    this.storagePath = storagePath || './truth-files';
     if (!fs.existsSync(storagePath)) {
       fs.mkdirSync(storagePath, { recursive: true });
     }

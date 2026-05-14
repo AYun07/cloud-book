@@ -22,8 +22,8 @@ export class CardManager {
   private schemas: Map<string, CardSchema> = new Map();
   private storagePath: string;
 
-  constructor(storagePath: string = './data/cards') {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string) {
+    this.storagePath = storagePath || './data/cards';
     this.initializeDefaultSchemas();
   }
 

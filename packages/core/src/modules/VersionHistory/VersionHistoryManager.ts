@@ -84,8 +84,8 @@ export class VersionHistoryManager {
   private autoSaveTimers: Map<string, NodeJS.Timeout> = new Map();
   private fileWatchers: Map<string, fs.FSWatcher> = new Map();
 
-  constructor(storagePath: string = './data/versioning', autoSaveConfig?: Partial<AutoSaveConfig>) {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string, autoSaveConfig?: Partial<AutoSaveConfig>) {
+    this.storagePath = storagePath || './data/versioning';
     if (autoSaveConfig) {
       this.autoSaveConfig = { ...this.autoSaveConfig, ...autoSaveConfig };
     }

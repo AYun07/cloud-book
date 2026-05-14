@@ -99,8 +99,8 @@ export class CharacterManager {
   private familyTrees: Map<string, FamilyTreeNode[]> = new Map();
   private storagePath: string;
 
-  constructor(storagePath: string = './data/characters') {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string) {
+    this.storagePath = storagePath || './data/characters';
   }
 
   async initialize(projectId: string): Promise<void> {

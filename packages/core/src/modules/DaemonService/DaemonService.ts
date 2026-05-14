@@ -37,10 +37,10 @@ export class DaemonService {
   private storage: UnifiedStorage;
   private storagePath: string;
 
-  constructor(config: DaemonConfig, llmManager: LLMManager, storagePath: string = './data/daemon') {
+  constructor(config: DaemonConfig, llmManager: LLMManager, storagePath?: string) {
     this.config = config;
     this.llmManager = llmManager;
-    this.storagePath = storagePath;
+    this.storagePath = storagePath || './data/daemon';
     this.storage = new UnifiedStorage({ basePath: storagePath });
   }
 

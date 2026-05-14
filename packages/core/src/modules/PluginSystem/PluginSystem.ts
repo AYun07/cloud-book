@@ -47,8 +47,8 @@ export class PluginSystem {
   private defaultLuaInterpreter: LuaInterpreter;
   private luaBridgeFunctions: Map<string, (...args: any[]) => any> = new Map();
 
-  constructor(storagePath: string = './data/plugins') {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string) {
+    this.storagePath = storagePath || './data/plugins';
     this.defaultLuaInterpreter = new LuaInterpreter();
     this.setupLuaBridge();
   }

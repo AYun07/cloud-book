@@ -18,6 +18,7 @@ import CharacterPage from './pages/CharacterPage';
 import WorldPage from './pages/WorldPage';
 import AuditPage from './pages/AuditPage';
 import SettingsPage from './pages/SettingsPage';
+import GraphPage from './pages/GraphPage';
 
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
@@ -107,6 +108,11 @@ const App: React.FC = () => {
                   {
                     key: '7',
                     icon: <GlobalOutlined style={{ fontSize: 18 }} />,
+                    label: <Link to="/graph" style={{ fontSize: 14 }}>知识图谱</Link>,
+                  },
+                  {
+                    key: '8',
+                    icon: <GlobalOutlined style={{ fontSize: 18 }} />,
                     label: <Link to="/settings" style={{ fontSize: 14 }}>系统设置</Link>,
                   },
                 ]}
@@ -131,6 +137,7 @@ const App: React.FC = () => {
                   <Route path="/characters" element={<CharacterPage />} />
                   <Route path="/world" element={<WorldPage />} />
                   <Route path="/audit" element={<AuditPage />} />
+                  <Route path="/graph" element={<GraphPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Routes>
               </Content>

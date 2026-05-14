@@ -76,8 +76,8 @@ export class MemoryManager {
     totalCompressions: number;
   }> = new Map();
 
-  constructor(storagePath: string = './data/memory', config?: Partial<CompressionConfig>) {
-    this.storagePath = storagePath;
+  constructor(storagePath?: string, config?: Partial<CompressionConfig>) {
+    this.storagePath = storagePath || './data/memory';
     this.vectorizer = new AdvancedVectorizerV2();
     this.compressionConfig = { ...DEFAULT_COMPRESSION_CONFIG, ...config };
   }

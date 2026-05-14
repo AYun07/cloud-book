@@ -176,7 +176,7 @@ export class CloudBook {
 
     this.auditEngine = new AIAuditEngine(config.auditConfig);
     this.antiDetectionEngine = new AntiDetectionEngine(config.antiDetectionConfig);
-    this.truthFileManager = new TruthFileManager();
+    this.truthFileManager = new TruthFileManager(path.join(storagePath, 'truth-files'));
     this.contextManager = new ContextManager();
     this.writingPipeline = new WritingPipeline(
       this.llmManager,
@@ -227,7 +227,7 @@ export class CloudBook {
     this.exportManager = new ExportManager();
     this.importManager = new ImportManager();
     this.keyboardShortcuts = new KeyboardShortcuts();
-    this.goalManager = new GoalManager();
+    this.goalManager = new GoalManager(path.join(storagePath, 'goals'));
     this.costTracker = new CostTracker();
     if (config.costTracking?.budgets) {
       this.costTracker.setBudget(config.costTracking.budgets);
