@@ -2,6 +2,7 @@
 /**
  * Cloud Book - 真相文件管理器
  * 维护长篇创作的一致性，包含完整的验证逻辑
+ * 7个核心真相文件：世界状态、资源账本、伏笔钩子、章节摘要、支线进度、情感弧线、角色矩阵
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -48,6 +49,10 @@ class TruthFileManager {
             fs.mkdirSync(storagePath, { recursive: true });
         }
     }
+    /**
+     * 1. 世界状态 (World State) - 深度优化
+     * 管理当前世界的状态，包括主角状态、已知事实、冲突、关系和活跃支线
+     */
     async initialize(projectId) {
         const truthFiles = {
             currentState: {
@@ -55,7 +60,9 @@ class TruthFileManager {
                     id: '',
                     name: '',
                     location: '',
-                    status: ''
+                    status: '',
+                    level: '1',
+                    resources: {}
                 },
                 knownFacts: [],
                 currentConflicts: [],
@@ -71,6 +78,500 @@ class TruthFileManager {
         };
         await this.saveTruthFiles(projectId, truthFiles);
         return truthFiles;
+    }
+    /**
+     * 世界状态高级操作 - 添加已知事实
+     */
+    async addKnownFact(projectId, fact, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const timestampedFact = `[第${chapterNumber}章] ${fact}`;
+        truthFiles.currentState.knownFacts.push(timestampedFact);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 世界状态高级操作 - 添加冲突
+     */
+    async addConflict(projectId, conflict, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const timestampedConflict = `[第${chapterNumber}章] ${conflict}`;
+        truthFiles.currentState.currentConflicts.push(timestampedConflict);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 世界状态高级操作 - 更新关系快照
+     */
+    async updateRelationship(projectId, characterName, status) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.currentState.relationshipSnapshot[characterName] = status;
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 世界状态高级操作 - 批量更新主角状态
+     */
+    async updateProtagonistState(projectId, updates) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.currentState.protagonist = {
+            ...truthFiles.currentState.protagonist,
+            ...updates
+        };
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 世界状态高级操作 - 获取时间线摘要
+     */
+    async getWorldStateSummary(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return {
+            protagonist: truthFiles.currentState.protagonist,
+            recentFacts: chapterNumber
+                ? truthFiles.currentState.knownFacts.filter(f => f.includes(`第${chapterNumber}章`))
+                : truthFiles.currentState.knownFacts.slice(-10),
+            recentConflicts: chapterNumber
+                ? truthFiles.currentState.currentConflicts.filter(c => c.includes(`第${chapterNumber}章`))
+                : truthFiles.currentState.currentConflicts.slice(-10),
+            keyRelationships: truthFiles.currentState.relationshipSnapshot,
+            activeSubplots: truthFiles.currentState.activeSubplots
+        };
+    }
+    /**
+     * 2. 资源账本 (Resource Ledger/Particle Ledger) - 深度优化
+     * 管理重要物品、能力、货币和状态的追踪
+     */
+    async addResource(projectId, resource) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.particleLedger.push(resource);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 资源账本高级操作 - 批量添加资源
+     */
+    async addResources(projectId, resources) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.particleLedger.push(...resources);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 资源账本高级操作 - 更新资源并记录变更历史
+     */
+    async updateResource(projectId, resourceId, change, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const resource = truthFiles.particleLedger.find(r => r.id === resourceId);
+        if (resource) {
+            resource.changeLog.push({ chapter: chapterNumber, change });
+            resource.lastUpdatedChapter = chapterNumber;
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 资源账本高级操作 - 更新资源所有者
+     */
+    async transferResource(projectId, resourceId, newOwner, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const resource = truthFiles.particleLedger.find(r => r.id === resourceId);
+        if (resource) {
+            const oldOwner = resource.owner;
+            resource.owner = newOwner;
+            resource.changeLog.push({ chapter: chapterNumber, change: `从 ${oldOwner} 转移给 ${newOwner}` });
+            resource.lastUpdatedChapter = chapterNumber;
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 资源账本高级操作 - 获取资源清单
+     */
+    async getResourcesByOwner(projectId, owner) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.particleLedger.filter(r => r.owner === owner);
+    }
+    /**
+     * 资源账本高级操作 - 获取资源变更历史
+     */
+    async getResourceChangeLog(projectId, resourceId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const resource = truthFiles.particleLedger.find(r => r.id === resourceId);
+        return resource ? resource.changeLog : [];
+    }
+    /**
+     * 3. 伏笔钩子 (Pending Hooks) - 深度优化
+     * 管理故事中的伏笔设置和回收
+     */
+    async addHook(projectId, hook) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.pendingHooks.push(hook);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 伏笔钩子高级操作 - 批量添加伏笔
+     */
+    async addHooks(projectId, hooks) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.pendingHooks.push(...hooks);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 伏笔钩子高级操作 - 回收伏笔
+     */
+    async fulfillHook(projectId, hookId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const hook = truthFiles.pendingHooks.find(h => h.id === hookId);
+        if (hook) {
+            hook.status = 'paid_off';
+            hook.payoffChapter = chapterNumber;
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 伏笔钩子高级操作 - 获取待回收的伏笔
+     */
+    async getPendingHooks(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        let pending = truthFiles.pendingHooks.filter(h => h.status !== 'paid_off');
+        if (chapterNumber) {
+            pending = pending.filter(h => h.setInChapter <= chapterNumber);
+        }
+        return pending;
+    }
+    /**
+     * 伏笔钩子高级操作 - 获取过期未回收的伏笔
+     */
+    async getExpiredHooks(projectId, currentChapter, maxGap = 30) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.pendingHooks.filter(h => h.status === 'pending' &&
+            currentChapter - h.setInChapter > maxGap);
+    }
+    /**
+     * 伏笔钩子高级操作 - 获取某章节的伏笔
+     */
+    async getHooksByChapter(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return {
+            setInChapter: truthFiles.pendingHooks.filter(h => h.setInChapter === chapterNumber),
+            paidOffInChapter: truthFiles.pendingHooks.filter(h => h.payoffChapter === chapterNumber)
+        };
+    }
+    /**
+     * 4. 章节摘要 (Chapter Summaries) - 深度优化
+     * 管理每一章的关键信息摘要
+     */
+    async updateChapterSummary(projectId, chapter) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const summary = {
+            chapterId: chapter.id,
+            chapterNumber: chapter.number,
+            title: chapter.title,
+            charactersPresent: chapter.characters || [],
+            keyEvents: this.extractKeyEvents(chapter.content || ''),
+            stateChanges: [],
+            newHooks: chapter.hooks?.filter(h => h.setInChapter === chapter.number).map(h => h.description) || [],
+            resolvedHooks: chapter.hooks?.filter(h => h.payoffChapter === chapter.number).map(h => h.description) || []
+        };
+        const existingIndex = truthFiles.chapterSummaries.findIndex(s => s.chapterId === chapter.id);
+        if (existingIndex >= 0) {
+            truthFiles.chapterSummaries[existingIndex] = summary;
+        }
+        else {
+            truthFiles.chapterSummaries.push(summary);
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 章节摘要高级操作 - 获取章节范围的摘要
+     */
+    async getChapterSummariesRange(projectId, startChapter, endChapter) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.chapterSummaries
+            .filter(s => s.chapterNumber >= startChapter && s.chapterNumber <= endChapter)
+            .sort((a, b) => a.chapterNumber - b.chapterNumber);
+    }
+    /**
+     * 章节摘要高级操作 - 获取最近N章摘要
+     */
+    async getRecentChapterSummaries(projectId, count = 5) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.chapterSummaries
+            .sort((a, b) => b.chapterNumber - a.chapterNumber)
+            .slice(0, count);
+    }
+    /**
+     * 章节摘要高级操作 - 搜索章节摘要
+     */
+    async searchChapterSummaries(projectId, keyword) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const lowerKeyword = keyword.toLowerCase();
+        return truthFiles.chapterSummaries.filter(s => s.title.toLowerCase().includes(lowerKeyword) ||
+            s.keyEvents.some(e => e.toLowerCase().includes(lowerKeyword)) ||
+            s.newHooks.some(h => h.toLowerCase().includes(lowerKeyword)) ||
+            s.resolvedHooks.some(h => h.toLowerCase().includes(lowerKeyword)));
+    }
+    /**
+     * 5. 支线进度 (Subplot Board) - 深度优化
+     * 管理支线故事的状态和进度
+     */
+    async addSubplot(projectId, subplot) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        truthFiles.subplotBoard.push(subplot);
+        if (subplot.status === 'active') {
+            truthFiles.currentState.activeSubplots.push(subplot.id);
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 支线进度高级操作 - 更新支线状态
+     */
+    async updateSubplotStatus(projectId, subplotId, status, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const subplot = truthFiles.subplotBoard.find(s => s.id === subplotId);
+        if (subplot) {
+            subplot.status = status;
+            if (!subplot.chapters.includes(chapterNumber)) {
+                subplot.chapters.push(chapterNumber);
+            }
+            const activeIndex = truthFiles.currentState.activeSubplots.indexOf(subplotId);
+            if (status === 'active' && activeIndex === -1) {
+                truthFiles.currentState.activeSubplots.push(subplotId);
+            }
+            else if (status !== 'active' && activeIndex !== -1) {
+                truthFiles.currentState.activeSubplots.splice(activeIndex, 1);
+            }
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 支线进度高级操作 - 获取活跃支线
+     */
+    async getActiveSubplots(projectId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.subplotBoard.filter(s => s.status === 'active');
+    }
+    /**
+     * 支线进度高级操作 - 获取某章节涉及的支线
+     */
+    async getSubplotsByChapter(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.subplotBoard.filter(s => s.chapters.includes(chapterNumber));
+    }
+    /**
+     * 支线进度高级操作 - 获取支线进度报告
+     */
+    async getSubplotProgressReport(projectId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return {
+            total: truthFiles.subplotBoard.length,
+            active: truthFiles.subplotBoard.filter(s => s.status === 'active').length,
+            resolved: truthFiles.subplotBoard.filter(s => s.status === 'resolved').length,
+            abandoned: truthFiles.subplotBoard.filter(s => s.status === 'abandoned').length,
+            subplots: truthFiles.subplotBoard
+        };
+    }
+    /**
+     * 6. 情感弧线 (Emotional Arcs) - 深度优化
+     * 管理角色的情感变化轨迹
+     */
+    async updateEmotionalArc(projectId, characterId, characterName, chapterNumber, emotion, intensity) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        let arc = truthFiles.emotionalArcs.find(a => a.characterId === characterId);
+        if (!arc) {
+            arc = {
+                characterId,
+                characterName,
+                arcType: 'flat',
+                points: []
+            };
+            truthFiles.emotionalArcs.push(arc);
+        }
+        arc.points.push({ chapter: chapterNumber, emotion, intensity });
+        arc.arcType = this.analyzeArcType(arc.points);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 情感弧线高级操作 - 批量添加情感点
+     */
+    async addEmotionPoints(projectId, characterId, points) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        let arc = truthFiles.emotionalArcs.find(a => a.characterId === characterId);
+        if (!arc) {
+            const characterName = points[0]?.emotion || characterId;
+            arc = {
+                characterId,
+                characterName,
+                arcType: 'flat',
+                points: []
+            };
+            truthFiles.emotionalArcs.push(arc);
+        }
+        arc.points.push(...points);
+        arc.arcType = this.analyzeArcType(arc.points);
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 情感弧线高级操作 - 获取角色情感弧线
+     */
+    async getEmotionalArc(projectId, characterId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.emotionalArcs.find(a => a.characterId === characterId);
+    }
+    /**
+     * 情感弧线高级操作 - 获取章节情感快照
+     */
+    async getChapterEmotions(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.emotionalArcs.flatMap(arc => arc.points.filter(p => p.chapter === chapterNumber));
+    }
+    /**
+     * 情感弧线高级操作 - 分析情感趋势
+     */
+    async analyzeEmotionalTrend(projectId, characterId, recentChapters = 10) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const arc = truthFiles.emotionalArcs.find(a => a.characterId === characterId);
+        if (!arc || arc.points.length === 0) {
+            return {
+                trend: 'stable',
+                averageIntensity: 0,
+                dominantEmotion: '',
+                recentPoints: []
+            };
+        }
+        const recentPoints = [...arc.points]
+            .sort((a, b) => b.chapter - a.chapter)
+            .slice(0, recentChapters);
+        const averageIntensity = recentPoints.reduce((sum, p) => sum + p.intensity, 0) / recentPoints.length;
+        const emotionCounts = {};
+        recentPoints.forEach(p => {
+            emotionCounts[p.emotion] = (emotionCounts[p.emotion] || 0) + 1;
+        });
+        const dominantEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0][0];
+        let trend = 'stable';
+        if (recentPoints.length >= 3) {
+            const sorted = recentPoints.sort((a, b) => a.chapter - b.chapter);
+            const firstThird = sorted.slice(0, Math.floor(sorted.length / 3));
+            const lastThird = sorted.slice(-Math.floor(sorted.length / 3));
+            const firstAvg = firstThird.reduce((sum, p) => sum + p.intensity, 0) / firstThird.length;
+            const lastAvg = lastThird.reduce((sum, p) => sum + p.intensity, 0) / lastThird.length;
+            if (lastAvg - firstAvg > 2)
+                trend = 'rising';
+            else if (firstAvg - lastAvg > 2)
+                trend = 'falling';
+            else {
+                const variance = sorted.reduce((sum, p) => sum + Math.pow(p.intensity - averageIntensity, 2), 0) / sorted.length;
+                if (variance > 4)
+                    trend = 'volatile';
+            }
+        }
+        return {
+            trend,
+            averageIntensity,
+            dominantEmotion,
+            recentPoints: recentPoints.sort((a, b) => a.chapter - b.chapter)
+        };
+    }
+    /**
+     * 7. 角色矩阵 (Character Matrix) - 深度优化
+     * 管理角色之间的互动历史
+     */
+    async addCharacterInteraction(projectId, characterId1, characterId2, chapterNumber, type, summary) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        let interaction = truthFiles.characterMatrix.find(i => (i.characterId1 === characterId1 && i.characterId2 === characterId2) ||
+            (i.characterId1 === characterId2 && i.characterId2 === characterId1));
+        if (!interaction) {
+            interaction = {
+                characterId1: characterId1,
+                characterId2: characterId2,
+                interactions: []
+            };
+            truthFiles.characterMatrix.push(interaction);
+        }
+        interaction.interactions.push({ chapter: chapterNumber, type, summary });
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 角色矩阵高级操作 - 批量添加角色互动
+     */
+    async addCharacterInteractions(projectId, interactions) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        for (const interactionData of interactions) {
+            let interaction = truthFiles.characterMatrix.find(i => (i.characterId1 === interactionData.characterId1 && i.characterId2 === interactionData.characterId2) ||
+                (i.characterId1 === interactionData.characterId2 && i.characterId2 === interactionData.characterId1));
+            if (!interaction) {
+                interaction = {
+                    characterId1: interactionData.characterId1,
+                    characterId2: interactionData.characterId2,
+                    interactions: []
+                };
+                truthFiles.characterMatrix.push(interaction);
+            }
+            interaction.interactions.push({
+                chapter: interactionData.chapterNumber,
+                type: interactionData.type,
+                summary: interactionData.summary
+            });
+        }
+        await this.saveTruthFiles(projectId, truthFiles);
+    }
+    /**
+     * 角色矩阵高级操作 - 获取两个角色的互动历史
+     */
+    async getCharacterInteractions(projectId, characterId1, characterId2) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const matrix = truthFiles.characterMatrix.find(i => (i.characterId1 === characterId1 && i.characterId2 === characterId2) ||
+            (i.characterId1 === characterId2 && i.characterId2 === characterId1));
+        return matrix ? matrix.interactions.sort((a, b) => a.chapter - b.chapter) : [];
+    }
+    /**
+     * 角色矩阵高级操作 - 获取角色的所有互动
+     */
+    async getAllCharacterInteractions(projectId, characterId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        return truthFiles.characterMatrix.filter(i => i.characterId1 === characterId || i.characterId2 === characterId);
+    }
+    /**
+     * 角色矩阵高级操作 - 获取章节角色互动
+     */
+    async getChapterInteractions(projectId, chapterNumber) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const result = [];
+        for (const matrix of truthFiles.characterMatrix) {
+            for (const interaction of matrix.interactions) {
+                if (interaction.chapter === chapterNumber) {
+                    result.push({
+                        characterId1: matrix.characterId1,
+                        characterId2: matrix.characterId2,
+                        interaction
+                    });
+                }
+            }
+        }
+        return result;
+    }
+    /**
+     * 角色矩阵高级操作 - 分析角色关系网络
+     */
+    async analyzeRelationshipNetwork(projectId) {
+        const truthFiles = await this.getTruthFiles(projectId);
+        const characters = new Set();
+        const relationships = [];
+        for (const matrix of truthFiles.characterMatrix) {
+            characters.add(matrix.characterId1);
+            characters.add(matrix.characterId2);
+            if (matrix.interactions.length > 0) {
+                const typeCounts = {};
+                matrix.interactions.forEach(i => {
+                    typeCounts[i.type] = (typeCounts[i.type] || 0) + 1;
+                });
+                const dominantType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0][0];
+                const lastChapter = Math.max(...matrix.interactions.map(i => i.chapter));
+                relationships.push({
+                    character1: matrix.characterId1,
+                    character2: matrix.characterId2,
+                    interactionCount: matrix.interactions.length,
+                    lastInteractionChapter: lastChapter,
+                    dominantType
+                });
+            }
+        }
+        return {
+            characters: Array.from(characters),
+            relationships
+        };
     }
     async getTruthFiles(projectId) {
         const filePath = this.getFilePath(projectId);
@@ -666,112 +1167,64 @@ class TruthFileManager {
             }
         };
     }
-    async updateChapterSummary(projectId, chapter) {
+    /**
+     * 综合功能 - 生成7个真相文件的完整报告
+     */
+    async generateTruthFilesReport(projectId) {
         const truthFiles = await this.getTruthFiles(projectId);
-        const summary = {
-            chapterId: chapter.id,
-            chapterNumber: chapter.number,
-            title: chapter.title,
-            charactersPresent: chapter.characters || [],
-            keyEvents: this.extractKeyEvents(chapter.content || ''),
-            stateChanges: [],
-            newHooks: chapter.hooks?.filter(h => h.setInChapter === chapter.number).map(h => h.description) || [],
-            resolvedHooks: chapter.hooks?.filter(h => h.payoffChapter === chapter.number).map(h => h.description) || []
-        };
-        const existingIndex = truthFiles.chapterSummaries.findIndex(s => s.chapterId === chapter.id);
-        if (existingIndex >= 0) {
-            truthFiles.chapterSummaries[existingIndex] = summary;
-        }
-        else {
-            truthFiles.chapterSummaries.push(summary);
-        }
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async updateWorldState(projectId, state) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        truthFiles.currentState = { ...truthFiles.currentState, ...state };
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async addResource(projectId, resource) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        truthFiles.particleLedger.push(resource);
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async updateResource(projectId, resourceId, change, chapterNumber) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        const resource = truthFiles.particleLedger.find(r => r.id === resourceId);
-        if (resource) {
-            resource.changeLog.push({ chapter: chapterNumber, change });
-            resource.lastUpdatedChapter = chapterNumber;
-        }
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async addHook(projectId, hook) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        truthFiles.pendingHooks.push(hook);
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async fulfillHook(projectId, hookId, chapterNumber) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        const hook = truthFiles.pendingHooks.find(h => h.id === hookId);
-        if (hook) {
-            hook.status = 'paid_off';
-            hook.payoffChapter = chapterNumber;
-        }
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async addCharacterInteraction(projectId, characterId1, characterId2, chapterNumber, type, summary) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        let interaction = truthFiles.characterMatrix.find(i => i.characterId1 === characterId1 && i.characterId2 === characterId2);
-        if (!interaction) {
-            interaction = {
-                characterId1,
-                characterId2,
-                interactions: []
-            };
-            truthFiles.characterMatrix.push(interaction);
-        }
-        interaction.interactions.push({ chapter: chapterNumber, type, summary });
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async updateEmotionalArc(projectId, characterId, characterName, chapterNumber, emotion, intensity) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        let arc = truthFiles.emotionalArcs.find(a => a.characterId === characterId);
-        if (!arc) {
-            arc = {
-                characterId,
-                characterName,
-                arcType: 'complex',
-                points: []
-            };
-            truthFiles.emotionalArcs.push(arc);
-        }
-        arc.points.push({ chapter: chapterNumber, emotion, intensity });
-        arc.arcType = this.analyzeArcType(arc.points);
-        await this.saveTruthFiles(projectId, truthFiles);
-    }
-    async getContextSummary(projectId, chapterNumber) {
-        const truthFiles = await this.getTruthFiles(projectId);
-        const recentChapters = truthFiles.chapterSummaries
-            .filter(s => s.chapterNumber < chapterNumber)
-            .sort((a, b) => b.chapterNumber - a.chapterNumber)
-            .slice(0, 3);
-        const pendingHooks = truthFiles.pendingHooks.filter(h => h.status !== 'paid_off');
-        const recentInteractions = truthFiles.characterMatrix
-            .flatMap(i => i.interactions)
-            .filter(inter => inter.chapter >= chapterNumber - 5)
-            .slice(-5);
-        let summary = '## 近期情节\n';
-        for (const chapter of recentChapters) {
-            summary += `- ${chapter.title}: ${chapter.keyEvents.join('; ')}\n`;
-        }
-        if (pendingHooks.length > 0) {
-            summary += '\n## 待回收伏笔\n';
-            for (const hook of pendingHooks.slice(0, 5)) {
-                summary += `- ${hook.description} (设置于第${hook.setInChapter}章)\n`;
+        const hooksByStatus = truthFiles.pendingHooks.reduce((acc, hook) => {
+            acc[hook.status] = (acc[hook.status] || 0) + 1;
+            return acc;
+        }, {});
+        const resourcesByType = truthFiles.particleLedger.reduce((acc, r) => {
+            acc[r.type] = (acc[r.type] || 0) + 1;
+            return acc;
+        }, {});
+        const arcsByType = truthFiles.emotionalArcs.reduce((acc, arc) => {
+            acc[arc.arcType] = (acc[arc.arcType] || 0) + 1;
+            return acc;
+        }, {});
+        const totalInteractions = truthFiles.characterMatrix.reduce((sum, m) => sum + m.interactions.length, 0);
+        const latestChapter = truthFiles.chapterSummaries.length > 0
+            ? Math.max(...truthFiles.chapterSummaries.map(s => s.chapterNumber))
+            : null;
+        return {
+            worldState: {
+                protagonist: truthFiles.currentState.protagonist,
+                knownFactsCount: truthFiles.currentState.knownFacts.length,
+                conflictsCount: truthFiles.currentState.currentConflicts.length,
+                relationshipsCount: Object.keys(truthFiles.currentState.relationshipSnapshot).length,
+                activeSubplotsCount: truthFiles.currentState.activeSubplots.length
+            },
+            resources: {
+                totalCount: truthFiles.particleLedger.length,
+                byType: resourcesByType
+            },
+            hooks: {
+                total: truthFiles.pendingHooks.length,
+                pending: hooksByStatus['pending'] || 0,
+                paidOff: hooksByStatus['paid_off'] || 0,
+                expired: hooksByStatus['expired'] || 0
+            },
+            chapters: {
+                totalCount: truthFiles.chapterSummaries.length,
+                latestChapter
+            },
+            subplots: {
+                total: truthFiles.subplotBoard.length,
+                active: truthFiles.subplotBoard.filter(s => s.status === 'active').length,
+                resolved: truthFiles.subplotBoard.filter(s => s.status === 'resolved').length,
+                abandoned: truthFiles.subplotBoard.filter(s => s.status === 'abandoned').length
+            },
+            emotionalArcs: {
+                totalCharacters: truthFiles.emotionalArcs.length,
+                byArcType: arcsByType
+            },
+            characterMatrix: {
+                totalRelationships: truthFiles.characterMatrix.length,
+                totalInteractions
             }
-        }
-        return summary;
+        };
     }
     analyzeArcType(points) {
         if (points.length < 3)
@@ -794,16 +1247,16 @@ class TruthFileManager {
     extractKeyEvents(content) {
         const events = [];
         const eventPatterns = [
-            /（[^）]+）/,
-            /突然([^，,]+)/,
-            /最终([^，,]+)/,
-            /就在这时([^，,]+)/,
-            /然而([^，,]+)/,
-            /没想到([^，,]+)/,
-            /就在此时([^，,]+)/
+            /（[^）]+）/g,
+            /突然([^，,]+)/g,
+            /最终([^，,]+)/g,
+            /就在这时([^，,]+)/g,
+            /然而([^，,]+)/g,
+            /没想到([^，,]+)/g,
+            /就在此时([^，,]+)/g
         ];
         for (const pattern of eventPatterns) {
-            const matches = content.match(new RegExp(pattern, 'g'));
+            const matches = content.match(pattern);
             if (matches) {
                 events.push(...matches.slice(0, 3));
             }
